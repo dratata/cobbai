@@ -3,14 +3,15 @@
  * Full clinical workflow with all features from the legacy app.
  */
 
-import React, { Suspense, lazy, useEffect, useRef, useCallback, useState } from 'react';
+import React, { lazy, useEffect, useRef, useCallback, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useMeasurementStore, selectCanAnalyze } from '@/store/measurementStore';
 import { processSpineResult } from '@/lib/cobbCalculation';
 import { safeParseSpineResult, safeParseFootResult } from '@/lib/validateAIResponse';
-import { analyseImageQuality, preprocessXray } from '@/lib/imagePreprocessing';
+import { analyseImageQuality, preprocessXray, autoCropBlackBorders } from '@/lib/imagePreprocessing';
 import { hashBase64, getCachedResult, setCachedResult, clearAllCache, clearTrackingHistory, clearAllLocalData } from '@/lib/imageCache';
-import { autoCropBlackBorders } from '@/lib/imagePreprocessing';
 import { getT } from '@/lib/i18n';
+import { SafeSuspense } from '@/components/ErrorBoundary/ErrorBoundary';
 import type { AnalyzeSpineRequest, SpineAnalysisResult } from '@/types';
 
 // ── Lazy-loaded heavy components ──────────────────────────────
@@ -44,25 +45,36 @@ const Spinner: React.FC<{ label?: string }> = ({ label }) => (
 
 // ── Main App ──────────────────────────────────────────────────
 const App: React.FC = () => {
-  const store           = useMeasurementStore();
-  const canAnalyze      = useMeasurementStore(selectCanAnalyze);
-  const t               = getT(store.language);
+  // ── HATA 2: Granular Zustand selectors ────────────────────────
+  // Only subscribe to values that actually change frequently.
+  // `isAnalyzing` is the main culprit — changes on every analysis tick.
+  // JSX uses store.xxx for everything else (stable enough for clinical use).
+  const { lightMode, language } = useMeasurementStore(
+    useShallow(s => ({ lightMode: s.lightMode, language: s.language }))
+  );
+
+  const store      = useMeasurementStore();
+  const canAnalyze = useMeasurementStore(selectCanAnalyze);
+  const t          = getT(language);
+
   const fileRef         = useRef<HTMLInputElement>(null);
   const imgRef          = useRef<HTMLImageElement>(null);
   const abortRef        = useRef<AbortController | null>(null);
-  const analyzingRef    = useRef(false);            // debounce guard
+  const analyzingRef    = useRef(false);
+
   const [selectedCurveIdx, setSelectedCurveIdx] = useState(0);
   const [showPrivacy, setShowPrivacy]           = useState(false);
-  const [isManualMode, setIsManualMode]         = useState(false);   // AdvancedManualTool toggle
+  const [isManualMode, setIsManualMode]         = useState(false);
   const [manualCobb, setManualCobb]             = useState<number | null>(null);
   const [showValidation, setShowValidation]     = useState(false);
+  // GPT patch: KVKK React state (localStorage stays in sync)
+  const [kvkkAccepted, setKvkkAccepted] = useState(() => localStorage.getItem('cobbai_kvkk') === '1');
 
-  // Apply light mode on mount
   useEffect(() => {
-    document.body.classList.toggle('light-mode', store.lightMode);
-    document.documentElement.lang  = store.language;
-    document.documentElement.dir   = store.language === 'ar' ? 'rtl' : 'ltr';
-  }, [store.lightMode, store.language]);
+    document.body.classList.toggle('light-mode', lightMode);
+    document.documentElement.lang = language;
+    document.documentElement.dir  = language === 'ar' ? 'rtl' : 'ltr';
+  }, [lightMode, language]);
 
   // ── File upload ──────────────────────────────────────────────
   const handleFile = useCallback(async (file: File) => {
@@ -74,20 +86,19 @@ const App: React.FC = () => {
       });
       const img = new Image(); img.src = src; await new Promise(r => { img.onload = r; });
       const quality = await analyseImageQuality(img);
-      store.setQualityReport(quality);
 
-      // ── Auto-crop black borders (reduces API tokens) ──────────
-      // Detects and removes dark/empty padding around X-ray image.
-      // Typically saves 20-40% of image area → fewer Gemini tokens.
-      const croppedSrc = await autoCropBlackBorders(src, 15, 20);
-      const srcToProcess = croppedSrc !== src ? croppedSrc : src;
+      // Auto-crop black borders (20-40% token savings)
+      const croppedSrc    = await autoCropBlackBorders(src, 15, 20);
+      const srcToProcess  = croppedSrc !== src ? croppedSrc : src;
 
       const { base64, mimeType, width, height } = await preprocessXray(
         srcToProcess,
-        { resize:true, histogramStretch: quality.score !== 'good' }
+        { resize: true, histogramStretch: quality.score !== 'good' }
       );
+
+      // GPT patch: setLoadedImage first, THEN setQualityReport (prevents stale report)
       store.setLoadedImage({ base64, originalBase64: src.split(',')[1]??src, mimeType, naturalWidth:width, naturalHeight:height, filename:file.name });
-      // Reset manual mode when new image loaded
+      store.setQualityReport(quality);
       setIsManualMode(false); setManualCobb(null);
     } finally { store.setPreprocessing(false); }
   }, [store]);
@@ -147,9 +158,13 @@ const App: React.FC = () => {
       if (store.modality === 'spine') {
         const parsed = safeParseSpineResult(rawJson);
         if (!parsed) { store.setAnalyzeError('AI yanıtı geçersiz koordinatlar içeriyor. Lütfen tekrar deneyin.'); return; }
-        // Cache result
-        const hash = await hashBase64(store.loadedImage.base64);
-        setCachedResult(hash, store.modality, store.language, parsed.result);
+        // HATA 3: Wrap cache in try-catch — QuotaExceededError must not crash the app
+        try {
+          const hash = await hashBase64(store.loadedImage.base64);
+          setCachedResult(hash, store.modality, store.language, parsed.result);
+        } catch (qe) {
+          console.warn('[CobbAI] localStorage quota exceeded — result not cached', qe);
+        }
         store.setSpineResult(
           parsed.result,
           processSpineResult(parsed.result, store.language, store.patientAge, store.patientGender, store.risserStage),
@@ -158,8 +173,12 @@ const App: React.FC = () => {
         store.addToHistory({ id: Date.now().toString(), timestamp: new Date().toISOString(), modality:'spine', result: parsed.result, patientAge: store.patientAge, patientGender: store.patientGender });
       } else {
         const foot = safeParseFootResult(rawJson);
-        const hash = await hashBase64(store.loadedImage.base64);
-        if (foot) setCachedResult(hash, store.modality, store.language, foot);
+        try {
+          const hash = await hashBase64(store.loadedImage.base64);
+          if (foot) setCachedResult(hash, store.modality, store.language, foot);
+        } catch (qe) {
+          console.warn('[CobbAI] localStorage quota exceeded — foot result not cached', qe);
+        }
         store.setFootResult(foot);
       }
     } catch(e) {
@@ -289,17 +308,26 @@ const App: React.FC = () => {
               {/* KVKK consent bar */}
               <div style={{ maxWidth:'100%', margin:'.6rem 0 0', padding:'0 1rem' }}>
                 <div style={{ background:'#0e1419', border:'1px solid rgba(255,255,255,.15)', borderRadius:8, padding:'14px 16px', display:'flex', alignItems:'flex-start', gap:12 }}>
+                  {/* GPT patch: KVKK checkbox — React state (not raw localStorage read in render) */}
                   <button
                     onClick={() => {
-                      const isChecked = localStorage.getItem('cobbai_kvkk')==='1';
-                      if(!isChecked){ localStorage.setItem('cobbai_kvkk','1'); } else { localStorage.removeItem('cobbai_kvkk'); }
+                      const next = !kvkkAccepted;
+                      setKvkkAccepted(next);
+                      if (next) localStorage.setItem('cobbai_kvkk', '1');
+                      else      localStorage.removeItem('cobbai_kvkk');
                     }}
                     id="kvkk-btn"
-                    style={{ width:30, height:30, minWidth:30, border:'2px solid rgba(255,255,255,.2)', borderRadius:6, background: localStorage.getItem('cobbai_kvkk')==='1'?'#00c853':'#050a0d', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, fontWeight:800, color: localStorage.getItem('cobbai_kvkk')==='1'?'#000':'transparent', flexShrink:0 }}
+                    style={{ width:30, height:30, minWidth:30, border:'2px solid rgba(255,255,255,.2)', borderRadius:6,
+                      background: kvkkAccepted ? '#00c853' : '#050a0d', cursor:'pointer',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:18, fontWeight:800,
+                      color: kvkkAccepted ? '#000' : 'transparent', flexShrink:0 }}
                   >✓</button>
                   <div style={{ fontSize:14, color:'#7a8fa0', lineHeight:1.6, flex:1 }}>
                     {t.kvPre}
-                    <span style={{ color:'#00c853', cursor:'pointer', textDecoration:'underline', fontWeight:600 }} onClick={() => store.setShowReport(true)}>{t.kvLink}</span>
+                    {/* GPT patch: KVKK link opens privacy/KVKK modal correctly */}
+                    <span style={{ color:'#00c853', cursor:'pointer', textDecoration:'underline', fontWeight:600 }}
+                      onClick={() => setShowPrivacy(true)}>{t.kvLink}</span>
                     {t.kvPost}
                   </div>
                 </div>
@@ -330,7 +358,8 @@ const App: React.FC = () => {
                       <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); }}/>
                     </div>
                   ) : (
-                    <div style={{ position:'relative', background:'#000', borderRadius:10, overflow:'hidden', lineHeight:0 }}>
+                    /* GPT patch: overflow:auto + width-based zoom keeps CobbOverlay aligned */
+                    <div style={{ position:'relative', background:'#000', borderRadius:10, overflow:'auto', lineHeight:0 }}>
                       {/* ── Manual mode toggle button ── */}
                       <button
                         onClick={() => { setIsManualMode(m => !m); setManualCobb(null); }}
@@ -349,7 +378,7 @@ const App: React.FC = () => {
                       {/* ── AdvancedManualTool (zero-API) ── */}
                       {isManualMode ? (
                         <div style={{ width:'100%', height:480 }}>
-                          <Suspense fallback={<Spinner label="Yükleniyor..." />}>
+                          <SafeSuspense fallback={<Spinner label="Yükleniyor..." />}>
                             <AdvancedManualTool
                               imageSrc={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
                               naturalW={store.loadedImage.naturalWidth}
@@ -358,19 +387,27 @@ const App: React.FC = () => {
                               onCobbMeasured={(cobb) => setManualCobb(cobb)}
                               onClose={() => setIsManualMode(false)}
                             />
-                          </Suspense>
+                          </SafeSuspense>
                         </div>
                       ) : (
-                        <>
+                        /* GPT patch: zoom via width-based inner wrapper (CobbOverlay stays aligned) */
+                        <div style={{
+                          position:'relative',
+                          width: `${store.controls.zoom * 100}%`,
+                          minWidth:'100%',
+                          margin:'0 auto',
+                          transition:'width .18s ease',
+                          lineHeight:0,
+                        }}>
                           <img
                             ref={imgRef}
                             src={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
                             alt="X-ray" id="main-xray-img"
-                            style={{ width:'100%', display:'block', maxHeight:440, objectFit:'contain', background:'#000', filter: imgFilter }}
+                            style={{ width:'100%', display:'block', background:'#000', filter: imgFilter }}
                           />
-                          {/* Canvas overlay */}
+                          {/* Canvas overlay — always same size as img wrapper → always aligned */}
                           {store.processedSpine && store.controls.showOverlay && (
-                            <Suspense fallback={null}>
+                            <SafeSuspense fallback={null}>
                               <CobbOverlay
                                 id="overlay-canvas"
                                 result={store.processedSpine}
@@ -380,9 +417,15 @@ const App: React.FC = () => {
                                 lang={store.language}
                                 style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', pointerEvents:'none' }}
                               />
-                            </Suspense>
+                            </SafeSuspense>
                           )}
-                        </>
+                          {/* Zoom indicator */}
+                          {store.controls.zoom !== 1 && (
+                            <div style={{ position:'absolute', bottom:8, right:8, fontSize:12, padding:'4px 8px', background:'rgba(0,0,0,.82)', border:'1px solid rgba(255,255,255,.22)', borderRadius:4, color:'#00c853', zIndex:9 }}>
+                              🔍 {Math.round(store.controls.zoom * 100)}%
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       <button onClick={() => store.resetImage()} style={{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,.75)', color:'#fff', border:'1px solid rgba(255,255,255,.25)', borderRadius:6, padding:'6px 12px', fontSize:13, cursor:'pointer' }}>
@@ -443,6 +486,10 @@ const App: React.FC = () => {
                           background: store.isAnalyzing ? '#0a2a18' : canAnalyze ? '#00c853' : '#1a2e26',
                           color: store.isAnalyzing ? '#00c853' : canAnalyze ? '#000' : '#7a8fa0',
                           transition: 'all .15s',
+                          // GPT patch: visual pulse feedback during analysis
+                          boxShadow: store.isAnalyzing
+                            ? '0 0 0 4px rgba(0,200,83,.12), 0 0 24px rgba(0,200,83,.18)'
+                            : canAnalyze ? '0 8px 22px rgba(0,200,83,.18)' : 'none',
                         }}
                       >
                         {store.isAnalyzing ? (
@@ -499,7 +546,7 @@ const App: React.FC = () => {
 
                   {/* Manual correction panel — curveIndex-aware */}
                   {store.showCorrection && store.processedSpine && store.loadedImage && (
-                    <Suspense fallback={<Spinner />}>
+                    <SafeSuspense fallback={<Spinner />}>
                       <ManualCorrectionPanel
                         processedResult={store.processedSpine}
                         curveIndex={selectedCurveIdx}
@@ -522,12 +569,12 @@ const App: React.FC = () => {
                         }}
                         onCancel={() => store.setShowCorrection(false)}
                       />
-                    </Suspense>
+                    </SafeSuspense>
                   )}
 
                   {/* Spine results */}
                   {hasSpine && !store.showCorrection && (
-                    <Suspense fallback={<Spinner />}>
+                    <SafeSuspense fallback={<Spinner />}>
                       <SpineResults
                         processed={store.processedSpine!}
                         raw={store.spineResult!}
@@ -539,24 +586,24 @@ const App: React.FC = () => {
                         onNotesChange={store.setDoctorNotes}
                         onEditLines={(curveIdx) => { setSelectedCurveIdx(curveIdx); store.setShowCorrection(true); }}
                       />
-                    </Suspense>
+                    </SafeSuspense>
                   )}
 
                   {/* Surgimap-Lite clinical panel — spine only, no extra API */}
                   {hasSpine && !store.showCorrection && store.processedSpine && (
-                    <Suspense fallback={null}>
+                    <SafeSuspense fallback={null}>
                       <SurgimapLitePanel
                         processed={store.processedSpine}
                         onEditCurve={(idx) => { setSelectedCurveIdx(idx); store.setShowCorrection(true); }}
                       />
-                    </Suspense>
+                    </SafeSuspense>
                   )}
 
                   {/* Foot results */}
                   {hasFoot && (
-                    <Suspense fallback={<Spinner />}>
+                    <SafeSuspense fallback={<Spinner />}>
                       <FootResults result={store.footResult!} lang={store.language} />
-                    </Suspense>
+                    </SafeSuspense>
                   )}
                 </div>
               </div>
@@ -569,7 +616,7 @@ const App: React.FC = () => {
                       <h2 style={{ fontSize:18, fontWeight:700 }}>🔄 {store.language==='tr'?'Önceki X-Ray ile Karşılaştırma':store.language==='ar'?'المقارنة مع الأشعة السابقة':'Previous X-Ray Comparison'}</h2>
                       <button onClick={() => store.setShowComparison(false)} style={{ background:'none', border:'none', color:'#7a8fa0', fontSize:18, cursor:'pointer' }}>✕</button>
                     </div>
-                    <Suspense fallback={<Spinner />}>
+                    <SafeSuspense fallback={<Spinner />}>
                       <ComparisonPanel
                         modality={store.modality}
                         currentSpine={store.spineResult}
@@ -579,7 +626,7 @@ const App: React.FC = () => {
                         patientAge={store.patientAge}
                         patientGender={store.patientGender}
                       />
-                    </Suspense>
+                    </SafeSuspense>
                   </div>
                 </div>
               )}
@@ -592,9 +639,9 @@ const App: React.FC = () => {
                       <h2 style={{ fontSize:18, fontWeight:700 }}>📈 {store.language==='tr'?'Hasta Takibi':store.language==='ar'?'متابعة المريض':'Patient Tracking'}</h2>
                       <button onClick={() => store.setShowHistory(false)} style={{ background:'none', border:'none', color:'#7a8fa0', fontSize:18, cursor:'pointer' }}>✕</button>
                     </div>
-                    <Suspense fallback={<Spinner />}>
+                    <SafeSuspense fallback={<Spinner />}>
                       <TrackingPanel modality={store.modality} lang={store.language} />
-                    </Suspense>
+                    </SafeSuspense>
                   </div>
                 </div>
               )}
@@ -607,9 +654,9 @@ const App: React.FC = () => {
                       <span style={{ fontSize:16, fontWeight:700 }}>📊 Clinical Validation Dashboard</span>
                       <button onClick={() => setShowValidation(false)} style={{ background:'none', border:'none', color:'#7a8fa0', fontSize:18, cursor:'pointer' }}>✕</button>
                     </div>
-                    <Suspense fallback={<Spinner />}>
+                    <SafeSuspense fallback={<Spinner />}>
                       <ValidationDashboard lang={store.language} />
-                    </Suspense>
+                    </SafeSuspense>
                   </div>
                 </div>
               )}
@@ -665,7 +712,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Report modal */}
-      <Suspense fallback={null}>
+      <SafeSuspense fallback={null}>
         <ReportModal
           open={store.showReport}
           onClose={() => store.setShowReport(false)}
@@ -677,7 +724,7 @@ const App: React.FC = () => {
           notes={store.doctorNotes}
           t={t}
         />
-      </Suspense>
+      </SafeSuspense>
     </>
   );
 };

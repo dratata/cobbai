@@ -75,9 +75,9 @@ export default async function handler(req, res) {
     }
 
     const finishReason = d?.candidates?.[0]?.finishReason;
-    // Join all parts (Gemini sometimes splits response across parts)
+    // Join all parts — plain JS (no TypeScript types in .js files!)
     const raw = ((d?.candidates?.[0]?.content?.parts || [])
-      .map((p: { text?: string }) => p?.text || '')
+      .map(p => p?.text || '')
       .join('') || '').trim();
     if (!raw) return res.status(500).json({ error: 'Empty response from AI. Please try again.' });
 
@@ -118,9 +118,18 @@ function recoverJSON(raw, finishReason) {
   // Level 0: try raw directly (responseMimeType:json should give clean JSON)
   try { return { result: JSON.parse(raw) }; } catch {}
 
-  // Level 1: clean code blocks
+  // Level 1: strip ALL markdown fences (multi-line safe)
   let clean = raw
-    .replace(/^```json\s*/im, '').replace(/^```\s*/im, '').replace(/```\s*$/im, '').trim();
+    .replace(/```json[\s\S]*?```/gi, s => s.replace(/```json\s*/i,'').replace(/```\s*$/,''))
+    .replace(/^```[\w]*\s*/m, '')
+    .replace(/\s*```$/m, '')
+    .trim();
+  // Extract only first { ... last } — ignore surrounding text
+  const firstBrace = clean.indexOf('{');
+  const lastBrace  = clean.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    clean = clean.slice(firstBrace, lastBrace + 1);
+  }
   try { return { result: JSON.parse(clean) }; } catch {}
 
   // Level 2: sanitize literal newlines in strings (main fix for STOP errors)

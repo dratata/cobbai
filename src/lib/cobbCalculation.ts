@@ -149,6 +149,30 @@ export interface ProcessedSpineResult {
 }
 
 /**
+ * GPT patch: normaliseCurveEndplates
+ * When the AI returns 4-corner data, derive the endplate lines directly from
+ * the superior corners (upper) and inferior corners (lower) instead of using
+ * the AI-supplied slope metadata. This reduces endplate drift.
+ */
+export function normaliseCurveEndplates(curve: CurveResult): CurveResult {
+  const upperFromCorners: NormLine | null = curve.upper_corners
+    ? { x1: curve.upper_corners.ul[0], y1: curve.upper_corners.ul[1],
+        x2: curve.upper_corners.ur[0], y2: curve.upper_corners.ur[1] }
+    : null;
+  const lowerFromCorners: NormLine | null = curve.lower_corners
+    ? { x1: curve.lower_corners.ll[0], y1: curve.lower_corners.ll[1],
+        x2: curve.lower_corners.lr[0], y2: curve.lower_corners.lr[1] }
+    : null;
+  return {
+    ...curve,
+    upper_line: (upperFromCorners && isValidNormLine(upperFromCorners))
+      ? upperFromCorners : curve.upper_line,
+    lower_line: (lowerFromCorners && isValidNormLine(lowerFromCorners))
+      ? lowerFromCorners : curve.lower_line,
+  };
+}
+
+/**
  * Process a raw AI response into a clinically validated result.
  * Geometry-computed Cobb is used for display (not raw AI value).
  * Clinical text is generated locally from clinicalRules.ts.
@@ -174,7 +198,9 @@ export function processSpineResult(
     allWarnings.push('AI confidence is low — manual verification required.');
   }
 
-  const processedCurves = (raw.curves || []).map(curve => {
+  // GPT patch: derive endplate lines from 4-corner data when available (reduces drift)
+  const processedCurves = (raw.curves || []).map(rawCurve => {
+    const curve = normaliseCurveEndplates(rawCurve);
     const validation = validateAndFinaliseCobb(curve);
 
     // Update display value to geometry-computed (safer than raw AI)

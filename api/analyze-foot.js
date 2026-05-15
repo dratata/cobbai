@@ -131,7 +131,10 @@ Follow this exact JSON schema, write nothing else:`;
     }
 
     const finishReason = d?.candidates?.[0]?.finishReason;
-    const raw = (d?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+    // Join all parts — plain JS, no TypeScript types in .js files
+    const raw = ((d?.candidates?.[0]?.content?.parts || [])
+      .map(p => p?.text || '')
+      .join('') || '').trim();
     if (!raw) return res.status(500).json({ error: 'Empty AI response. Please try again.' });
 
     const parsed = recoverJSON(raw, finishReason);
