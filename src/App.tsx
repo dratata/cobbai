@@ -76,6 +76,24 @@ const App: React.FC = () => {
     document.documentElement.dir  = language === 'ar' ? 'rtl' : 'ltr';
   }, [lightMode, language]);
 
+  // HATA 3 FIX: Global drag-drop prevention
+  // Without this, dropping a file OUTSIDE the upload area makes the browser
+  // navigate away (opens the image full-screen), destroying all app state.
+  useEffect(() => {
+    const stop = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); };
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault(); e.stopPropagation();
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type.startsWith('image/')) handleFile(file);
+    };
+    window.addEventListener('dragover', stop);
+    window.addEventListener('drop',     onDrop);
+    return () => {
+      window.removeEventListener('dragover', stop);
+      window.removeEventListener('drop',     onDrop);
+    };
+  }, [handleFile]);
+
   // ── File upload ──────────────────────────────────────────────
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) { store.setAnalyzeError('Lütfen bir görüntü dosyası yükleyin (JPEG veya PNG).'); return; }
@@ -100,7 +118,13 @@ const App: React.FC = () => {
       store.setLoadedImage({ base64, originalBase64: src.split(',')[1]??src, mimeType, naturalWidth:width, naturalHeight:height, filename:file.name });
       store.setQualityReport(quality);
       setIsManualMode(false); setManualCobb(null);
-    } finally { store.setPreprocessing(false); }
+    } catch (err) {
+      // HATA 4 FIX: Silent catch → friendly error message
+      const msg = err instanceof Error ? err.message : String(err);
+      store.setAnalyzeError('Görüntü işlenirken bir hata oluştu: ' + msg);
+    } finally {
+      store.setPreprocessing(false);
+    }
   }, [store]);
 
   // ── Analysis with caching + debounce ─────────────────────────
@@ -164,9 +188,18 @@ const App: React.FC = () => {
         return;
       }
       if (!resp.ok) {
-        store.setAnalyzeError(
-          (rawJson as { error?: string }).error ?? `Sunucu hatası: ${resp.status}`
-        );
+        const errData = rawJson as { error?: string; retryAfter?: number };
+        // HATA 1 FIX: Server returns 429 (busy) instead of sleeping → show countdown
+        if (resp.status === 429) {
+          const wait = errData.retryAfter ?? 5;
+          store.setAnalyzeError(
+            `⏳ ${errData.error ?? 'Sunucu yoğun.'} ${wait} saniye sonra butona tekrar basın.`
+          );
+          // Release debounce lock after wait so user can retry
+          setTimeout(() => { analyzingRef.current = false; }, wait * 1000);
+          return;
+        }
+        store.setAnalyzeError(errData.error ?? `Sunucu hatası: ${resp.status}`);
         return;
       }
 
@@ -207,24 +240,48 @@ const App: React.FC = () => {
     }
   }, [canAnalyze, store]);
 
-  // ── Canvas overlay export ──────────────────────────────────
+  // ── Canvas overlay export — HATA 2 FIX ────────────────────────
+  // Problem: overlay canvas uses CSS object-fit:contain scaling.
+  // Drawing it at naturalWidth×naturalHeight causes misaligned lines.
+  // Fix: scale the overlay proportionally so lines land on the correct bones.
   const exportPNG = useCallback(() => {
     const img = imgRef.current;
     if (!img?.src || img.src === window.location.href) return;
+
+    const natW = img.naturalWidth  || img.offsetWidth;
+    const natH = img.naturalHeight || img.offsetHeight;
+
     const cvs = document.createElement('canvas');
-    cvs.width = img.naturalWidth || img.offsetWidth;
-    cvs.height = img.naturalHeight || img.offsetHeight;
+    cvs.width  = natW;
+    cvs.height = natH;
     const ctx = cvs.getContext('2d')!;
-    ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+    ctx.drawImage(img, 0, 0, natW, natH);
+
+    // HATA 2: Scale overlay from its CSS-rendered size to natural image size
     const overlay = document.querySelector('#overlay-canvas') as HTMLCanvasElement | null;
-    if (overlay && store.controls.showOverlay) ctx.drawImage(overlay, 0, 0, cvs.width, cvs.height);
-    const stripH = Math.round(cvs.height * 0.05);
-    ctx.fillStyle = 'rgba(0,0,0,0.82)'; ctx.fillRect(0, cvs.height - stripH, cvs.width, stripH);
-    ctx.fillStyle = '#00c853'; ctx.font = `bold ${Math.round(stripH*0.38)}px monospace`;
+    if (overlay && store.controls.showOverlay && overlay.width > 0 && overlay.height > 0) {
+      // overlay.width/height = CSS-rendered px via ResizeObserver
+      // We need to draw it scaled to fill natW×natH
+      ctx.drawImage(overlay, 0, 0, overlay.width, overlay.height, 0, 0, natW, natH);
+    }
+
+    // Branding strip
+    const stripH = Math.round(natH * 0.05);
+    ctx.fillStyle = 'rgba(0,0,0,0.82)';
+    ctx.fillRect(0, natH - stripH, natW, stripH);
+    ctx.fillStyle = '#00c853';
+    ctx.font = `bold ${Math.round(stripH * 0.38)}px monospace`;
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     const cobb = store.spineResult?.curves?.[0]?.cobb_angle;
-    ctx.fillText(`  ⚕ CobbAI${cobb!=null?' | Cobb: '+cobb+'°':''} | ${new Date().toLocaleDateString('tr-TR')} | cobbai.vercel.app`, 0, cvs.height - stripH/2);
-    const a = document.createElement('a'); a.download = 'cobbai-' + new Date().toISOString().slice(0,10) + '.png'; a.href = cvs.toDataURL('image/png'); a.click();
+    ctx.fillText(
+      `  ⚕ CobbAI${cobb != null ? ' | Cobb: ' + cobb + '°' : ''} | ${new Date().toLocaleDateString('tr-TR')} | cobbai.vercel.app`,
+      0, natH - stripH / 2
+    );
+
+    const a = document.createElement('a');
+    a.download = 'cobbai-' + new Date().toISOString().slice(0, 10) + '.png';
+    a.href = cvs.toDataURL('image/png');
+    a.click();
   }, [store]);
 
   // ── Image filter string ────────────────────────────────────

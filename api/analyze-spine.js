@@ -64,18 +64,19 @@ export default async function handler(req, res) {
     try { d = await r.json(); }
     catch { return res.status(502).json({ error: 'Gemini returned non-JSON response. Try again.' }); }
 
-    // One retry on overload
+    // HATA 1 FIX: Vercel Hobby timeout = 10s. 5s sleep + retry = guaranteed 504.
+    // Solution: return 429 immediately so the CLIENT retries after a delay.
     if (!r.ok) {
       const msg = d?.error?.message || '';
-      const busy = r.status === 429 || r.status === 503 || msg.includes('high demand') || msg.includes('overloaded');
+      const busy = r.status === 429 || r.status === 503
+        || msg.includes('high demand') || msg.includes('overloaded') || msg.includes('quota');
       if (busy) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        r = await callGemini();
-        try { d = await r.json(); } catch { return res.status(502).json({ error: 'Gemini retry returned non-JSON. Try again.' }); }
-        if (!r.ok) return res.status(r.status).json({ error: d?.error?.message || 'Server busy. Please try again.' });
-      } else {
-        return res.status(r.status).json({ error: msg || 'Gemini error: ' + r.status });
+        return res.status(429).json({
+          error: 'Sunucu şu an çok yoğun, lütfen 5 saniye sonra tekrar deneyin.',
+          retryAfter: 5,
+        });
       }
+      return res.status(r.status).json({ error: msg || 'Gemini error: ' + r.status });
     }
 
     const finishReason = d?.candidates?.[0]?.finishReason;
