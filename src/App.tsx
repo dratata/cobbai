@@ -9,6 +9,7 @@ import { processSpineResult } from '@/lib/cobbCalculation';
 import { safeParseSpineResult, safeParseFootResult } from '@/lib/validateAIResponse';
 import { analyseImageQuality, preprocessXray } from '@/lib/imagePreprocessing';
 import { hashBase64, getCachedResult, setCachedResult, clearAllCache, clearTrackingHistory, clearAllLocalData } from '@/lib/imageCache';
+import { autoCropBlackBorders } from '@/lib/imagePreprocessing';
 import { getT } from '@/lib/i18n';
 import type { AnalyzeSpineRequest, SpineAnalysisResult } from '@/types';
 
@@ -21,6 +22,8 @@ const ReportModal           = lazy(() => import('@/components/ReportModal/Report
 const ComparisonPanel       = lazy(() => import('@/components/ComparisonPanel/ComparisonPanel'));
 const TrackingPanel         = lazy(() => import('@/components/TrackingPanel/TrackingPanel'));
 const SurgimapLitePanel     = lazy(() => import('@/components/SurgimapLitePanel/SurgimapLitePanel'));
+const AdvancedManualTool    = lazy(() => import('@/components/SurgimapTool/AdvancedManualTool'));
+const ValidationDashboard   = lazy(() => import('@/components/ValidationDashboard/ValidationDashboard'));
 
 // ── Eagerly-loaded small components ──────────────────────────
 import { Sidebar }       from '@/components/Sidebar/Sidebar';
@@ -50,6 +53,9 @@ const App: React.FC = () => {
   const analyzingRef    = useRef(false);            // debounce guard
   const [selectedCurveIdx, setSelectedCurveIdx] = useState(0);
   const [showPrivacy, setShowPrivacy]           = useState(false);
+  const [isManualMode, setIsManualMode]         = useState(false);   // AdvancedManualTool toggle
+  const [manualCobb, setManualCobb]             = useState<number | null>(null);
+  const [showValidation, setShowValidation]     = useState(false);
 
   // Apply light mode on mount
   useEffect(() => {
@@ -69,8 +75,20 @@ const App: React.FC = () => {
       const img = new Image(); img.src = src; await new Promise(r => { img.onload = r; });
       const quality = await analyseImageQuality(img);
       store.setQualityReport(quality);
-      const { base64, mimeType, width, height } = await preprocessXray(src, { resize:true, histogramStretch: quality.score !== 'good' });
+
+      // ── Auto-crop black borders (reduces API tokens) ──────────
+      // Detects and removes dark/empty padding around X-ray image.
+      // Typically saves 20-40% of image area → fewer Gemini tokens.
+      const croppedSrc = await autoCropBlackBorders(src, 15, 20);
+      const srcToProcess = croppedSrc !== src ? croppedSrc : src;
+
+      const { base64, mimeType, width, height } = await preprocessXray(
+        srcToProcess,
+        { resize:true, histogramStretch: quality.score !== 'good' }
+      );
       store.setLoadedImage({ base64, originalBase64: src.split(',')[1]??src, mimeType, naturalWidth:width, naturalHeight:height, filename:file.name });
+      // Reset manual mode when new image loaded
+      setIsManualMode(false); setManualCobb(null);
     } finally { store.setPreprocessing(false); }
   }, [store]);
 
@@ -313,26 +331,60 @@ const App: React.FC = () => {
                     </div>
                   ) : (
                     <div style={{ position:'relative', background:'#000', borderRadius:10, overflow:'hidden', lineHeight:0 }}>
-                      <img
-                        ref={imgRef}
-                        src={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
-                        alt="X-ray" id="main-xray-img"
-                        style={{ width:'100%', display:'block', maxHeight:440, objectFit:'contain', background:'#000', filter: imgFilter }}
-                      />
-                      {/* Canvas overlay */}
-                      {store.processedSpine && store.controls.showOverlay && (
-                        <Suspense fallback={null}>
-                          <CobbOverlay
-                            id="overlay-canvas"
-                            result={store.processedSpine}
-                            naturalW={store.loadedImage.naturalWidth}
-                            naturalH={store.loadedImage.naturalHeight}
-                            overlayOpacity={store.controls.overlayOpacity}
-                            lang={store.language}
-                            style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', pointerEvents:'none' }}
-                          />
-                        </Suspense>
+                      {/* ── Manual mode toggle button ── */}
+                      <button
+                        onClick={() => { setIsManualMode(m => !m); setManualCobb(null); }}
+                        title={isManualMode ? (store.language==='tr'?'Normal moda dön':'Back to AI view') : (store.language==='tr'?'Manuel Cobb ölçümü (API yok)':'Manual Cobb tool (zero API)')}
+                        style={{ position:'absolute', top:8, left:8, zIndex:10, background: isManualMode ? 'rgba(0,200,83,.25)' : 'rgba(0,0,0,.75)', color: isManualMode ? '#00c853' : '#fff', border: `1px solid ${isManualMode ? '#00c853' : 'rgba(255,255,255,.25)'}`, borderRadius:6, padding:'5px 10px', fontSize:12, cursor:'pointer', fontWeight:700 }}>
+                        ✏️ {isManualMode ? 'Manual ON' : 'Manual'}
+                      </button>
+
+                      {/* ── Manual Cobb result badge ── */}
+                      {isManualMode && manualCobb !== null && (
+                        <div style={{ position:'absolute', top:8, left:110, zIndex:10, background:'rgba(0,0,0,.85)', border:'1px solid #00c853', borderRadius:6, padding:'5px 12px', fontSize:14, fontWeight:800, color:'#00c853' }}>
+                          Manual Cobb: {manualCobb}°
+                        </div>
                       )}
+
+                      {/* ── AdvancedManualTool (zero-API) ── */}
+                      {isManualMode ? (
+                        <div style={{ width:'100%', height:480 }}>
+                          <Suspense fallback={<Spinner label="Yükleniyor..." />}>
+                            <AdvancedManualTool
+                              imageSrc={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
+                              naturalW={store.loadedImage.naturalWidth}
+                              naturalH={store.loadedImage.naturalHeight}
+                              lang={store.language}
+                              onCobbMeasured={(cobb) => setManualCobb(cobb)}
+                              onClose={() => setIsManualMode(false)}
+                            />
+                          </Suspense>
+                        </div>
+                      ) : (
+                        <>
+                          <img
+                            ref={imgRef}
+                            src={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
+                            alt="X-ray" id="main-xray-img"
+                            style={{ width:'100%', display:'block', maxHeight:440, objectFit:'contain', background:'#000', filter: imgFilter }}
+                          />
+                          {/* Canvas overlay */}
+                          {store.processedSpine && store.controls.showOverlay && (
+                            <Suspense fallback={null}>
+                              <CobbOverlay
+                                id="overlay-canvas"
+                                result={store.processedSpine}
+                                naturalW={store.loadedImage.naturalWidth}
+                                naturalH={store.loadedImage.naturalHeight}
+                                overlayOpacity={store.controls.overlayOpacity}
+                                lang={store.language}
+                                style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', pointerEvents:'none' }}
+                              />
+                            </Suspense>
+                          )}
+                        </>
+                      )}
+
                       <button onClick={() => store.resetImage()} style={{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,.75)', color:'#fff', border:'1px solid rgba(255,255,255,.25)', borderRadius:6, padding:'6px 12px', fontSize:13, cursor:'pointer' }}>
                         {t.changBtn}
                       </button>
@@ -422,6 +474,7 @@ const App: React.FC = () => {
                       <div style={{ display:'flex', gap:5 }}>
                         <IcoBtn title="PDF Rapor" onClick={() => store.setShowReport(true)}>📋</IcoBtn>
                         <IcoBtn title="Geçmiş" onClick={() => store.setShowHistory(!store.showHistory)}>🕐</IcoBtn>
+                        <IcoBtn title="Validation Dashboard" onClick={() => setShowValidation(v => !v)}>📊</IcoBtn>
                         <IcoBtn title="Karşılaştır" onClick={() => store.setShowComparison(!store.showComparison)}>🔄</IcoBtn>
                         {hasSpine && <IcoBtn title="Endplate Düzenle" onClick={() => store.setShowCorrection(true)}>✏️</IcoBtn>}
                       </div>
@@ -541,6 +594,21 @@ const App: React.FC = () => {
                     </div>
                     <Suspense fallback={<Spinner />}>
                       <TrackingPanel modality={store.modality} lang={store.language} />
+                    </Suspense>
+                  </div>
+                </div>
+              )}
+
+              {/* Validation Dashboard */}
+              {showValidation && (
+                <div style={{ maxWidth:'100%', margin:'.75rem 0 0', padding:'0 1rem' }}>
+                  <div style={{ background:'#0e1419', border:'1px solid rgba(255,255,255,.12)', borderRadius:12, overflow:'hidden' }}>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 20px', borderBottom:'1px solid rgba(255,255,255,.08)' }}>
+                      <span style={{ fontSize:16, fontWeight:700 }}>📊 Clinical Validation Dashboard</span>
+                      <button onClick={() => setShowValidation(false)} style={{ background:'none', border:'none', color:'#7a8fa0', fontSize:18, cursor:'pointer' }}>✕</button>
+                    </div>
+                    <Suspense fallback={<Spinner />}>
+                      <ValidationDashboard lang={store.language} />
                     </Suspense>
                   </div>
                 </div>

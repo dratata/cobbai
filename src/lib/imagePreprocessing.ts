@@ -237,3 +237,75 @@ export async function preprocessXray(
 export async function compressForAPI(imgSrc: string): Promise<PreprocessingResult> {
   return preprocessXray(imgSrc, { resize: true, histogramStretch: false });
 }
+
+// ── Auto-crop black borders ────────────────────────────────────
+/**
+ * autoCropBlackBorders — removes dark/black padding around X-ray images.
+ *
+ * X-ray images often have large black borders that waste API tokens.
+ * This function crops them out before sending to Gemini, reducing:
+ *   - image dimensions → fewer tokens
+ *   - landmark coordinate noise (AI focuses on spine, not empty black space)
+ *
+ * @param imgSrc  data URL or URL of the image
+ * @param threshold  pixel brightness threshold (0-255). Pixels above = content.
+ * @param padding  pixels of padding to keep around detected content (default 20)
+ */
+export async function autoCropBlackBorders(
+  imgSrc: string,
+  threshold = 15,
+  padding = 20
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(imgSrc); return; }
+
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      ctx.drawImage(img, 0, 0);
+
+      const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      let minX = width, minY = height, maxX = 0, maxY = 0;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          // Average luminance
+          if ((data[i] + data[i+1] + data[i+2]) / 3 > threshold) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      // No content found — return original
+      if (minX > maxX || minY > maxY) { resolve(imgSrc); return; }
+
+      // Apply padding
+      minX = Math.max(0, minX - padding);
+      minY = Math.max(0, minY - padding);
+      maxX = Math.min(width,  maxX + padding);
+      maxY = Math.min(height, maxY + padding);
+
+      const w = maxX - minX;
+      const h = maxY - minY;
+
+      // Only crop if we're actually removing something meaningful (>5% reduction)
+      const cropRatio = (w * h) / (width * height);
+      if (cropRatio > 0.95) { resolve(imgSrc); return; }
+
+      const cropCanvas = document.createElement('canvas');
+      cropCanvas.width = w; cropCanvas.height = h;
+      cropCanvas.getContext('2d')?.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
+      resolve(cropCanvas.toDataURL('image/jpeg', 0.87));
+    };
+    img.onerror = reject;
+    img.src = imgSrc;
+  });
+}
