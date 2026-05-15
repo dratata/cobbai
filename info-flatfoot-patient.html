@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Düz Taban Hakkında Bilmeniz Gerekenler — CobbAI</title>
+<meta name="description" content="Düz taban nedir, belirtileri nelerdir, ne zaman doktora gidilmeli? Hastalar ve aileleri için sade rehber.">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:17px;}
+body{background:#080c0f;color:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.7;}
+nav{background:#0a0f13;border-bottom:1px solid rgba(255,255,255,.1);padding:0 1rem;height:58px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:#eef2f7;font-size:18px;font-weight:700;}
+.bone{width:30px;height:30px;border:2px solid #2196f3;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.lsw{margin-left:auto;display:flex;gap:6px;}
+.lb{padding:7px 14px;border:2px solid rgba(255,255,255,.15);border-radius:20px;background:transparent;color:#7a8fa0;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;}
+.lb.on{border-color:#2196f3;color:#2196f3;}
+.lb:hover{border-color:#eef2f7;color:#eef2f7;}
+.container{max-width:820px;margin:0 auto;padding:2rem 1rem 4rem;}
+.hero-info{background:linear-gradient(135deg,#080f1a,#0a1220);border:1px solid rgba(33,150,243,.2);border-radius:16px;padding:2rem;margin-bottom:2rem;text-align:center;}
+.hero-info h1{font-size:clamp(1.5rem,4vw,2.2rem);font-weight:700;margin-bottom:.5rem;}
+.hero-info h1 em{color:#2196f3;font-style:normal;}
+.hero-info p{color:#7a8fa0;font-size:16px;max-width:520px;margin:0 auto;}
+.section{margin-bottom:2.5rem;}
+.section h2{font-size:1.4rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:8px;}
+.section h2::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.1);}
+.section p{font-size:16px;color:#b0bec5;line-height:1.8;margin-bottom:.8rem;}
+.section ul,.section ol{padding-left:1.4rem;color:#b0bec5;font-size:16px;line-height:1.9;}
+.section li{margin-bottom:.3rem;}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:1rem;}
+.info-card{background:#0e1419;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:1.1rem;}
+.info-card .ico{font-size:28px;margin-bottom:8px;}
+.info-card h3{font-size:15px;font-weight:700;margin-bottom:5px;color:#2196f3;}
+.info-card p{font-size:14px;color:#7a8fa0;line-height:1.6;}
+.tip-box{background:rgba(33,150,243,.05);border:1px solid rgba(33,150,243,.2);border-radius:10px;padding:14px 16px;margin:1rem 0;font-size:15px;color:#b0bec5;line-height:1.7;}
+.tip-box strong{color:#2196f3;}
+.warn-box{background:rgba(240,160,69,.05);border:1px solid rgba(240,160,69,.2);border-radius:10px;padding:14px 16px;margin:1rem 0;font-size:14px;color:#b0bec5;}
+.warn-box strong{color:#f0a045;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:#7a8fa0;font-size:14px;font-weight:600;padding:7px 14px;border:1px solid rgba(255,255,255,.1);border-radius:20px;margin-bottom:1.5rem;transition:all .2s;}
+.back-btn:hover{color:#eef2f7;border-color:rgba(255,255,255,.3);}
+.cta-btn{display:inline-block;background:#2196f3;color:#080c0f;font-weight:800;font-size:16px;padding:14px 32px;border-radius:30px;text-decoration:none;margin-top:.5rem;transition:opacity .2s;}
+.cta-btn:hover{opacity:.85;}
+.foot-visual{background:#0e1419;border:1px solid rgba(33,150,243,.2);border-radius:14px;padding:1.5rem;margin:1rem 0;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;}
+.foot-visual svg{flex-shrink:0;}
+.foot-desc{flex:1;min-width:200px;color:#b0bec5;font-size:15px;line-height:1.8;}
+.foot-desc strong{color:#2196f3;}
+.ex-card{background:#0e1419;border:1px solid rgba(33,150,243,.2);border-radius:12px;padding:1rem;margin-bottom:8px;}
+.ex-card h3{font-size:15px;font-weight:700;color:#2196f3;margin-bottom:4px;}
+.ex-card p{font-size:14px;color:#7a8fa0;line-height:1.6;}
+footer{border-top:1px solid rgba(255,255,255,.08);padding:1.5rem 1rem;text-align:center;font-size:13px;color:#7a8fa0;}
+@media(max-width:600px){.foot-visual{flex-direction:column;}.foot-visual svg{margin:0 auto;}}
+[dir="rtl"] nav{flex-direction:row-reverse;}
+[dir="rtl"] .lsw{margin-left:0;margin-right:auto;}
+[dir="rtl"] .section ul,[dir="rtl"] .section ol{padding-left:0;padding-right:1.4rem;}
+</style>
+</head>
+<body>
+<nav>
+  <a class="logo" href="index.html"><span class="bone">🦶</span><span>CobbAI</span></a>
+  <div class="lsw">
+    <button class="lb on" id="lbTR" onclick="setLang('tr')">TR</button>
+    <button class="lb" id="lbEN" onclick="setLang('en')">EN</button>
+    <button class="lb" id="lbAR" onclick="setLang('ar')">AR</button>
+  </div>
+</nav>
+
+<div class="container">
+
+  <a class="back-btn" href="patients.html" id="backBtn">&#8592; Hasta Merkezi</a>
+
+  <div class="hero-info">
+    <div style="font-size:48px;margin-bottom:.75rem;">🦶</div>
+    <h1 id="heroTitle"><em id="heroEm">Düz Taban</em> Hakkında Bilmeniz Gerekenler</h1>
+    <p id="heroSub">Hastalar ve Aileleri İçin Rehber</p>
+  </div>
+
+  <!-- SECTION 1: WHAT IS -->
+  <div class="section">
+    <h2 id="s1h">🦶 Düz Taban Nedir?</h2>
+    <p id="s1p1">Düz taban, ayağın iç kısmındaki <strong>kemerin düşmesi veya hiç oluşmamasıdır</strong>. Sağlıklı bir ayakta iç kemer zemine değmez; düz tabanda ise ayağın altı tamamen ya da büyük ölçüde yere temas eder.</p>
+    <p id="s1p2">Düz taban çok sık görülen bir durumdur. <strong>Çoğu zaman sorun yaratmaz</strong> ve tedavi edilebilir. Erken fark edilip gerektiğinde müdahale edilmesi ileride oluşabilecek ağrıları önler.</p>
+
+    <div class="foot-visual">
+      <!-- Foot arch comparison SVG -->
+      <svg width="200" height="110" viewBox="0 0 200 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Normal foot outline -->
+        <text x="10" y="14" font-size="9" fill="#7a8fa0" font-family="sans-serif">Normal</text>
+        <path d="M15 80 Q20 55 35 50 Q55 45 70 55 Q80 62 85 80 Z" stroke="#2196f3" stroke-width="1.5" fill="rgba(33,150,243,0.08)"/>
+        <!-- arch gap normal -->
+        <path d="M35 80 Q52 60 68 80" stroke="#2196f3" stroke-width="1.5" fill="none" stroke-dasharray="3,2"/>
+        <line x1="15" y1="80" x2="85" y2="80" stroke="#7a8fa0" stroke-width="1"/>
+
+        <!-- Flat foot outline -->
+        <text x="110" y="14" font-size="9" fill="#7a8fa0" font-family="sans-serif">Düz Taban</text>
+        <path d="M115 80 Q120 65 135 60 Q155 55 170 62 Q180 68 185 80 Z" stroke="#f0a045" stroke-width="1.5" fill="rgba(240,160,69,0.08)"/>
+        <!-- flat arch - no gap -->
+        <path d="M130 80 Q152 76 168 80" stroke="#f0a045" stroke-width="1.5" fill="none"/>
+        <line x1="115" y1="80" x2="185" y2="80" stroke="#7a8fa0" stroke-width="1"/>
+
+        <!-- Labels -->
+        <text x="38" y="95" font-size="8" fill="#2196f3" font-family="sans-serif">Kemer var</text>
+        <text x="132" y="95" font-size="8" fill="#f0a045" font-family="sans-serif">Kemer yok</text>
+      </svg>
+      <div class="foot-desc" id="footDesc">
+        <strong>Normal ayakta</strong> iç kemer görünür bir boşluk oluşturur. <strong>Düz tabanda</strong> ise bu kemer düşmüş veya hiç oluşmamış olup ayağın altı yere tam temas eder.
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: SYMPTOMS -->
+  <div class="section">
+    <h2 id="s2h">🩺 Belirtiler Nelerdir?</h2>
+    <p id="s2intro">Düz taban her zaman belirti vermez. Belirti verirse şunlar görülebilir:</p>
+    <ul>
+      <li id="s2l1">Ayak içi, topuk veya baldırda ağrı</li>
+      <li id="s2l2">Uzun yürüyüşlerin ardından bacaklarda yorgunluk</li>
+      <li id="s2l3">Ayakkabının iç tarafının hızlı aşınması</li>
+      <li id="s2l4">Ayak bileklerinin içe çökmesi (pronasyon)</li>
+      <li id="s2l5">Diz, kalça veya sırt ağrısı (dolaylı belirtiler)</li>
+    </ul>
+  </div>
+
+  <!-- SECTION 3: CHILDREN -->
+  <div class="section">
+    <h2 id="s3h">👶 Çocuklarda Düz Taban</h2>
+    <p id="s3p1">Bebeklerde ve küçük çocuklarda ayak kemeri henüz gelişmemiştir — bu <strong>tamamen normaldir</strong>.</p>
+    <p id="s3p2">Çoğu çocukta kemer, <strong>8 yaşına kadar</strong> kendiliğinden oluşur. Bu nedenle 8 yaşından önce aşırı endişeye gerek yoktur; ancak ağrı veya yürüyüş bozukluğu varsa doktora başvurun.</p>
+    <div class="tip-box" id="childTip">
+      <strong>💡 Bilgi:</strong> 8 yaşından sonra da kemer oluşmadıysa ve/veya ağrı varsa bir uzmana başvurmak önerilir.
+    </div>
+  </div>
+
+  <!-- SECTION 4: WHEN TO SEE A DOCTOR -->
+  <div class="section">
+    <h2 id="s4h">🏥 Doktora Ne Zaman Gitmelisiniz?</h2>
+    <p id="s4intro">Aşağıdakilerden biri varsa bir FTR Uzman Hekimine başvurun:</p>
+    <ul>
+      <li id="s4l1">Ayak, diz veya bacak ağrısı varsa</li>
+      <li id="s4l2">Yürüme şekliniz bozuluyorsa veya tökezleme sıklaşıyorsa</li>
+      <li id="s4l3">Ayakkabılar çok hızlı ve düzensiz aşınıyorsa</li>
+      <li id="s4l4">8 yaşından büyük çocuğunuzun kemeri hiç oluşmadıysa</li>
+      <li id="s4l5">Günlük aktivitelerde ayağınız sizi sınırlıyorsa</li>
+    </ul>
+  </div>
+
+  <!-- SECTION 5: HOME TIPS -->
+  <div class="section">
+    <h2 id="s5h">🏠 Evde Neler Yapabilirsiniz?</h2>
+    <p id="s5intro">Basit adımlarla belirtileri hafifletebilir ve ilerlemesini yavaşlatabilirsiniz:</p>
+
+    <div class="ex-card">
+      <h3 id="e1h">👟 Uygun Ayakkabı Seçin</h3>
+      <p id="e1p">Topuk desteği olan, kemer bölgesini destekleyen ayakkabılar tercih edin. Çok ince tabanlı veya topuksuz ayakkabılardan kaçının.</p>
+    </div>
+    <div class="ex-card">
+      <h3 id="e2h">🧘 Basit Germe Egzersizleri</h3>
+      <p id="e2p">Buzağı kası ve Aşil tendonu germe egzersizleri ayağa destek olur. Sabah kalktığınızda birkaç dakika uygulayabilirsiniz.</p>
+    </div>
+    <div class="ex-card">
+      <h3 id="e3h">🏃 Ayak Güçlendirme</h3>
+      <p id="e3p">Ayak parmaklarıyla küçük nesneleri kavrama, parmak uçlarında yükselme gibi basit hareketler kemeri güçlendirir.</p>
+    </div>
+    <div class="ex-card">
+      <h3 id="e4h">⚖️ Sağlıklı Kilo</h3>
+      <p id="e4p">Fazla kilo ayaklara binen yükü artırır. Dengeli beslenme ve düzenli yürüyüş hem kiloya hem de ayaklara iyi gelir.</p>
+    </div>
+  </div>
+
+  <!-- TIP BOX -->
+  <div class="tip-box" id="tipBox">
+    <strong>⚕ Önemli:</strong> Bu sayfa yalnızca bilgilendirme amaçlıdır. Kesin tanı ve tedavi planı için bir <strong>FTR Uzman Hekimine</strong> başvurunuz.
+  </div>
+
+  <!-- CTA -->
+  <div style="text-align:center;margin-top:2rem;">
+    <p id="ctaText" style="color:#7a8fa0;margin-bottom:1rem;font-size:15px;">Egzersizlere başlamak ister misiniz?</p>
+    <a class="cta-btn" href="exercises/flatfoot-exercises.html" id="ctaBtn">Pes Planus Egzersizlerine Git &rarr;</a>
+  </div>
+
+</div>
+
+<footer id="footer">CobbAI &copy; 2025</footer>
+
+<script>
+const T = {
+  tr: {
+    backBtn: '← Hasta Merkezi',
+    heroTitle: '<em id="heroEm">Düz Taban</em> Hakkında Bilmeniz Gerekenler',
+    heroSub: 'Hastalar ve Aileleri İçin Rehber',
+    s1h: '🦶 Düz Taban Nedir?',
+    s1p1: 'Düz taban, ayağın iç kısmındaki <strong>kemerin düşmesi veya hiç oluşmamasıdır</strong>. Sağlıklı bir ayakta iç kemer zemine değmez; düz tabanda ise ayağın altı tamamen ya da büyük ölçüde yere temas eder.',
+    s1p2: 'Düz taban çok sık görülen bir durumdur. <strong>Çoğu zaman sorun yaratmaz</strong> ve tedavi edilebilir. Erken fark edilip gerektiğinde müdahale edilmesi ileride oluşabilecek ağrıları önler.',
+    footDesc: '<strong>Normal ayakta</strong> iç kemer görünür bir boşluk oluşturur. <strong>Düz tabanda</strong> ise bu kemer düşmüş veya hiç oluşmamış olup ayağın altı yere tam temas eder.',
+    s2h: '🩺 Belirtiler Nelerdir?',
+    s2intro: 'Düz taban her zaman belirti vermez. Belirti verirse şunlar görülebilir:',
+    s2l1: 'Ayak içi, topuk veya baldırda ağrı',
+    s2l2: 'Uzun yürüyüşlerin ardından bacaklarda yorgunluk',
+    s2l3: 'Ayakkabının iç tarafının hızlı aşınması',
+    s2l4: 'Ayak bileklerinin içe çökmesi (pronasyon)',
+    s2l5: 'Diz, kalça veya sırt ağrısı (dolaylı belirtiler)',
+    s3h: '👶 Çocuklarda Düz Taban',
+    s3p1: 'Bebeklerde ve küçük çocuklarda ayak kemeri henüz gelişmemiştir — bu <strong>tamamen normaldir</strong>.',
+    s3p2: 'Çoğu çocukta kemer, <strong>8 yaşına kadar</strong> kendiliğinden oluşur. Bu nedenle 8 yaşından önce aşırı endişeye gerek yoktur; ancak ağrı veya yürüyüş bozukluğu varsa doktora başvurun.',
+    childTip: '<strong>💡 Bilgi:</strong> 8 yaşından sonra da kemer oluşmadıysa ve/veya ağrı varsa bir uzmana başvurmak önerilir.',
+    s4h: '🏥 Doktora Ne Zaman Gitmelisiniz?',
+    s4intro: 'Aşağıdakilerden biri varsa bir FTR Uzman Hekimine başvurun:',
+    s4l1: 'Ayak, diz veya bacak ağrısı varsa',
+    s4l2: 'Yürüme şekliniz bozuluyorsa veya tökezleme sıklaşıyorsa',
+    s4l3: 'Ayakkabılar çok hızlı ve düzensiz aşınıyorsa',
+    s4l4: '8 yaşından büyük çocuğunuzun kemeri hiç oluşmadıysa',
+    s4l5: 'Günlük aktivitelerde ayağınız sizi sınırlıyorsa',
+    s5h: '🏠 Evde Neler Yapabilirsiniz?',
+    s5intro: 'Basit adımlarla belirtileri hafifletebilir ve ilerlemesini yavaşlatabilirsiniz:',
+    e1h: '👟 Uygun Ayakkabı Seçin',
+    e1p: 'Topuk desteği olan, kemer bölgesini destekleyen ayakkabılar tercih edin. Çok ince tabanlı veya topuksuz ayakkabılardan kaçının.',
+    e2h: '🧘 Basit Germe Egzersizleri',
+    e2p: 'Buzağı kası ve Aşil tendonu germe egzersizleri ayağa destek olur. Sabah kalktığınızda birkaç dakika uygulayabilirsiniz.',
+    e3h: '🏃 Ayak Güçlendirme',
+    e3p: 'Ayak parmaklarıyla küçük nesneleri kavrama, parmak uçlarında yükselme gibi basit hareketler kemeri güçlendirir.',
+    e4h: '⚖️ Sağlıklı Kilo',
+    e4p: 'Fazla kilo ayaklara binen yükü artırır. Dengeli beslenme ve düzenli yürüyüş hem kiloya hem de ayaklara iyi gelir.',
+    tipBox: '<strong>⚕ Önemli:</strong> Bu sayfa yalnızca bilgilendirme amaçlıdır. Kesin tanı ve tedavi planı için bir <strong>FTR Uzman Hekimine</strong> başvurunuz.',
+    ctaText: 'Egzersizlere başlamak ister misiniz?',
+    ctaBtn: 'Pes Planus Egzersizlerine Git →',
+    footer: 'CobbAI © 2025'
+  },
+  en: {
+    backBtn: '← Patient Center',
+    heroTitle: 'What You Need to Know About <em id="heroEm">Flatfoot</em>',
+    heroSub: 'A Guide for Patients and Families',
+    s1h: '🦶 What is Flatfoot?',
+    s1p1: 'Flatfoot is when the <strong>arch on the inside of the foot is flattened or never forms</strong>. In a healthy foot, the inner arch does not touch the ground; in flatfoot, the whole sole contacts the ground.',
+    s1p2: 'Flatfoot is very common. <strong>It usually causes no problems</strong> and can be treated. Early detection and timely intervention prevents pain that may develop later.',
+    footDesc: 'In a <strong>normal foot</strong>, the inner arch creates a visible gap. In a <strong>flat foot</strong>, this arch has collapsed or never formed, and the sole fully contacts the ground.',
+    s2h: '🩺 What Are the Symptoms?',
+    s2intro: 'Flatfoot does not always cause symptoms. When it does, you may notice:',
+    s2l1: 'Pain in the inner foot, heel, or calf',
+    s2l2: 'Leg fatigue after long walks',
+    s2l3: 'Rapid wear on the inner side of shoes',
+    s2l4: 'Ankles rolling inward (overpronation)',
+    s2l5: 'Knee, hip, or back pain (indirect symptoms)',
+    s3h: '👶 Flatfoot in Children',
+    s3p1: 'Babies and young children have not yet developed a foot arch — this is <strong>completely normal</strong>.',
+    s3p2: 'In most children, the arch forms naturally <strong>by age 8</strong>. There is no need for excessive concern before age 8; however, if there is pain or a walking problem, see a doctor.',
+    childTip: '<strong>💡 Note:</strong> If the arch has still not formed after age 8 and/or there is pain, it is recommended to see a specialist.',
+    s4h: '🏥 When Should You See a Doctor?',
+    s4intro: 'See a physiotherapy specialist if any of the following apply:',
+    s4l1: 'Foot, knee, or leg pain',
+    s4l2: 'Your walking pattern is changing or you are tripping more often',
+    s4l3: 'Shoes wear out very quickly and unevenly',
+    s4l4: 'Your child (over age 8) has no arch at all',
+    s4l5: 'Your foot is limiting your daily activities',
+    s5h: '🏠 What Can You Do at Home?',
+    s5intro: 'Simple steps can ease symptoms and slow progression:',
+    e1h: '👟 Choose Supportive Footwear',
+    e1p: 'Choose shoes with good heel support and arch support. Avoid very thin-soled or flat shoes.',
+    e2h: '🧘 Simple Stretching Exercises',
+    e2p: 'Calf and Achilles tendon stretches support the foot. A few minutes each morning can help.',
+    e3h: '🏃 Foot Strengthening',
+    e3p: 'Simple movements like picking up small objects with your toes or rising onto your tiptoes can strengthen the arch.',
+    e4h: '⚖️ Healthy Weight',
+    e4p: 'Extra weight increases load on the feet. Balanced nutrition and regular walking are good for both weight and feet.',
+    tipBox: '<strong>⚕ Important:</strong> This page is for informational purposes only. Please consult a <strong>physiotherapy specialist</strong> for a proper diagnosis and treatment plan.',
+    ctaText: 'Would you like to start exercising?',
+    ctaBtn: 'Go to Flatfoot Exercises →',
+    footer: 'CobbAI © 2025'
+  },
+  ar: {
+    backBtn: '→ مركز المريض',
+    heroTitle: 'ما تحتاج معرفته عن <em id="heroEm">القدم المسطحة</em>',
+    heroSub: 'دليل للمرضى وعائلاتهم',
+    s1h: '🦶 ما هي القدم المسطحة؟',
+    s1p1: 'القدم المسطحة هي حالة يكون فيها <strong>قوس القدم الداخلي منخفضًا أو غائبًا</strong>. في القدم السليمة، لا يلمس القوس الداخلي الأرض؛ أما في القدم المسطحة، فإن باطن القدم بأكمله يلامس الأرض.',
+    s1p2: 'القدم المسطحة شائعة جدًا. <strong>في الغالب لا تسبب مشكلة</strong> ويمكن علاجها. الاكتشاف المبكر والتدخل عند الحاجة يمنع الآلام التي قد تتطور لاحقًا.',
+    footDesc: 'في <strong>القدم الطبيعية</strong>، يشكّل القوس الداخلي فراغًا مرئيًا. في <strong>القدم المسطحة</strong>، انهار هذا القوس أو لم يتشكل أصلًا، وباطن القدم يلمس الأرض بالكامل.',
+    s2h: '🩺 ما هي الأعراض؟',
+    s2intro: 'لا تسبب القدم المسطحة أعراضًا دائمًا. عند ظهور أعراض، قد تلاحظ:',
+    s2l1: 'ألم في الجانب الداخلي للقدم أو الكعب أو الساق',
+    s2l2: 'تعب في الساقين بعد المشي لفترات طويلة',
+    s2l3: 'تآكل سريع في الجانب الداخلي للحذاء',
+    s2l4: 'انقلاب الكاحلين للداخل (فرط الانبساط)',
+    s2l5: 'ألم في الركبة أو الورك أو الظهر (أعراض غير مباشرة)',
+    s3h: '👶 القدم المسطحة عند الأطفال',
+    s3p1: 'لم يتطور قوس القدم بعد عند الرضع والأطفال الصغار — وهذا <strong>أمر طبيعي تمامًا</strong>.',
+    s3p2: 'في معظم الأطفال، يتشكل القوس من تلقاء نفسه <strong>بحلول سن 8</strong>. لا داعي للقلق الزائد قبل سن 8؛ لكن إذا كان هناك ألم أو مشكلة في المشي، فزر الطبيب.',
+    childTip: '<strong>💡 ملاحظة:</strong> إذا لم يتشكل القوس بعد سن 8 و/أو كان هناك ألم، يُنصح بزيارة متخصص.',
+    s4h: '🏥 متى تذهب للطبيب؟',
+    s4intro: 'قم بزيارة أخصائي العلاج الطبيعي إذا:',
+    s4l1: 'شعرت بألم في القدم أو الركبة أو الساق',
+    s4l2: 'تغيّرت طريقة مشيتك أو ازداد التعثر',
+    s4l3: 'يتآكل الحذاء بسرعة كبيرة وبشكل غير منتظم',
+    s4l4: 'طفلك (فوق سن 8) ليس لديه قوس على الإطلاق',
+    s4l5: 'تحد قدمك من أنشطتك اليومية',
+    s5h: '🏠 ماذا تفعل في المنزل؟',
+    s5intro: 'خطوات بسيطة يمكنها تخفيف الأعراض وإبطاء التطور:',
+    e1h: '👟 اختر الحذاء المناسب',
+    e1p: 'اختر أحذية ذات دعم جيد للكعب والقوس. تجنب الأحذية رقيقة النعل جدًا أو المسطحة تمامًا.',
+    e2h: '🧘 تمارين الإطالة البسيطة',
+    e2p: 'تمارين إطالة عضلة الساق ووتر العرقوب تدعم القدم. بضع دقائق كل صباح يمكن أن تساعد.',
+    e3h: '🏃 تقوية القدم',
+    e3p: 'حركات بسيطة مثل التقاط أشياء صغيرة بأصابع القدم أو الوقوف على أطراف الأصابع تقوي القوس.',
+    e4h: '⚖️ وزن صحي',
+    e4p: 'الوزن الزائد يزيد الحمل على القدمين. التغذية المتوازنة والمشي المنتظم مفيدان للوزن والقدمين معًا.',
+    tipBox: '<strong>⚕ مهم:</strong> هذه الصفحة لأغراض إعلامية فقط. يرجى استشارة <strong>أخصائي العلاج الطبيعي</strong> للحصول على تشخيص وخطة علاج صحيحة.',
+    ctaText: 'هل تريد البدء بالتمارين؟',
+    ctaBtn: 'اذهب إلى تمارين القدم المسطحة →',
+    footer: 'CobbAI © 2025'
+  }
+};
+
+function setLang(l) {
+  localStorage.setItem('cobbai_lang', l);
+  document.documentElement.lang = l;
+  document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
+  ['lbTR','lbEN','lbAR'].forEach(id => document.getElementById(id).classList.remove('on'));
+  document.getElementById('lb' + l.toUpperCase()).classList.add('on');
+  const t = T[l];
+
+  document.getElementById('backBtn').textContent = t.backBtn;
+  document.getElementById('heroTitle').innerHTML = t.heroTitle;
+  document.getElementById('heroSub').textContent = t.heroSub;
+
+  ['s1h','s2h','s3h','s4h','s5h'].forEach(id => {
+    document.getElementById(id).textContent = t[id];
+  });
+
+  document.getElementById('s1p1').innerHTML = t.s1p1;
+  document.getElementById('s1p2').innerHTML = t.s1p2;
+  document.getElementById('footDesc').innerHTML = t.footDesc;
+
+  document.getElementById('s2intro').textContent = t.s2intro;
+  ['s2l1','s2l2','s2l3','s2l4','s2l5'].forEach(id => {
+    document.getElementById(id).textContent = t[id];
+  });
+
+  document.getElementById('s3p1').innerHTML = t.s3p1;
+  document.getElementById('s3p2').innerHTML = t.s3p2;
+  document.getElementById('childTip').innerHTML = t.childTip;
+
+  document.getElementById('s4intro').textContent = t.s4intro;
+  ['s4l1','s4l2','s4l3','s4l4','s4l5'].forEach(id => {
+    document.getElementById(id).textContent = t[id];
+  });
+
+  document.getElementById('s5intro').textContent = t.s5intro;
+  ['e1h','e1p','e2h','e2p','e3h','e3p','e4h','e4p'].forEach(id => {
+    document.getElementById(id).textContent = t[id];
+  });
+
+  document.getElementById('tipBox').innerHTML = t.tipBox;
+  document.getElementById('ctaText').textContent = t.ctaText;
+  document.getElementById('ctaBtn').textContent = t.ctaBtn;
+  document.getElementById('footer').innerHTML = t.footer;
+}
+
+(function(){
+  const saved = localStorage.getItem('cobbai_lang') || 'tr';
+  setLang(saved);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+/* CobbAI v2 — Global styles
+   Clinical dark theme inspired by PACS/RIS workstations.
+   All component-specific styles live in component CSS modules.
+*/
+
+:root {
+  /* Colours */
+  --c-bg:          #080c0f;
+  --c-bg2:         #0e1419;
+  --c-bg3:         #141c23;
+  --c-border:      rgba(255,255,255,0.1);
+  --c-text:        #eef2f7;
+  --c-muted:       #7a8fa0;
+  --c-subtle:      #4a5a6a;
+  --c-green:       #00c853;
+  --c-green-dim:   rgba(0,200,83,0.12);
+  --c-blue:        #2196f3;
+  --c-orange:      #f0a045;
+  --c-red:         #e05555;
+
+  /* Typography */
+  --font-sans:  -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono:  ui-monospace, 'Cascadia Code', 'Fira Code', Consolas, monospace;
+
+  /* Spacing */
+  --r-sm:  6px;
+  --r-md:  10px;
+  --r-lg:  14px;
+}
+
+/* Light mode overrides */
+body.light-mode {
+  --c-bg:    #f4f6f8;
+  --c-bg2:   #ffffff;
+  --c-bg3:   #e8ecf0;
+  --c-border: rgba(0,0,0,0.12);
+  --c-text:  #1a2a3a;
+  --c-muted: #5a6a7a;
+  --c-green: #007a30;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family:     var(--font-sans);
+  background:      var(--c-bg);
+  color:           var(--c-text);
+  line-height:     1.65;
+  min-height:      100vh;
+  -webkit-font-smoothing: antialiased;
+  /* Subtle dot-grid background */
+  background-image: radial-gradient(circle, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Scrollbar (WebKit) */
+::-webkit-scrollbar              { width: 6px; height: 6px; }
+::-webkit-scrollbar-track        { background: var(--c-bg); }
+::-webkit-scrollbar-thumb        { background: rgba(255,255,255,.15); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover  { background: rgba(255,255,255,.25); }
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--c-green);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Button base */
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Prevent iOS font zoom on inputs */
+input, select, textarea {
+  font-size: 16px;
+  font-family: inherit;
+  color-scheme: dark;  /* option elements inherit dark colours */
+}
+
+/* Select option elements — force dark theme */
+select option {
+  background-color: #0e1419;
+  color: #eef2f7;
+}
+body.light-mode select option {
+  background-color: #ffffff;
+  color: #1a2a3a;
+}
+body.light-mode select, body.light-mode input {
+  background: #f0f4f8 !important;
+  color: #1a2a3a !important;
+  border-color: #c0ccd6 !important;
+}

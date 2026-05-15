@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CobbAI Validation — Clinical Accuracy Report</title>
+<meta name="description" content="CobbAI Cobb angle measurement validation: ICC, MAE, Bland-Altman analysis vs expert radiologists.">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{background:#080c0f;color:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.7}
+nav{background:#0a0f13;border-bottom:1px solid rgba(255,255,255,.1);padding:0 1.5rem;height:60px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:#eef2f7;font-size:18px;font-weight:700}
+.bone{width:30px;height:30px;border:2px solid #00c853;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.lang{margin-left:auto}
+.container{max-width:960px;margin:0 auto;padding:2rem 1.5rem 5rem}
+.hero{background:linear-gradient(135deg,#0a1a0f,#0d2018);border:1px solid rgba(0,200,83,.25);border-radius:16px;padding:2.5rem;margin-bottom:2.5rem}
+.hero h1{font-size:clamp(1.6rem,3.5vw,2.2rem);font-weight:800;margin-bottom:.5rem}
+.hero h1 em{color:#00c853;font-style:italic}
+.hero p{color:#7a8fa0;font-size:15px;max-width:640px}
+.status-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;background:rgba(240,160,69,.1);border:1px solid rgba(240,160,69,.3);color:#f0a045;font-size:13px;font-weight:700;margin-bottom:1rem}
+.status-badge.live{background:rgba(0,200,83,.1);border-color:rgba(0,200,83,.3);color:#00c853}
+section{margin-bottom:2.5rem}
+h2{font-size:1.25rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+h2::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.1)}
+p{font-size:15px;color:#b0bec5;line-height:1.8;margin-bottom:.8rem}
+ul,ol{padding-left:1.4rem;color:#b0bec5;font-size:15px;line-height:1.9;margin-bottom:.8rem}
+li{margin-bottom:.25rem}
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:1.2rem 0}
+.metric{background:#0e1419;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:1.2rem;text-align:center}
+.metric-val{font-size:2rem;font-weight:200;color:#00c853;line-height:1}
+.metric-lbl{font-size:12px;color:#7a8fa0;margin-top:4px;letter-spacing:.5px}
+.metric-ref{font-size:11px;color:#4a5a6a;margin-top:3px}
+.metric.placeholder .metric-val{color:#4a5a6a}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:1rem 0}
+th{background:#141c23;padding:10px 14px;text-align:left;font-size:11px;letter-spacing:1px;color:#7a8fa0;font-weight:700;white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.02)}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.tag-pending{background:rgba(240,160,69,.1);color:#f0a045}
+.tag-good{background:rgba(0,200,83,.1);color:#00c853}
+.tag-poor{background:rgba(224,85,85,.1);color:#e05555}
+.info-box{background:rgba(0,200,83,.04);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:1.2rem 1.4rem;margin:1rem 0}
+.info-box strong{color:#00c853}
+.warn-box{background:rgba(240,160,69,.05);border:1px solid rgba(240,160,69,.2);border-radius:10px;padding:1rem 1.2rem;margin:1rem 0;font-size:14px;color:#b0bec5}
+.warn-box strong{color:#f0a045}
+.ref-list{list-style:none;padding:0}
+.ref-list li{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;color:#7a8fa0;line-height:1.6}
+.ref-list li strong{color:#eef2f7}
+code{background:#141c23;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:13px;color:#00c853}
+.ba-placeholder{background:#0e1419;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:2rem;text-align:center;color:#4a5a6a;margin:1rem 0}
+.ba-placeholder svg{opacity:.3;margin-bottom:.5rem}
+footer{border-top:1px solid rgba(255,255,255,.08);padding:1.5rem;text-align:center;font-size:13px;color:#7a8fa0}
+@media(max-width:600px){.metric-grid{grid-template-columns:1fr 1fr}th,td{padding:8px 10px}}
+</style>
+</head>
+<body>
+<nav>
+  <a class="logo" href="/"><span class="bone">🦴</span><span>CobbAI</span></a>
+  <div class="lang">
+    <a href="/" style="color:#7a8fa0;font-size:14px;text-decoration:none;">← Back to App</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<div class="hero">
+  <div class="status-badge">⏳ Validation In Progress — Data Collection Phase</div>
+  <h1>CobbAI <em>Clinical Validation</em> Report</h1>
+  <p>This page documents the methodology and preliminary results of the clinical validation study comparing CobbAI automated Cobb angle measurements against expert radiologist measurements.</p>
+</div>
+
+<!-- OVERVIEW -->
+<section>
+  <h2>📋 Study Overview</h2>
+  <p>CobbAI uses a convolutional neural network approach to automatically measure the Cobb angle from standing PA spine X-rays. This validation study follows the methodology of Caesarendra et al. (Diagnostics 2022) and Maeda et al. (Scientific Reports 2023).</p>
+  <div class="info-box">
+    <strong>Methodology reference:</strong>
+    <ul style="margin-top:6px;margin-bottom:0">
+      <li>Measurement standard: <strong>Cobb (1948)</strong> — endplate lines of most-tilted end vertebrae</li>
+      <li>68-landmark detection: <strong>AASCE MICCAI 2019</strong> — 17 vertebrae (T1–L5), 4 corners each</li>
+      <li>End vertebra selection: <strong>Caesarendra et al. 2022</strong> — two-phase slope analysis</li>
+      <li>Inclination filter: <strong>Maeda et al. 2023</strong> — discard if adjacent slope diff &lt;5°</li>
+    </ul>
+  </div>
+  <div class="warn-box">
+    <strong>⚠️ Important Notice:</strong> The metrics below marked as <span class="tag tag-pending">Pending</span> require prospective data collection from clinical partners. CobbAI is currently in the research and development phase. Results should not be used for standalone clinical diagnosis.
+  </div>
+</section>
+
+<!-- KEY METRICS -->
+<section>
+  <h2>📊 Performance Metrics</h2>
+  <div class="metric-grid">
+    <div class="metric placeholder">
+      <div class="metric-val">—</div>
+      <div class="metric-lbl">INTRACLASS CORRELATION</div>
+      <div class="metric-ref">Target: ICC &gt; 0.95</div>
+    </div>
+    <div class="metric placeholder">
+      <div class="metric-val">—</div>
+      <div class="metric-lbl">MEAN ABSOLUTE ERROR</div>
+      <div class="metric-ref">Target: MAE &lt; 5°</div>
+    </div>
+    <div class="metric placeholder">
+      <div class="metric-val">—</div>
+      <div class="metric-lbl">WITHIN ±5° (n)</div>
+      <div class="metric-ref">Target: &gt;95%</div>
+    </div>
+    <div class="metric placeholder">
+      <div class="metric-val">—</div>
+      <div class="metric-lbl">CASES VALIDATED</div>
+      <div class="metric-ref">Target: ≥100 cases</div>
+    </div>
+  </div>
+  <p style="font-size:13px;color:#4a5a6a;">
+    Reference benchmarks: Caesarendra et al. 2022 achieved ICC=0.995, 98.6% within ±5°. Maeda et al. 2023 achieved ICC=0.973.
+  </p>
+</section>
+
+<!-- METHODOLOGY -->
+<section>
+  <h2>🔬 Validation Methodology</h2>
+  <h3 style="color:#00c853;font-size:14px;letter-spacing:.5px;margin-bottom:.5rem;">STUDY DESIGN</h3>
+  <ul>
+    <li>Retrospective cross-sectional study using anonymised standing PA spine X-rays</li>
+    <li>Expert ground truth: average of two independent measurements by board-certified radiologists</li>
+    <li>Observers: minimum 2 observers (1 spine specialist, 1 general radiologist)</li>
+    <li>Intraobserver reproducibility: second measurement after ≥3 weeks washout</li>
+    <li>AI measurement: fully automated, no human input</li>
+  </ul>
+
+  <h3 style="color:#00c853;font-size:14px;letter-spacing:.5px;margin:.8rem 0 .5rem;">INCLUSION CRITERIA</h3>
+  <ul>
+    <li>Diagnosis of adolescent idiopathic scoliosis (AIS) confirmed by a clinician</li>
+    <li>Standing full-spine PA or AP radiograph (T1 to L5/sacrum visible)</li>
+    <li>Cobb angle ≥10° on any curve</li>
+    <li>Age 10–18 years (or adult AIS if explicitly noted)</li>
+  </ul>
+
+  <h3 style="color:#00c853;font-size:14px;letter-spacing:.5px;margin:.8rem 0 .5rem;">EXCLUSION CRITERIA</h3>
+  <ul>
+    <li>Neuromuscular or congenital scoliosis</li>
+    <li>Previous spinal surgery</li>
+    <li>Non-standing radiographs (supine, bending films)</li>
+    <li>Radiographs with significant rotation artefact or inadequate field of view</li>
+  </ul>
+
+  <h3 style="color:#00c853;font-size:14px;letter-spacing:.5px;margin:.8rem 0 .5rem;">STATISTICAL ANALYSIS</h3>
+  <ul>
+    <li><strong>ICC (2,1)</strong> — Two-way random-effects model for interobserver reliability (AI vs expert)</li>
+    <li><strong>MAE</strong> — Mean absolute error between AI and expert average</li>
+    <li><strong>RMSE</strong> — Root mean square error</li>
+    <li><strong>Bland-Altman plot</strong> — Limits of agreement (mean ± 1.96 SD)</li>
+    <li><strong>Pearson correlation</strong> — Linear correlation coefficient (r)</li>
+    <li>Stratified analysis by: angle magnitude (&lt;20°, 20–40°, &gt;40°), curve location, observer experience</li>
+  </ul>
+  <p>ICC thresholds: &lt;0.70 poor | 0.70–0.79 fair | 0.80–0.89 good | &gt;0.90 excellent (Koo & Li, 2016).</p>
+</section>
+
+<!-- BLAND-ALTMAN PLACEHOLDER -->
+<section>
+  <h2>📈 Bland-Altman Analysis</h2>
+  <p>The Bland-Altman plot shows the agreement between AI and expert measurements. Points should cluster within the 95% limits of agreement (mean ± 1.96 SD). Systematic bias is indicated if the mean difference deviates significantly from zero.</p>
+  <div class="ba-placeholder">
+    <svg width="400" height="200" viewBox="0 0 400 200">
+      <line x1="40" y1="10" x2="40" y2="180" stroke="#7a8fa0" stroke-width="1.5"/>
+      <line x1="40" y1="180" x2="390" y2="180" stroke="#7a8fa0" stroke-width="1.5"/>
+      <line x1="40" y1="95" x2="390" y2="95" stroke="#00c853" stroke-width="1.5" stroke-dasharray="5,4"/>
+      <line x1="40" y1="55" x2="390" y2="55" stroke="#f0a045" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="40" y1="135" x2="390" y2="135" stroke="#f0a045" stroke-width="1" stroke-dasharray="3,3"/>
+      <text x="200" y="198" text-anchor="middle" fill="#7a8fa0" font-size="10" font-family="monospace">Mean of AI and Expert (°)</text>
+      <text x="8" y="100" fill="#7a8fa0" font-size="10" font-family="monospace" writing-mode="vertical-rl" transform="rotate(180,8,100)">Difference (AI − Expert, °)</text>
+      <text x="395" y="97" fill="#00c853" font-size="9" font-family="monospace" text-anchor="end">Mean diff</text>
+      <text x="395" y="57" fill="#f0a045" font-size="9" font-family="monospace" text-anchor="end">+1.96 SD</text>
+      <text x="395" y="137" fill="#f0a045" font-size="9" font-family="monospace" text-anchor="end">−1.96 SD</text>
+      <circle cx="80" cy="90" r="3" fill="#00c853" opacity=".5"/>
+      <circle cx="120" cy="100" r="3" fill="#00c853" opacity=".5"/>
+      <circle cx="160" cy="85" r="3" fill="#00c853" opacity=".5"/>
+      <circle cx="200" cy="98" r="3" fill="#00c853" opacity=".5"/>
+      <circle cx="240" cy="92" r="3" fill="#00c853" opacity=".5"/>
+      <circle cx="280" cy="103" r="3" fill="#00c853" opacity=".5"/>
+      <circle cx="320" cy="88" r="3" fill="#00c853" opacity=".5"/>
+      <circle cx="360" cy="97" r="3" fill="#00c853" opacity=".5"/>
+    </svg>
+    <p style="font-size:13px;margin-top:.5rem;">Bland-Altman plot — data collection pending</p>
+  </div>
+</section>
+
+<!-- DATA TABLE -->
+<section>
+  <h2>📋 Case-Level Validation Data</h2>
+  <p>The table below will be populated as validation data is collected. Minimum target: 100 cases covering the full range of Cobb angles (10°–70°+).</p>
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Case ID</th>
+        <th>Expert Cobb (°)</th>
+        <th>AI Cobb (°)</th>
+        <th>Abs. Error (°)</th>
+        <th>Within ±5°</th>
+        <th>Curve Location</th>
+        <th>Image Quality</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>VAL-001</td><td>—</td><td>—</td><td>—</td><td><span class="tag tag-pending">Pending</span></td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>VAL-002</td><td>—</td><td>—</td><td>—</td><td><span class="tag tag-pending">Pending</span></td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>VAL-003</td><td>—</td><td>—</td><td>—</td><td><span class="tag tag-pending">Pending</span></td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>VAL-004</td><td>—</td><td>—</td><td>—</td><td><span class="tag tag-pending">Pending</span></td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>VAL-005</td><td>—</td><td>—</td><td>—</td><td><span class="tag tag-pending">Pending</span></td><td>—</td><td>—</td><td>—</td></tr>
+      <tr style="font-weight:700;border-top:2px solid rgba(255,255,255,.15)">
+        <td>Summary (n=—)</td><td>—</td><td>—</td><td>MAE: —</td><td>—%</td><td></td><td></td><td>ICC: —</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:12px;color:#4a5a6a;margin-top:.5rem;">
+    Expert = average of two independent radiologist measurements. AI = fully automated CobbAI result.
+    Cases are anonymised and IRB-approved.
+  </p>
+</section>
+
+<!-- LIMITATIONS -->
+<section>
+  <h2>⚠️ Current Limitations</h2>
+  <ul>
+    <li>AI model has not yet been prospectively validated on a clinically representative cohort</li>
+    <li>Optimal performance on <strong>standing PA/AP full-spine radiographs</strong> only — not validated on supine, bending, or brace films</li>
+    <li>Image quality significantly affects accuracy — poor or rotated films should be re-acquired if possible</li>
+    <li>Currently measures the <strong>primary and secondary curves</strong> only; triple or complex patterns may be less accurate</li>
+    <li>Not validated for non-AIS scoliosis (neuromuscular, congenital, degenerative)</li>
+    <li>AI measurement should be <strong>verified by a qualified clinician</strong> before clinical decision-making</li>
+  </ul>
+</section>
+
+<!-- REFERENCES -->
+<section>
+  <h2>📚 References</h2>
+  <ul class="ref-list">
+    <li><strong>Cobb JR (1948).</strong> Outline for the study of scoliosis. <em>Instructional Course Lectures, AAOS</em>, 5, 261–275.</li>
+    <li><strong>Caesarendra W, Rahmaniar W, Mathew J, Thien A (2022).</strong> Automated Cobb Angle Measurement for Adolescent Idiopathic Scoliosis Using Convolutional Neural Network. <em>Diagnostics</em>, 12(2), 396. doi:10.3390/diagnostics12020396 <span class="tag tag-good">ICC=0.995</span></li>
+    <li><strong>Maeda Y, Nagura T, Nakamura M, Watanabe K (2023).</strong> Automatic measurement of the Cobb angle for adolescent idiopathic scoliosis using convolutional neural network. <em>Scientific Reports</em>, 13, 14576. doi:10.1038/s41598-023-41821-y <span class="tag tag-good">ICC=0.973</span></li>
+    <li><strong>AASCE MICCAI 2019 Challenge.</strong> Accurate Automated Spinal Curvature Estimation. grand-challenge.org/aasce19</li>
+    <li><strong>Morrissy RT et al. (1990).</strong> Measurement of the Cobb angle on radiographs of patients who have scoliosis. <em>J Bone Joint Surg Am</em>, 72(3):320–327.</li>
+    <li><strong>Koo TK, Li MY (2016).</strong> A Guideline of Selecting and Reporting Intraclass Correlation Coefficients for Reliability Research. <em>J Chiropr Med</em>, 15(2):155–163.</li>
+    <li><strong>Bland JM, Altman DG (1986).</strong> Statistical methods for assessing agreement between two methods of clinical measurement. <em>Lancet</em>, 1(8476):307–310.</li>
+    <li><strong>SRS (Scoliosis Research Society).</strong> SRS-22r Outcomes Instrument and Measurement Standards. srs.org</li>
+  </ul>
+</section>
+
+<!-- ETHICS -->
+<section>
+  <h2>⚖️ Ethics &amp; Data Privacy</h2>
+  <p>All X-ray images processed by CobbAI are transmitted securely to the Google Gemini API for analysis only. <strong>No images are stored permanently</strong> on CobbAI servers. Each session's data is deleted upon completion.</p>
+  <p>Validation data collection requires IRB/ethics committee approval from the participating institution. Patient consent and data anonymization must comply with applicable regulations (GDPR, KVKK, HIPAA as appropriate).</p>
+  <div class="warn-box">
+    <strong>⚕ Clinical Disclaimer:</strong> CobbAI is a decision-support tool for qualified physicians and physiotherapists. It is not intended to replace clinical judgment or act as a standalone diagnostic device. All measurements must be interpreted in the context of the full clinical presentation by a licensed clinician.
+  </div>
+</section>
+
+</div><!-- /container -->
+<footer>
+  <p>CobbAI Validation Report · cobbai.vercel.app · ⚕ For physician use only · Last updated: 2025</p>
+</footer>
+</body>
+</html>

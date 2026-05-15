@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Skolyoz Hakkında Bilmeniz Gerekenler — CobbAI</title>
+<meta name="description" content="Skolyoz nedir, belirtileri nelerdir, ne zaman doktora gidilmeli? Hastalar ve aileleri için sade rehber.">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:17px;}
+body{background:#080c0f;color:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.7;}
+nav{background:#0a0f13;border-bottom:1px solid rgba(255,255,255,.1);padding:0 1rem;height:58px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:#eef2f7;font-size:18px;font-weight:700;}
+.bone{width:30px;height:30px;border:2px solid #00c853;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.lsw{margin-left:auto;display:flex;gap:6px;}
+.lb{padding:7px 14px;border:2px solid rgba(255,255,255,.15);border-radius:20px;background:transparent;color:#7a8fa0;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;}
+.lb.on{border-color:#00c853;color:#00c853;}
+.lb:hover{border-color:#eef2f7;color:#eef2f7;}
+.container{max-width:820px;margin:0 auto;padding:2rem 1rem 4rem;}
+.hero-info{background:linear-gradient(135deg,#0a1a0f,#0d1e14);border:1px solid rgba(0,200,83,.2);border-radius:16px;padding:2rem;margin-bottom:2rem;text-align:center;}
+.hero-info h1{font-size:clamp(1.5rem,4vw,2.2rem);font-weight:700;margin-bottom:.5rem;}
+.hero-info h1 em{color:#00c853;font-style:normal;}
+.hero-info p{color:#7a8fa0;font-size:16px;max-width:520px;margin:0 auto;}
+.section{margin-bottom:2.5rem;}
+.section h2{font-size:1.4rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:8px;}
+.section h2::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.1);}
+.section p{font-size:16px;color:#b0bec5;line-height:1.8;margin-bottom:.8rem;}
+.section ul,.section ol{padding-left:1.4rem;color:#b0bec5;font-size:16px;line-height:1.9;}
+.section li{margin-bottom:.3rem;}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:1rem;}
+.info-card{background:#0e1419;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:1.1rem;}
+.info-card .ico{font-size:28px;margin-bottom:8px;}
+.info-card h3{font-size:15px;font-weight:700;margin-bottom:5px;color:#00c853;}
+.info-card p{font-size:14px;color:#7a8fa0;line-height:1.6;}
+.tip-box{background:rgba(0,200,83,.05);border:1px solid rgba(0,200,83,.2);border-radius:10px;padding:14px 16px;margin:1rem 0;font-size:15px;color:#b0bec5;line-height:1.7;}
+.tip-box strong{color:#00c853;}
+.warn-box{background:rgba(240,160,69,.05);border:1px solid rgba(240,160,69,.2);border-radius:10px;padding:14px 16px;margin:1rem 0;font-size:14px;color:#b0bec5;}
+.warn-box strong{color:#f0a045;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:#7a8fa0;font-size:14px;font-weight:600;padding:7px 14px;border:1px solid rgba(255,255,255,.1);border-radius:20px;margin-bottom:1.5rem;transition:all .2s;}
+.back-btn:hover{color:#eef2f7;border-color:rgba(255,255,255,.3);}
+.cta-btn{display:inline-block;background:#00c853;color:#080c0f;font-weight:800;font-size:16px;padding:14px 32px;border-radius:30px;text-decoration:none;margin-top:.5rem;transition:opacity .2s;}
+.cta-btn:hover{opacity:.85;}
+.adam-visual{background:#0e1419;border:1px solid rgba(0,200,83,.2);border-radius:14px;padding:1.5rem;margin:1rem 0;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;}
+.adam-visual svg{flex-shrink:0;}
+.adam-desc{flex:1;min-width:200px;color:#b0bec5;font-size:15px;line-height:1.8;}
+.adam-desc strong{color:#00c853;}
+footer{border-top:1px solid rgba(255,255,255,.08);padding:1.5rem 1rem;text-align:center;font-size:13px;color:#7a8fa0;}
+@media(max-width:600px){.adam-visual{flex-direction:column;}.adam-visual svg{margin:0 auto;}}
+[dir="rtl"] nav{flex-direction:row-reverse;}
+[dir="rtl"] .lsw{margin-left:0;margin-right:auto;}
+[dir="rtl"] .section ul,[dir="rtl"] .section ol{padding-left:0;padding-right:1.4rem;}
+</style>
+</head>
+<body>
+<nav>
+  <a class="logo" href="index.html"><span class="bone">🦴</span><span>CobbAI</span></a>
+  <div class="lsw">
+    <button class="lb on" id="lbTR" onclick="setLang('tr')">TR</button>
+    <button class="lb" id="lbEN" onclick="setLang('en')">EN</button>
+    <button class="lb" id="lbAR" onclick="setLang('ar')">AR</button>
+  </div>
+</nav>
+
+<div class="container">
+
+  <a class="back-btn" href="patients.html" id="backBtn">&#8592; Ana Sayfa</a>
+
+  <div class="hero-info">
+    <div style="font-size:48px;margin-bottom:.75rem;">🦴</div>
+    <h1 id="heroTitle">Skolyoz (<em id="heroEm">Omurga Eğriliği</em>) Hakkında Bilmeniz Gerekenler</h1>
+    <p id="heroSub">Hastalar ve Aileleri İçin Rehber</p>
+  </div>
+
+  <!-- SECTION 1: WHAT IS -->
+  <div class="section">
+    <h2 id="s1h">🦴 Skolyoz Nedir?</h2>
+    <p id="s1p1">Skolyoz, omurganın normalde düz gitmesi gerekirken <strong>yana doğru eğilmesidir</strong>. Arkadan bakıldığında omurga "C" ya da "S" harfi gibi görünür.</p>
+    <p id="s1p2">Skolyoz çok sık görülen bir durumdur ve büyük çoğunluğu <strong>tedavi edilebilir veya kontrol altında tutulabilir</strong>. Erken fark edilmesi çok önemlidir.</p>
+    <p id="s1p3">Her yaşta görülebilir; en çok <strong>10–16 yaş arası</strong> büyüme döneminde ortaya çıkar. Kızlarda biraz daha sık görülür.</p>
+  </div>
+
+  <!-- SECTION 2: HOW TO NOTICE -->
+  <div class="section">
+    <h2 id="s2h">👀 Nasıl Anlarsınız?</h2>
+    <p id="s2intro">Aşağıdaki işaretlere dikkat edin:</p>
+    <ul id="s2list">
+      <li id="s2l1">Bir omuz diğerinden yüksek duruyorsa</li>
+      <li id="s2l2">Sırt öne eğildiğinde bir taraf daha kabarık görünüyorsa</li>
+      <li id="s2l3">Bel çizgisi simetrik değilse (bir taraf daha girintili)</li>
+      <li id="s2l4">Kıyafetler eğri duruyorsa veya bir taraf daha uzun görünüyorsa</li>
+      <li id="s2l5">Sırt veya bel ağrısı varsa</li>
+    </ul>
+
+    <div class="adam-visual">
+      <!-- Adam Forward Bend Test stick figure SVG -->
+      <svg width="120" height="160" viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Head -->
+        <circle cx="60" cy="20" r="12" stroke="#00c853" stroke-width="2" fill="none"/>
+        <!-- Neck -->
+        <line x1="60" y1="32" x2="60" y2="48" stroke="#b0bec5" stroke-width="2"/>
+        <!-- Torso bent forward -->
+        <line x1="60" y1="48" x2="45" y2="90" stroke="#b0bec5" stroke-width="2"/>
+        <!-- Left shoulder to left arm -->
+        <line x1="60" y1="55" x2="30" y2="75" stroke="#b0bec5" stroke-width="2"/>
+        <!-- Right shoulder to right arm -->
+        <line x1="60" y1="55" x2="75" y2="78" stroke="#b0bec5" stroke-width="2"/>
+        <!-- Left leg -->
+        <line x1="45" y1="90" x2="35" y2="135" stroke="#b0bec5" stroke-width="2"/>
+        <!-- Right leg -->
+        <line x1="45" y1="90" x2="58" y2="135" stroke="#b0bec5" stroke-width="2"/>
+        <!-- Left foot -->
+        <line x1="35" y1="135" x2="22" y2="142" stroke="#b0bec5" stroke-width="2"/>
+        <!-- Right foot -->
+        <line x1="58" y1="135" x2="46" y2="142" stroke="#b0bec5" stroke-width="2"/>
+        <!-- Asymmetric back bump (right side higher) -->
+        <path d="M50 58 Q68 62 65 72 Q55 68 50 58Z" fill="rgba(0,200,83,0.25)" stroke="#00c853" stroke-width="1.5"/>
+        <!-- Spine curve indicator -->
+        <path d="M57 48 Q65 60 60 72 Q55 84 50 90" stroke="#00c853" stroke-width="1.5" stroke-dasharray="4,3" fill="none"/>
+        <!-- Label arrow -->
+        <text x="74" y="66" font-size="9" fill="#00c853" font-family="sans-serif">↑</text>
+        <text x="72" y="76" font-size="8" fill="#00c853" font-family="sans-serif">kabarık</text>
+      </svg>
+      <div class="adam-desc" id="adamDesc">
+        <strong>Adam Testi:</strong> Çocuğunuzdan ayaklar bitişik, dizler düz halde öne eğilmesini isteyin. Arkadan bakın — eğer bir taraf daha kabarık ve yüksekse, doktora başvurun.
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: HOW SERIOUS -->
+  <div class="section">
+    <h2 id="s3h">📊 Ne Kadar Ciddi?</h2>
+    <p id="s3intro">Skolyoz üç genel gruba ayrılır:</p>
+    <div class="card-grid">
+      <div class="info-card">
+        <div class="ico">🟢</div>
+        <h3 id="s3c1h">Hafif</h3>
+        <p id="s3c1p">Genellikle egzersiz yeterlidir. Düzenli kontrol önerilir.</p>
+      </div>
+      <div class="info-card">
+        <div class="ico">🟡</div>
+        <h3 id="s3c2h" style="color:#f0a045;">Orta</h3>
+        <p id="s3c2p">Doktor bazı destekleyici uygulamalar önerebilir. Takip önemlidir.</p>
+      </div>
+      <div class="info-card">
+        <div class="ico">🔴</div>
+        <h3 id="s3c3h" style="color:#e05555;">Ağır</h3>
+        <p id="s3c3p">Uzman kontrolü gereklidir. Tedavi seçenekleri birlikte değerlendirilir.</p>
+      </div>
+    </div>
+    <div class="tip-box" style="margin-top:1rem;">
+      <span id="s3tip">Hangi grupta olduğunuzu yalnızca bir doktor söyleyebilir. Kendi kendinize karar vermeyin.</span>
+    </div>
+  </div>
+
+  <!-- SECTION 4: WHEN TO SEE A DOCTOR -->
+  <div class="section">
+    <h2 id="s4h">🏥 Doktora Ne Zaman Gitmelisiniz?</h2>
+    <p id="s4intro">Aşağıdakilerden biri varsa bir FTR Uzman Hekimine veya ortopediste başvurun:</p>
+    <ul id="s4list">
+      <li id="s4l1">Omuzlar veya kalçalar eşit değilse</li>
+      <li id="s4l2">Sırtta görünür bir kabarıklık veya eğrilik fark ettiyseniz</li>
+      <li id="s4l3">Çocuğunuzun duruşu giderek bozuluyorsa</li>
+      <li id="s4l4">Sırt, boyun veya bel ağrısı başladıysa</li>
+      <li id="s4l5">Adam testinde asimetri gördüyseniz</li>
+    </ul>
+  </div>
+
+  <!-- SECTION 5: TREATMENT -->
+  <div class="section">
+    <h2 id="s5h">💊 Tedavi Nasıl Olur?</h2>
+    <p id="s5intro">Tedavi, durumun ciddiyetine ve yaşa göre değişir:</p>
+    <div class="card-grid">
+      <div class="info-card">
+        <div class="ico">🧘</div>
+        <h3 id="s5c1h">Egzersiz</h3>
+        <p id="s5c1p">Hafif olgularda fizik tedavi egzersizleri çok etkilidir. Düzenli yapılması önemlidir.</p>
+      </div>
+      <div class="info-card">
+        <div class="ico">🩹</div>
+        <h3 id="s5c2h">Korse</h3>
+        <p id="s5c2p">Bazı durumlarda doktor özel bir destek aracı önerebilir. Büyüme sürecinde faydalı olabilir.</p>
+      </div>
+      <div class="info-card">
+        <div class="ico">🏥</div>
+        <h3 id="s5c3h">Cerrahi</h3>
+        <p id="s5c3p">Yalnızca çok ağır olgularda gerekebilir. Uzman doktorunuz en iyi seçeneği belirler.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 6: HOME TIPS -->
+  <div class="section">
+    <h2 id="s6h">🏠 Evde Neler Yapabilirsiniz?</h2>
+    <ul id="s6list">
+      <li id="s6l1">Dik oturmaya özen gösterin, uzun süre aynı pozisyonda kalmayın</li>
+      <li id="s6l2">Okul çantanızı iki omuzunuza eşit dağıtın</li>
+      <li id="s6l3">Doktorunuzun önerdiği egzersizleri düzenli yapın</li>
+      <li id="s6l4">Yüzme ve yürüyüş gibi sırtı dengeleyen sporları tercih edin</li>
+      <li id="s6l5">Ekran başında uzun vakit geçiriyorsanız ara verin, gerinin</li>
+    </ul>
+  </div>
+
+  <!-- TIP BOX -->
+  <div class="tip-box" id="tipBox">
+    <strong>⚕ Önemli:</strong> Bu sayfa yalnızca bilgilendirme amaçlıdır. Kesin tanı ve tedavi planı için bir <strong>FTR Uzman Hekimine</strong> başvurunuz.
+  </div>
+
+  <!-- CTA -->
+  <div style="text-align:center;margin-top:2rem;">
+    <p id="ctaText" style="color:#7a8fa0;margin-bottom:1rem;font-size:15px;">Egzersizlere başlamak ister misiniz?</p>
+    <a class="cta-btn" href="exercises/scoliosis-exercises.html" id="ctaBtn">Skolyoz Egzersizlerine Git &rarr;</a>
+  </div>
+
+</div>
+
+<footer id="footer">CobbAI &copy; 2025</footer>
+
+<script>
+const T = {
+  tr: {
+    backBtn: '← Hasta Merkezi',
+    heroTitle: 'Skolyoz (<em id="heroEm">Omurga Eğriliği</em>) Hakkında Bilmeniz Gerekenler',
+    heroSub: 'Hastalar ve Aileleri İçin Rehber',
+    s1h: '🦴 Skolyoz Nedir?',
+    s1p1: 'Skolyoz, omurganın normalde düz gitmesi gerekirken <strong>yana doğru eğilmesidir</strong>. Arkadan bakıldığında omurga "C" ya da "S" harfi gibi görünür.',
+    s1p2: 'Skolyoz çok sık görülen bir durumdur ve büyük çoğunluğu <strong>tedavi edilebilir veya kontrol altında tutulabilir</strong>. Erken fark edilmesi çok önemlidir.',
+    s1p3: 'Her yaşta görülebilir; en çok <strong>10–16 yaş arası</strong> büyüme döneminde ortaya çıkar. Kızlarda biraz daha sık görülür.',
+    s2h: '👀 Nasıl Anlarsınız?',
+    s2intro: 'Aşağıdaki işaretlere dikkat edin:',
+    s2l1: 'Bir omuz diğerinden yüksek duruyorsa',
+    s2l2: 'Sırt öne eğildiğinde bir taraf daha kabarık görünüyorsa',
+    s2l3: 'Bel çizgisi simetrik değilse (bir taraf daha girintili)',
+    s2l4: 'Kıyafetler eğri duruyorsa veya bir taraf daha uzun görünüyorsa',
+    s2l5: 'Sırt veya bel ağrısı varsa',
+    adamDesc: '<strong>Adam Testi:</strong> Çocuğunuzdan ayaklar bitişik, dizler düz halde öne eğilmesini isteyin. Arkadan bakın — eğer bir taraf daha kabarık ve yüksekse, doktora başvurun.',
+    s3h: '📊 Ne Kadar Ciddi?',
+    s3intro: 'Skolyoz üç genel gruba ayrılır:',
+    s3c1h: 'Hafif',
+    s3c1p: 'Genellikle egzersiz yeterlidir. Düzenli kontrol önerilir.',
+    s3c2h: 'Orta',
+    s3c2p: 'Doktor bazı destekleyici uygulamalar önerebilir. Takip önemlidir.',
+    s3c3h: 'Ağır',
+    s3c3p: 'Uzman kontrolü gereklidir. Tedavi seçenekleri birlikte değerlendirilir.',
+    s3tip: 'Hangi grupta olduğunuzu yalnızca bir doktor söyleyebilir. Kendi kendinize karar vermeyin.',
+    s4h: '🏥 Doktora Ne Zaman Gitmelisiniz?',
+    s4intro: 'Aşağıdakilerden biri varsa bir FTR Uzman Hekimine veya ortopediste başvurun:',
+    s4l1: 'Omuzlar veya kalçalar eşit değilse',
+    s4l2: 'Sırtta görünür bir kabarıklık veya eğrilik fark ettiyseniz',
+    s4l3: 'Çocuğunuzun duruşu giderek bozuluyorsa',
+    s4l4: 'Sırt, boyun veya bel ağrısı başladıysa',
+    s4l5: 'Adam testinde asimetri gördüyseniz',
+    s5h: '💊 Tedavi Nasıl Olur?',
+    s5intro: 'Tedavi, durumun ciddiyetine ve yaşa göre değişir:',
+    s5c1h: 'Egzersiz',
+    s5c1p: 'Hafif olgularda fizik tedavi egzersizleri çok etkilidir. Düzenli yapılması önemlidir.',
+    s5c2h: 'Korse',
+    s5c2p: 'Bazı durumlarda doktor özel bir destek aracı önerebilir. Büyüme sürecinde faydalı olabilir.',
+    s5c3h: 'Cerrahi',
+    s5c3p: 'Yalnızca çok ağır olgularda gerekebilir. Uzman doktorunuz en iyi seçeneği belirler.',
+    s6h: '🏠 Evde Neler Yapabilirsiniz?',
+    s6l1: 'Dik oturmaya özen gösterin, uzun süre aynı pozisyonda kalmayın',
+    s6l2: 'Okul çantanızı iki omuzunuza eşit dağıtın',
+    s6l3: 'Doktorunuzun önerdiği egzersizleri düzenli yapın',
+    s6l4: 'Yüzme ve yürüyüş gibi sırtı dengeleyen sporları tercih edin',
+    s6l5: 'Ekran başında uzun vakit geçiriyorsanız ara verin, gerinin',
+    tipBox: '<strong>⚕ Önemli:</strong> Bu sayfa yalnızca bilgilendirme amaçlıdır. Kesin tanı ve tedavi planı için bir <strong>FTR Uzman Hekimine</strong> başvurunuz.',
+    ctaText: 'Egzersizlere başlamak ister misiniz?',
+    ctaBtn: 'Skolyoz Egzersizlerine Git →',
+    footer: 'CobbAI © 2025'
+  },
+  en: {
+    backBtn: '← Patient Center',
+    heroTitle: 'What You Need to Know About <em id="heroEm">Scoliosis</em>',
+    heroSub: 'A Guide for Patients and Families',
+    s1h: '🦴 What is Scoliosis?',
+    s1p1: 'Scoliosis is a condition where the spine curves <strong>sideways</strong> instead of going straight. When viewed from behind, the spine looks like a "C" or "S" shape.',
+    s1p2: 'Scoliosis is very common and in most cases <strong>can be treated or managed</strong>. Early detection is very important.',
+    s1p3: 'It can occur at any age, but most often appears during the <strong>growth period between ages 10–16</strong>. It is slightly more common in girls.',
+    s2h: '👀 How Can You Tell?',
+    s2intro: 'Watch for these signs:',
+    s2l1: 'One shoulder is higher than the other',
+    s2l2: 'When bending forward, one side of the back looks more raised',
+    s2l3: 'The waistline is uneven (one side more indented)',
+    s2l4: 'Clothes hang unevenly or one side looks longer',
+    s2l5: 'Back or lower back pain',
+    adamDesc: '<strong>Adam Forward Bend Test:</strong> Ask your child to bend forward with feet together and knees straight. Look from behind — if one side of the back is more raised or prominent, see a doctor.',
+    s3h: '📊 How Serious Is It?',
+    s3intro: 'Scoliosis is generally divided into three groups:',
+    s3c1h: 'Mild',
+    s3c1p: 'Exercise is usually enough. Regular check-ups are recommended.',
+    s3c2h: 'Moderate',
+    s3c2p: 'The doctor may suggest some supportive approaches. Follow-up is important.',
+    s3c3h: 'Severe',
+    s3c3p: 'Specialist care is needed. Treatment options are discussed together.',
+    s3tip: 'Only a doctor can tell you which group you are in. Do not try to decide on your own.',
+    s4h: '🏥 When Should You See a Doctor?',
+    s4intro: 'See a physiotherapy specialist or orthopedist if any of the following apply:',
+    s4l1: 'Shoulders or hips are uneven',
+    s4l2: 'You notice a visible hump or curve in the back',
+    s4l3: 'Your child\'s posture is gradually worsening',
+    s4l4: 'Back, neck, or lower back pain has started',
+    s4l5: 'You notice asymmetry in the Adam forward bend test',
+    s5h: '💊 How is it Treated?',
+    s5intro: 'Treatment depends on how severe the condition is and the person\'s age:',
+    s5c1h: 'Exercise',
+    s5c1p: 'Physical therapy exercises are very effective for mild cases. Regular practice is key.',
+    s5c2h: 'Brace',
+    s5c2p: 'In some cases the doctor may recommend a special support. Helpful during growth periods.',
+    s5c3h: 'Surgery',
+    s5c3p: 'Only needed in very severe cases. Your specialist will determine the best option.',
+    s6h: '🏠 What Can You Do at Home?',
+    s6l1: 'Sit up straight and avoid staying in the same position for too long',
+    s6l2: 'Distribute your school bag evenly across both shoulders',
+    s6l3: 'Do the exercises your doctor recommends regularly',
+    s6l4: 'Choose back-balancing sports like swimming and walking',
+    s6l5: 'Take breaks and stretch if you spend long periods at a screen',
+    tipBox: '<strong>⚕ Important:</strong> This page is for informational purposes only. Please consult a <strong>physiotherapy specialist</strong> for a proper diagnosis and treatment plan.',
+    ctaText: 'Would you like to start exercising?',
+    ctaBtn: 'Go to Scoliosis Exercises →',
+    footer: 'CobbAI © 2025'
+  },
+  ar: {
+    backBtn: '→ مركز المريض',
+    heroTitle: 'ما تحتاج معرفته عن <em id="heroEm">الجنف</em>',
+    heroSub: 'دليل للمرضى وعائلاتهم',
+    s1h: '🦴 ما هو الجنف؟',
+    s1p1: 'الجنف هو حالة ينحني فيها العمود الفقري <strong>جانبيًا</strong> بدلاً من السير في خط مستقيم. عند النظر من الخلف، يبدو العمود الفقري على شكل حرف "C" أو "S".',
+    s1p2: 'الجنف شائع جدًا وفي معظم الحالات <strong>يمكن علاجه أو التحكم فيه</strong>. الاكتشاف المبكر مهم جدًا.',
+    s1p3: 'يمكن أن يحدث في أي عمر، لكنه يظهر غالبًا خلال <strong>فترة النمو بين سن 10 و16</strong>. وهو أكثر شيوعًا قليلًا عند الفتيات.',
+    s2h: '👀 كيف تعرف؟',
+    s2intro: 'انتبه لهذه العلامات:',
+    s2l1: 'أحد الكتفين أعلى من الآخر',
+    s2l2: 'عند الانحناء للأمام، يبدو أحد جانبي الظهر أكثر ارتفاعًا',
+    s2l3: 'خط الخصر غير متماثل (جانب واحد أكثر تجويفًا)',
+    s2l4: 'تتدلى الملابس بشكل غير مستوٍ أو يبدو أحد الجانبين أطول',
+    s2l5: 'ألم في الظهر أو أسفل الظهر',
+    adamDesc: '<strong>اختبار الانحناء للأمام (اختبار آدم):</strong> اطلب من طفلك الانحناء للأمام مع ضم القدمين وتمديد الركبتين. انظر من الخلف — إذا كان أحد جانبي الظهر أكثر بروزًا أو ارتفاعًا، استشر طبيبًا.',
+    s3h: '📊 ما مدى خطورته؟',
+    s3intro: 'ينقسم الجنف عمومًا إلى ثلاث مجموعات:',
+    s3c1h: 'خفيف',
+    s3c1p: 'التمرين كافٍ عادةً. يُنصح بالمتابعة الدورية.',
+    s3c2h: 'متوسط',
+    s3c2p: 'قد يقترح الطبيب بعض الأساليب الداعمة. المتابعة مهمة.',
+    s3c3h: 'شديد',
+    s3c3p: 'تحتاج لرعاية متخصصة. تُناقش خيارات العلاج معًا.',
+    s3tip: 'فقط الطبيب يستطيع تحديد المجموعة التي تنتمي إليها. لا تحاول القرار بنفسك.',
+    s4h: '🏥 متى تذهب للطبيب؟',
+    s4intro: 'قم بزيارة أخصائي العلاج الطبيعي أو جراح العظام إذا:',
+    s4l1: 'الكتفان أو الوركان غير متساويين',
+    s4l2: 'لاحظت نتوءًا أو انحناءً واضحًا في الظهر',
+    s4l3: 'قوام طفلك يزداد سوءًا تدريجيًا',
+    s4l4: 'بدأ ألم في الظهر أو الرقبة أو أسفل الظهر',
+    s4l5: 'لاحظت عدم تماثل في اختبار الانحناء للأمام',
+    s5h: '💊 كيف يُعالج؟',
+    s5intro: 'يعتمد العلاج على مدى خطورة الحالة وعمر الشخص:',
+    s5c1h: 'التمرين',
+    s5c1p: 'تمارين العلاج الطبيعي فعّالة جدًا في الحالات الخفيفة. الانتظام هو المفتاح.',
+    s5c2h: 'الدعامة',
+    s5c2p: 'في بعض الحالات قد يوصي الطبيب بدعامة خاصة. مفيدة خلال فترات النمو.',
+    s5c3h: 'الجراحة',
+    s5c3p: 'تلزم فقط في الحالات الشديدة جدًا. يحدد طبيبك المتخصص الخيار الأفضل.',
+    s6h: '🏠 ماذا تفعل في المنزل؟',
+    s6l1: 'احرص على الجلوس بشكل مستقيم وتجنب البقاء في وضعية واحدة طويلًا',
+    s6l2: 'وزع حقيبة المدرسة بالتساوي على كلا الكتفين',
+    s6l3: 'أدِّ التمارين التي يوصي بها طبيبك بانتظام',
+    s6l4: 'اختر الرياضات التي توازن الظهر كالسباحة والمشي',
+    s6l5: 'خذ فترات راحة ومدّد جسمك إذا أمضيت وقتًا طويلًا أمام الشاشة',
+    tipBox: '<strong>⚕ مهم:</strong> هذه الصفحة لأغراض إعلامية فقط. يرجى استشارة <strong>أخصائي العلاج الطبيعي</strong> للحصول على تشخيص وخطة علاج صحيحة.',
+    ctaText: 'هل تريد البدء بالتمارين؟',
+    ctaBtn: 'اذهب إلى تمارين الجنف →',
+    footer: 'CobbAI © 2025'
+  }
+};
+
+function setLang(l) {
+  localStorage.setItem('cobbai_lang', l);
+  document.documentElement.lang = l;
+  document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
+  ['lbTR','lbEN','lbAR'].forEach(id => document.getElementById(id).classList.remove('on'));
+  document.getElementById('lb' + l.toUpperCase()).classList.add('on');
+  const t = T[l];
+
+  document.getElementById('backBtn').textContent = t.backBtn;
+  document.getElementById('heroTitle').innerHTML = t.heroTitle;
+  document.getElementById('heroSub').textContent = t.heroSub;
+
+  // Section headings as text
+  ['s1h','s2h','s3h','s4h','s5h','s6h'].forEach(id => {
+    document.getElementById(id).textContent = t[id];
+  });
+
+  // Paragraphs with HTML
+  ['s1p1','s1p2','s1p3'].forEach(id => {
+    document.getElementById(id).innerHTML = t[id];
+  });
+
+  document.getElementById('s2intro').textContent = t.s2intro;
+  ['s2l1','s2l2','s2l3','s2l4','s2l5'].forEach(id => {
+    document.getElementById(id).textContent = t[id];
+  });
+
+  document.getElementById('adamDesc').innerHTML = t.adamDesc;
+
+  document.getElementById('s3intro').textContent = t.s3intro;
+  ['s3c1h','s3c1p','s3c2h','s3c2p','s3c3h','s3c3p'].forEach(id => {
+    document.getElementById(id).textContent = t[id];
+  });
+  document.getElementById('s3tip').textContent = t.s3tip;
+
+  document.getElementById('s4intro').textContent = t.s4intro;
+  ['s4l1','s4l2','s4l3','s4l4','s4l5'].forEach(id => {
+    document.getElementById(id).textContent = t[id];
+  });
+
+  document.getElementById('s5intro').textContent = t.s5intro;
+  ['s5c1h','s5c1p','s5c2h','s5c2p','s5c3h','s5c3p'].forEach(id => {
+    document.getElementById(id).textContent = t[id];
+  });
+
+  ['s6l1','s6l2','s6l3','s6l4','s6l5'].forEach(id => {
+    document.getElementById(id).textContent = t[id];
+  });
+
+  document.getElementById('tipBox').innerHTML = t.tipBox;
+  document.getElementById('ctaText').textContent = t.ctaText;
+  document.getElementById('ctaBtn').textContent = t.ctaBtn;
+  document.getElementById('footer').innerHTML = t.footer;
+}
+
+(function(){
+  const saved = localStorage.getItem('cobbai_lang') || 'tr';
+  setLang(saved);
+})();
+</script>
+</body>
+</html>

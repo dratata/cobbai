@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Hasta Merkezi — CobbAI</title>
+<meta name="description" content="CobbAI Hasta Merkezi — Skolyoz ve düz taban hakkında hastalar ve yakınları için bilgilendirme.">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:17px;}
+body{background:#080c0f;color:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.7;}
+nav{background:#0a0f13;border-bottom:1px solid rgba(255,255,255,.1);padding:0 1rem;height:58px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:#eef2f7;font-size:18px;font-weight:700;}
+.bone{width:30px;height:30px;border:2px solid #00c853;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.lsw{margin-left:auto;display:flex;gap:6px;}
+.lb{padding:7px 14px;border:2px solid rgba(255,255,255,.15);border-radius:20px;background:transparent;color:#7a8fa0;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;}
+.lb.on{border-color:#00c853;color:#00c853;}
+.lb:hover{border-color:#eef2f7;color:#eef2f7;}
+.container{max-width:900px;margin:0 auto;padding:2rem 1rem 4rem;}
+.hero{background:linear-gradient(135deg,#0a1a0f,#0d1e14);border:1px solid rgba(0,200,83,.2);border-radius:16px;padding:2.5rem 2rem;margin-bottom:2.5rem;text-align:center;}
+.hero-icon{font-size:56px;margin-bottom:1rem;}
+.hero h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;margin-bottom:.6rem;}
+.hero h1 em{color:#00c853;font-style:normal;}
+.hero p{color:#7a8fa0;font-size:16px;max-width:520px;margin:0 auto;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:#7a8fa0;font-size:14px;font-weight:600;padding:7px 14px;border:1px solid rgba(255,255,255,.1);border-radius:20px;margin-bottom:1.5rem;transition:all .2s;}
+.back-btn:hover{color:#eef2f7;border-color:rgba(255,255,255,.3);}
+.section-title{font-size:1.1rem;font-weight:700;color:#7a8fa0;letter-spacing:2px;text-transform:uppercase;margin-bottom:1.25rem;}
+.card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:2rem;}
+@media(max-width:600px){.card-grid{grid-template-columns:1fr;}}
+.pcard{display:flex;flex-direction:column;text-decoration:none;border-radius:16px;padding:1.75rem 1.5rem;border:1px solid transparent;transition:transform .2s,box-shadow .2s;}
+.pcard:hover{transform:translateY(-3px);box-shadow:0 8px 32px rgba(0,0,0,.4);}
+.pcard.green{background:linear-gradient(135deg,#0a1a0f,#0f2218);border-color:rgba(0,200,83,.25);}
+.pcard.blue{background:linear-gradient(135deg,#080f1a,#0a1525);border-color:rgba(33,150,243,.25);}
+.pcard .card-icon{font-size:40px;margin-bottom:.75rem;}
+.pcard h3{font-size:1.15rem;font-weight:700;margin-bottom:.4rem;}
+.pcard.green h3{color:#00c853;}
+.pcard.blue h3{color:#2196f3;}
+.pcard p{font-size:14px;color:#7a8fa0;line-height:1.6;flex:1;}
+.pcard .arr{margin-top:.9rem;font-size:13px;font-weight:700;}
+.pcard.green .arr{color:#00c853;}
+.pcard.blue .arr{color:#2196f3;}
+.warn-box{background:rgba(240,160,69,.05);border:1px solid rgba(240,160,69,.25);border-radius:12px;padding:14px 18px;margin-bottom:2rem;font-size:15px;color:#b0bec5;line-height:1.7;}
+.warn-box strong{color:#f0a045;}
+footer{border-top:1px solid rgba(255,255,255,.08);padding:1.5rem 1rem;text-align:center;font-size:13px;color:#7a8fa0;}
+[dir="rtl"] nav{flex-direction:row-reverse;}
+[dir="rtl"] .lsw{margin-left:0;margin-right:auto;}
+</style>
+</head>
+<body>
+<nav>
+  <a class="logo" href="index.html"><span class="bone">🦴</span><span>CobbAI</span></a>
+  <div class="lsw">
+    <button class="lb on" id="lbTR" onclick="setLang('tr')">TR</button>
+    <button class="lb" id="lbEN" onclick="setLang('en')">EN</button>
+    <button class="lb" id="lbAR" onclick="setLang('ar')">AR</button>
+  </div>
+</nav>
+
+<div class="container">
+
+  <a class="back-btn" href="index.html" id="backBtn">&#8592; Ana Sayfa</a>
+
+  <div class="hero">
+    <div class="hero-icon">🏥</div>
+    <h1 id="heroTitle">Hasta <em id="heroEm">Merkezi</em></h1>
+    <p id="heroSub">Skolyoz ve düz taban hakkında hastalar ve yakınları için sade, anlaşılır bilgiler.</p>
+  </div>
+
+  <div class="section-title" id="sectionLabel">Bilgi Sayfaları &amp; Egzersizler</div>
+
+  <div class="card-grid">
+
+    <a class="pcard green" href="info-scoliosis-patient.html">
+      <div class="card-icon">🦴</div>
+      <h3 id="c1title">Skolyoz Nedir?</h3>
+      <p id="c1desc">Omurga eğriliği hakkında hastalar için sade ve anlaşılır bilgi.</p>
+      <div class="arr" id="c1arr">Oku &rarr;</div>
+    </a>
+
+    <a class="pcard blue" href="info-flatfoot-patient.html">
+      <div class="card-icon">🦶</div>
+      <h3 id="c2title">Pes Planus Nedir?</h3>
+      <p id="c2desc">Düz taban hakkında hastalar için sade ve anlaşılır bilgi.</p>
+      <div class="arr" id="c2arr">Oku &rarr;</div>
+    </a>
+
+    <a class="pcard green" href="exercises/scoliosis-exercises.html">
+      <div class="card-icon">🧘</div>
+      <h3 id="c3title">Skolyoz Egzersizleri</h3>
+      <p id="c3desc">Skolyoz için önerilen basit ev egzersizleri ve duruş ipuçları.</p>
+      <div class="arr" id="c3arr">Egzersizlere Git &rarr;</div>
+    </a>
+
+    <a class="pcard blue" href="exercises/flatfoot-exercises.html">
+      <div class="card-icon">👟</div>
+      <h3 id="c4title">Pes Planus Egzersizleri</h3>
+      <p id="c4desc">Düz taban için önerilen basit ev egzersizleri ve ayak bakımı ipuçları.</p>
+      <div class="arr" id="c4arr">Egzersizlere Git &rarr;</div>
+    </a>
+
+  </div>
+
+  <div class="warn-box" id="warnBox">
+    <strong>&#9888; Bilgilendirme Notu:</strong> Bu bölüm hastalar ve hasta yakınları için bilgilendirme amaçlıdır. Kesin tanı ve tedavi için bir sağlık uzmanına başvurunuz.
+  </div>
+
+</div>
+
+<footer id="footer">CobbAI &copy; 2025</footer>
+
+<script>
+const T = {
+  tr: {
+    backBtn: '← Ana Sayfa',
+    heroTitle: 'Hasta',
+    heroEm: 'Merkezi',
+    heroSub: 'Skolyoz ve düz taban hakkında hastalar ve yakınları için sade, anlaşılır bilgiler.',
+    sectionLabel: 'Bilgi Sayfaları & Egzersizler',
+    c1title: 'Skolyoz Nedir? (Hastalar İçin)',
+    c1desc: 'Omurga eğriliği hakkında hastalar için sade ve anlaşılır bilgi.',
+    c1arr: 'Oku →',
+    c2title: 'Pes Planus Nedir? (Hastalar İçin)',
+    c2desc: 'Düz taban hakkında hastalar için sade ve anlaşılır bilgi.',
+    c2arr: 'Oku →',
+    c3title: 'Skolyoz Egzersizleri',
+    c3desc: 'Skolyoz için önerilen basit ev egzersizleri ve duruş ipuçları.',
+    c3arr: 'Egzersizlere Git →',
+    c4title: 'Pes Planus Egzersizleri',
+    c4desc: 'Düz taban için önerilen basit ev egzersizleri ve ayak bakımı ipuçları.',
+    c4arr: 'Egzersizlere Git →',
+    warnBox: '<strong>⚠ Bilgilendirme Notu:</strong> Bu bölüm hastalar ve hasta yakınları için bilgilendirme amaçlıdır. Kesin tanı ve tedavi için bir sağlık uzmanına başvurunuz.',
+    footer: 'CobbAI © 2025'
+  },
+  en: {
+    backBtn: '← Home',
+    heroTitle: 'Patient',
+    heroEm: 'Center',
+    heroSub: 'Clear and simple information about scoliosis and flatfoot for patients and families.',
+    sectionLabel: 'Info Pages & Exercises',
+    c1title: 'What is Scoliosis? (For Patients)',
+    c1desc: 'Simple and clear information about spinal curvature for patients.',
+    c1arr: 'Read →',
+    c2title: 'What is Flatfoot? (For Patients)',
+    c2desc: 'Simple and clear information about flat feet for patients.',
+    c2arr: 'Read →',
+    c3title: 'Scoliosis Exercises',
+    c3desc: 'Recommended home exercises and posture tips for scoliosis.',
+    c3arr: 'Go to Exercises →',
+    c4title: 'Flatfoot Exercises',
+    c4desc: 'Recommended home exercises and foot care tips for flatfoot.',
+    c4arr: 'Go to Exercises →',
+    warnBox: '<strong>⚠ Information Note:</strong> This section is for informational purposes for patients and families. Please consult a healthcare professional for diagnosis and treatment.',
+    footer: 'CobbAI © 2025'
+  },
+  ar: {
+    backBtn: '→ الرئيسية',
+    heroTitle: 'مركز',
+    heroEm: 'المريض',
+    heroSub: 'معلومات واضحة وبسيطة حول الجنف والقدم المسطحة للمرضى وعائلاتهم.',
+    sectionLabel: 'صفحات المعلومات والتمارين',
+    c1title: 'ما هو الجنف؟ (للمرضى)',
+    c1desc: 'معلومات بسيطة وواضحة حول انحناء العمود الفقري للمرضى.',
+    c1arr: 'اقرأ →',
+    c2title: 'ما هو القدم المسطحة؟ (للمرضى)',
+    c2desc: 'معلومات بسيطة وواضحة حول القدم المسطحة للمرضى.',
+    c2arr: 'اقرأ →',
+    c3title: 'تمارين الجنف',
+    c3desc: 'تمارين منزلية موصى بها ونصائح لتحسين وضعية الجسم.',
+    c3arr: 'اذهب إلى التمارين →',
+    c4title: 'تمارين القدم المسطحة',
+    c4desc: 'تمارين منزلية موصى بها ونصائح للعناية بالقدم.',
+    c4arr: 'اذهب إلى التمارين →',
+    warnBox: '<strong>⚠ ملاحظة:</strong> هذا القسم للإعلام فقط للمرضى وعائلاتهم. يرجى استشارة متخصص في الرعاية الصحية للتشخيص والعلاج.',
+    footer: 'CobbAI © 2025'
+  }
+};
+
+function setLang(l) {
+  localStorage.setItem('cobbai_lang', l);
+  document.documentElement.lang = l;
+  document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
+  ['lbTR','lbEN','lbAR'].forEach(id => document.getElementById(id).classList.remove('on'));
+  document.getElementById('lb' + l.toUpperCase()).classList.add('on');
+  const t = T[l];
+  document.getElementById('backBtn').textContent = t.backBtn;
+  document.getElementById('heroTitle').innerHTML = t.heroTitle + ' <em id="heroEm">' + t.heroEm + '</em>';
+  document.getElementById('heroSub').textContent = t.heroSub;
+  document.getElementById('sectionLabel').textContent = t.sectionLabel;
+  ['c1title','c1desc','c1arr','c2title','c2desc','c2arr','c3title','c3desc','c3arr','c4title','c4desc','c4arr'].forEach(id => {
+    document.getElementById(id).textContent = t[id];
+  });
+  document.getElementById('warnBox').innerHTML = t.warnBox;
+  document.getElementById('footer').innerHTML = t.footer;
+}
+
+(function(){
+  const saved = localStorage.getItem('cobbai_lang') || 'tr';
+  setLang(saved);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CobbAI Unit Tests</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#080c0f;color:#eef2f7;font-family:ui-monospace,'Cascadia Code','Fira Code',monospace;padding:1.5rem;font-size:14px}
+h1{color:#00c853;font-size:1.4rem;margin-bottom:.25rem}
+.sub{color:#7a8fa0;margin-bottom:1.5rem;font-size:13px}
+.suite{margin-bottom:2rem}
+.suite-title{font-size:12px;letter-spacing:1.5px;color:#7a8fa0;font-weight:700;margin-bottom:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1)}
+.test{display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.test-icon{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px}
+.pass{background:rgba(0,200,83,.2);color:#00c853}
+.fail{background:rgba(224,85,85,.2);color:#e05555}
+.skip{background:rgba(120,130,150,.15);color:#7a8fa0}
+.test-name{flex:1;color:#eef2f7}
+.test-detail{font-size:12px;color:#7a8fa0;margin-top:2px}
+.test-error{font-size:12px;color:#e05555;margin-top:2px}
+.summary{margin-top:1.5rem;padding:12px 16px;border-radius:8px;font-size:14px}
+.summary.all-pass{background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);color:#00c853}
+.summary.has-fail{background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.3);color:#e05555}
+button#run{margin-bottom:1.5rem;padding:10px 22px;background:#00c853;color:#000;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+button#run:hover{background:#00e564}
+</style>
+</head>
+<body>
+<h1>🧪 CobbAI Unit Tests</h1>
+<p class="sub">Mathematical validation of Cobb angle calculation and coordinate utilities</p>
+<button id="run" onclick="runAllTests()">▶ Run All Tests</button>
+<div id="output"></div>
+
+<script>
+// ─── Functions under test (copied from index.html) ────────────────────────
+
+/** Cobb angle from two normalized endplate lines (0–90° result) */
+function cobbFromLines(ul, ll) {
+  var dx1=ul.x2-ul.x1, dy1=ul.y2-ul.y1;
+  var dx2=ll.x2-ll.x1, dy2=ll.y2-ll.y1;
+  if (Math.hypot(dx1,dy1)<1e-9 || Math.hypot(dx2,dy2)<1e-9) return 0;
+  var a1=Math.atan2(dy1,dx1), a2=Math.atan2(dy2,dx2);
+  var p1=a1+Math.PI/2, p2=a2+Math.PI/2;
+  var ang=Math.abs(p1-p2)*180/Math.PI;
+  if(ang>180) ang=360-ang;
+  if(ang>90)  ang=180-ang;
+  return Math.round(ang*10)/10;
+}
+
+/** Manual-draw Cobb (4 corner points: p0,p1=upper line; p2,p3=lower line) */
+function calcManualCobbFromPoints(pts) {
+  var dx1=pts[1].x-pts[0].x, dy1=pts[1].y-pts[0].y;
+  var dx2=pts[3].x-pts[2].x, dy2=pts[3].y-pts[2].y;
+  var a1=Math.atan2(dy1,dx1), a2=Math.atan2(dy2,dx2);
+  var perp1=a1+Math.PI/2, perp2=a2+Math.PI/2;
+  var angle=Math.abs(perp1-perp2)*180/Math.PI;
+  if(angle>180) angle=360-angle;
+  if(angle>90)  angle=180-angle;   // BUG FIX applied
+  return Math.round(angle*10)/10;
+}
+
+/** Slope in degrees of a normalized line */
+function slopeDeg(line) {
+  return Math.atan2(line.y2-line.y1, line.x2-line.x1)*180/Math.PI;
+}
+
+/** Cobb from slope degrees */
+function cobbFromSlopes(upperDeg, lowerDeg) {
+  var diff = Math.abs(upperDeg - lowerDeg);
+  if(diff>180) diff=360-diff;
+  if(diff>90)  diff=180-diff;
+  return Math.round(diff*10)/10;
+}
+
+// ─── Test runner ──────────────────────────────────────────────────────────
+var passed=0, failed=0, results=[];
+
+function expect(name, actual, expected, tolerance) {
+  tolerance = tolerance || 0;
+  var ok;
+  if (typeof expected === 'boolean') ok = (actual === expected);
+  else ok = Math.abs(actual - expected) <= tolerance;
+  if(ok) passed++; else failed++;
+  results.push({name, ok, actual, expected, tolerance});
+}
+
+function expectRange(name, actual, min, max) {
+  var ok = actual >= min && actual <= max;
+  if(ok) passed++; else failed++;
+  results.push({name, ok, actual, expected: '['+min+'–'+max+']', tolerance:0});
+}
+
+function section(title) { results.push({section: title}); }
+
+function runAllTests() {
+  passed=0; failed=0; results=[];
+
+  // ── SUITE 1: Basic Cobb angle correctness ─────────────────────────────
+  section('1. Basic Cobb Angle Correctness');
+
+  // Horizontal upper, 20° tilted lower → Cobb ≈ 20°
+  expect('Horizontal upper + 20° lower = 20°',
+    cobbFromLines({x1:0,y1:0,x2:1,y2:0}, {x1:0,y1:0.5,x2:1,y2:0.5+Math.tan(20*Math.PI/180)}),
+    20, 0.2);
+
+  // Both horizontal → Cobb = 0°
+  expect('Both horizontal → Cobb = 0°',
+    cobbFromLines({x1:0,y1:0,x2:1,y2:0}, {x1:0,y1:0.5,x2:1,y2:0.5}),
+    0, 0.1);
+
+  // Both same slope → Cobb = 0° (no matter direction)
+  expect('Same slope lines → Cobb = 0°',
+    cobbFromLines({x1:0,y1:0,x2:1,y2:0.1}, {x1:0,y1:0.5,x2:1,y2:0.6}),
+    0, 0.1);
+
+  // 45° each direction → Cobb ≈ 90°? No — max is 90°
+  expect('Perpendicular lines → Cobb = 90°',
+    cobbFromLines({x1:0,y1:0,x2:1,y2:0}, {x1:0,y1:0,x2:0,y2:1}),
+    90, 0.1);
+
+  // ── SUITE 2: Normalization (always 0–90°) ─────────────────────────────
+  section('2. Normalization — Result Always 0–90°');
+
+  var angles = [5,10,20,30,40,45,50,60,70,80,89];
+  angles.forEach(function(a){
+    var tilt = a * Math.PI / 180;
+    var result = cobbFromLines(
+      {x1:0,y1:0,x2:1,y2:0},
+      {x1:0,y1:0.5,x2:1,y2:0.5+Math.tan(tilt)}
+    );
+    expectRange('Cobb('+a+'°) ∈ [0,90]', result, 0, 90);
+    expect('Cobb('+a+'°) ≈ '+a+'°', result, a, 1.5);
+  });
+
+  // ── SUITE 3: Direction independence ───────────────────────────────────
+  section('3. Direction Independence (reversed endpoints)');
+
+  var ul = {x1:0.2,y1:0.2,x2:0.8,y2:0.22};
+  var ll = {x1:0.2,y1:0.7,x2:0.8,y2:0.65};
+  var forward = cobbFromLines(ul, ll);
+  var ulRev = {x1:ul.x2,y1:ul.y2,x2:ul.x1,y2:ul.y1};
+  var llRev = {x1:ll.x2,y1:ll.y2,x2:ll.x1,y2:ll.y1};
+  expect('Reversed upper endpoint → same result', cobbFromLines(ulRev, ll), forward, 0.1);
+  expect('Reversed lower endpoint → same result', cobbFromLines(ul, llRev), forward, 0.1);
+  expect('Both reversed → same result',           cobbFromLines(ulRev, llRev), forward, 0.1);
+
+  // ── SUITE 4: Edge cases ───────────────────────────────────────────────
+  section('4. Edge Cases');
+
+  // Zero-length line → returns 0 (no crash)
+  expect('Zero-length upper line → 0 (no crash)',
+    cobbFromLines({x1:0.5,y1:0.5,x2:0.5,y2:0.5}, {x1:0,y1:0,x2:1,y2:0}),
+    0, 0.1);
+
+  // Near-vertical lines (steep scoliosis)
+  var steep = cobbFromLines({x1:0.5,y1:0,x2:0.52,y2:1},{x1:0.5,y1:0.3,x2:0.48,y2:1.3});
+  expectRange('Near-vertical lines ∈ [0,90]', steep, 0, 90);
+
+  // Very small angle (2°)
+  var small = cobbFromLines({x1:0,y1:0,x2:1,y2:0},{x1:0,y1:0.5,x2:1,y2:0.5+Math.tan(2*Math.PI/180)});
+  expect('2° angle detected accurately', small, 2, 0.3);
+
+  // ── SUITE 5: Manual draw 4-point method ──────────────────────────────
+  section('5. Manual Draw (4-point method)');
+
+  function deg2pt(angle, yOffset) {
+    var t=angle*Math.PI/180;
+    return [{x:0,y:yOffset},{x:1,y:yOffset+Math.tan(t)},{x:0,y:yOffset+0.3},{x:1,y:yOffset+0.3+Math.tan(-t)}];
+  }
+  var pts25 = deg2pt(12.5, 0.2); // ~25° total
+  var manResult = calcManualCobbFromPoints(pts25);
+  expectRange('Manual 4-point result ∈ [0,90]', manResult, 0, 90);
+
+  // ── SUITE 6: Slope-based verification ────────────────────────────────
+  section('6. Slope-Based Cobb Verification');
+
+  // AI returns upper_slope_deg=-8, lower_slope_deg=20 → Cobb=28°
+  expect('Slopes -8/+20 → Cobb=28°', cobbFromSlopes(-8, 20), 28, 0.1);
+  expect('Slopes 0/15 → Cobb=15°',   cobbFromSlopes(0, 15), 15, 0.1);
+  expect('Slopes 5/-5 → Cobb=10°',   cobbFromSlopes(5, -5), 10, 0.1);
+  // Symmetry
+  expect('Slopes -20/8 same as -8/20', cobbFromSlopes(-20,8), cobbFromSlopes(-8,20), 0.1);
+
+  // ── SUITE 7: Clinical thresholds ─────────────────────────────────────
+  section('7. Severity Classification Thresholds');
+
+  function sev(deg) { return deg>=45?'severe':deg>=25?'moderate':deg>=10?'mild':'normal'; }
+  expect('9° → normal',   sev(9),   'normal',   0);
+  expect('10° → mild',    sev(10),  'mild',     0);
+  expect('24° → mild',    sev(24),  'mild',     0);
+  expect('25° → moderate',sev(25),  'moderate', 0);
+  expect('44° → moderate',sev(44),  'moderate', 0);
+  expect('45° → severe',  sev(45),  'severe',   0);
+  expect('70° → severe',  sev(70),  'severe',   0);
+
+  render();
+}
+
+function render() {
+  var html='';
+  var currentSection='';
+  results.forEach(function(r){
+    if(r.section) {
+      if(currentSection) html+='</div>';
+      html+='<div class="suite"><div class="suite-title">'+r.section+'</div>';
+      currentSection=r.section;
+    } else {
+      var icon=r.ok?'✓':'✗';
+      var cls=r.ok?'pass':'fail';
+      html+='<div class="test">';
+      html+='<div class="test-icon '+cls+'">'+icon+'</div>';
+      html+='<div><div class="test-name">'+r.name+'</div>';
+      if(!r.ok) html+='<div class="test-error">Expected: '+r.expected+(r.tolerance?'±'+r.tolerance:'')+'  Got: '+r.actual+'</div>';
+      else html+='<div class="test-detail">'+r.actual+(r.expected!==r.actual&&typeof r.expected!=='string'?' (expected '+r.expected+')':'')+'</div>';
+      html+='</div></div>';
+    }
+  });
+  if(currentSection) html+='</div>';
+  var total=passed+failed;
+  var summCls=failed>0?'has-fail':'all-pass';
+  var summMsg=failed>0?(failed+' FAILED, '+passed+' passed'):('All '+passed+' tests passed ✓');
+  html+='<div class="summary '+summCls+'">'+summMsg+' ('+total+' total)</div>';
+  g('output').innerHTML=html;
+}
+
+function g(id){return document.getElementById(id);}
+</script>
+</body>
+</html>

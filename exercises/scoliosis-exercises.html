@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en" id="exHtml">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#00c853">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CobbAI">
+<title id="exTitle">Scoliosis Exercises — CobbAI</title>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1172562078329162" crossorigin="anonymous"></script>
+<style>
+:root{--bg:#f0fdf4;--bg2:#ffffff;--bg3:#f6fef9;--border:#d1fae5;--text:#064e3b;--muted:#047857;--accent:#00c853;--accent2:#10b981;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;--mono:ui-monospace,monospace;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:18px;line-height:1.7;}
+.topbar{background:rgba(255,255,255,0.92);backdrop-filter:blur(12px);border-bottom:2px solid var(--border);padding:12px 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:100;}
+.back-btn{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--accent);font-weight:700;font-size:15px;}
+.back-icon{width:28px;height:28px;border:2px solid var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.brand{font-family:var(--mono);font-size:15px;font-weight:700;}
+.lang-row{display:flex;gap:6px;}
+.lang-btn{padding:5px 14px;border:2px solid var(--border);border-radius:20px;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;font-family:var(--mono);font-weight:600;transition:all .15s;}
+.lang-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,200,83,.08);}
+.container{max-width:900px;margin:0 auto;padding:1.5rem 1.25rem 4rem;}
+
+/* HERO */
+.hero{background:linear-gradient(135deg,#00c853 0%,#10b981 50%,#059669 100%);border-radius:16px;padding:2rem 2rem 1.5rem;margin-bottom:1.5rem;color:#fff;position:relative;overflow:hidden;}
+.hero::before{content:'🦴';position:absolute;right:-10px;top:-10px;font-size:100px;opacity:.08;}
+.hero h1{font-size:clamp(1.8rem,5vw,2.5rem);font-weight:800;margin-bottom:.4rem;text-shadow:0 2px 8px rgba(0,0,0,.15);}
+.hero h1 em{font-style:italic;color:#d1fae5;}
+.hero p{font-size:17px;opacity:.92;max-width:520px;line-height:1.65;}
+.hero-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:1rem;}
+.hero-pill{padding:6px 14px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);border-radius:20px;font-size:14px;font-weight:600;color:#fff;}
+.wm-badge{position:absolute;bottom:12px;right:16px;font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.4);letter-spacing:1px;}
+
+/* LEGAL BOX */
+.legal-box{background:#fffbeb;border:2px solid #fde68a;border-radius:12px;padding:16px 18px;margin-bottom:1.25rem;font-size:16px;color:#92400e;line-height:1.7;}
+.legal-box strong{color:#78350f;}
+
+/* SESSION HEADER */
+.session-header{background:linear-gradient(90deg,rgba(0,200,83,.12),rgba(0,200,83,.04));border:2px solid rgba(0,200,83,.25);border-radius:10px;padding:12px 16px;margin:1.5rem 0 .75rem;display:flex;align-items:center;gap:12px;}
+.s-icon{font-size:22px;}
+.s-info{flex:1;}
+.s-title{font-family:var(--mono);font-size:11px;letter-spacing:1.2px;color:var(--accent);font-weight:800;margin-bottom:2px;}
+.s-desc{font-size:14px;color:var(--muted);}
+
+/* POSTER */
+.poster-section{border-radius:14px;overflow:hidden;margin-bottom:1.25rem;border:2px solid var(--border);box-shadow:0 4px 24px rgba(0,200,83,.1);}
+.poster-section img{width:100%;display:block;height:auto;}
+
+/* TIPS */
+.tips-box{background:#ecfdf5;border:2px solid #a7f3d0;border-radius:12px;padding:16px;margin-top:1.5rem;}
+.tips-title{font-family:var(--mono);font-size:12px;letter-spacing:1.2px;color:var(--accent);margin-bottom:12px;font-weight:800;}
+.tips-box ul{font-size:16px;color:var(--muted);padding-left:1.2rem;line-height:2.0;}
+.tips-box ul li{margin-bottom:3px;}
+footer{text-align:center;padding:2rem 1rem;font-size:13px;color:var(--muted);}
+@media(max-width:600px){.hero{padding:1.5rem;}:root{font-size:17px;}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/" class="back-btn">
+    <div class="back-icon">⬡</div>
+    <span class="brand">CobbAI</span>
+  </a>
+  <div class="lang-row">
+    <button class="lang-btn active" onclick="setLang('en')" id="btnEn">EN</button>
+    <button class="lang-btn" onclick="setLang('tr')" id="btnTr">TR</button>
+  </div>
+</div>
+
+<div class="container">
+
+<div class="hero">
+  <h1 id="heroTitle">Scoliosis <em>Exercise Program</em></h1>
+  <p id="heroDesc">Evidence-based Schroth BSPTS method · Recommended by Physical Medicine & Rehabilitation Specialist Physicians</p>
+  <div class="hero-pills">
+    <span class="hero-pill" id="pill1">📅 Every day</span>
+    <span class="hero-pill" id="pill2">🔄 2 sets</span>
+    <span class="hero-pill" id="pill3">🔢 10–15 reps</span>
+    <span class="hero-pill" id="pill4">⏱ 30–40 min</span>
+  </div>
+  <div class="wm-badge">cobbai.vercel.app</div>
+</div>
+
+<div class="legal-box" id="legalBox">
+  ⚕ <strong id="legalTitle">Medical Disclaimer:</strong> <span id="legalText">These exercises are provided for general informational purposes only by CobbAI and are not personalized medical advice. They must be performed under the supervision and recommendation of a licensed Physical Medicine & Rehabilitation (FTR) Specialist Physician or certified Schroth physiotherapist. Do not perform these exercises if you experience pain, neurological symptoms, or without professional evaluation. CobbAI accepts no liability for any health outcomes resulting from use of this content. Always consult your doctor before starting any exercise program.</span>
+</div>
+
+<div class="poster-section">
+  <img src="scoliosis-poster.png" alt="Scoliosis Exercise Program" id="posterImg" loading="lazy">
+</div>
+
+<div class="tips-box">
+  <div class="tips-title" id="tipsTitle">IMPORTANT GUIDELINES</div>
+  <ul id="tipsList">
+    <li>Perform exercises regularly and with correct form — consistency matters more than intensity.</li>
+    <li>Do not hold your breath — coordinate breathing with each movement (Schroth RAB breathing).</li>
+    <li>Stop immediately if any exercise causes increased pain, numbness, or breathing difficulty.</li>
+    <li>These exercises are general — for a curve-specific Schroth program, see a certified BSPTS/Schroth physiotherapist.</li>
+    <li>If wearing a TLSO brace, ask your physiotherapist which exercises to perform inside vs. outside the brace.</li>
+    <li>Re-evaluate with your FTR specialist every 3–4 months.</li>
+    <li>Stand tall during daily life — avoid prolonged sitting or slouching.</li>
+    <li>Ensure adequate calcium and Vitamin D intake for bone health.</li>
+  </ul>
+</div>
+
+</div>
+<footer id="footerText">CobbAI © 2025 · cobbai.vercel.app · ⚕ Not medical advice</footer>
+
+<script>
+const T={
+  en:{
+    title:"Scoliosis Exercises — CobbAI",
+    heroTitle:"Scoliosis <em>Exercise Program</em>",
+    heroDesc:"Evidence-based Schroth BSPTS method · Recommended by Physical Medicine & Rehabilitation Specialist Physicians",
+    pill1:"📅 Every day",pill2:"🔄 2 sets",pill3:"🔢 10–15 reps",pill4:"⏱ 30–40 min",
+    legalTitle:"Medical Disclaimer:",
+    legalText:"These exercises are provided for general informational purposes only by CobbAI and are not personalized medical advice. They must be performed under the supervision and recommendation of a licensed Physical Medicine & Rehabilitation (FTR) Specialist Physician or certified Schroth physiotherapist. Do not perform these exercises if you experience pain, neurological symptoms, or without professional evaluation. CobbAI accepts no liability for any health outcomes resulting from use of this content. Always consult your doctor before starting any exercise program.",
+    tipsTitle:"IMPORTANT GUIDELINES",
+    tipsList:["Perform exercises regularly and with correct form — consistency matters more than intensity.","Do not hold your breath — coordinate breathing with each movement (Schroth RAB breathing).","Stop immediately if any exercise causes increased pain, numbness, or breathing difficulty.","These exercises are general — for a curve-specific Schroth program, see a certified BSPTS/Schroth physiotherapist.","If wearing a TLSO brace, ask your physiotherapist which exercises to perform inside vs. outside the brace.","Re-evaluate with your FTR specialist every 3–4 months.","Stand tall during daily life — avoid prolonged sitting or slouching.","Ensure adequate calcium and Vitamin D intake for bone health."],
+    footer:"CobbAI © 2025 · cobbai.vercel.app · ⚕ Not medical advice"
+  },
+  tr:{
+    title:"Skolyoz Egzersizleri — CobbAI",
+    heroTitle:"Skolyoz <em>Egzersiz Programı</em>",
+    heroDesc:"Kanıta dayalı Schroth BSPTS yöntemi · Fiziksel Tıp ve Rehabilitasyon Hekimleri Tarafından Önerilen",
+    pill1:"📅 Her gün",pill2:"🔄 2 set",pill3:"🔢 10–15 tekrar",pill4:"⏱ 30–40 dk",
+    legalTitle:"Tıbbi Sorumluluk Reddi:",
+    legalText:"Bu egzersizler CobbAI tarafından yalnızca genel bilgilendirme amacıyla sunulmaktadır; kişiye özel tıbbi tavsiye niteliği taşımamaktadır. Egzersizler mutlaka lisanslı bir Fiziksel Tıp ve Rehabilitasyon (FTR) Uzman Hekimi veya sertifikalı Schroth fizyoterapistinin gözetimi ve önerisiyle yapılmalıdır. Ağrı, nörolojik belirti yaşıyorsanız veya uzman değerlendirmesi yapılmadan bu egzersizleri uygulamayın. CobbAI, bu içeriğin kullanımından kaynaklanabilecek herhangi bir sağlık sonucundan sorumluluk kabul etmemektedir. Herhangi bir egzersiz programına başlamadan önce mutlaka doktorunuza danışın.",
+    tipsTitle:"ÖNEMLİ KURALLAR",
+    tipsList:["Egzersizleri düzenli ve doğru formda yapın — tutarlılık yoğunluktan önemlidir.","Nefesinizi tutmayın — her hareketi Schroth RAB nefesiyle koordine edin.","Herhangi bir egzersiz artan ağrıya, uyuşmaya veya nefes darlığına yol açıyorsa hemen durdurun.","Bu egzersizler geneldir — eğriye özgü Schroth programı için sertifikalı BSPTS/Schroth fizyoterapistine başvurun.","TLSO korse kullanıyorsanız hangi egzersizleri korse içinde/dışında yapacağınızı fizyoterapistinize sorun.","Her 3–4 ayda bir FTR Uzman Hekimiyle değerlendirin.","Günlük yaşamda dik durun — uzun süre oturma ve kamburlaşmadan kaçının.","Kemik sağlığı için yeterli kalsiyum ve D vitamini alımına özen gösterin."],
+    footer:"CobbAI © 2025 · cobbai.vercel.app · ⚕ Tıbbi tavsiye değildir"
+  }
+};
+function setText(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+function setHTML(id,v){const e=document.getElementById(id);if(e)e.innerHTML=v;}
+function setLang(l){
+  document.getElementById('btnEn').classList.toggle('active',l==='en');
+  document.getElementById('btnTr').classList.toggle('active',l==='tr');
+  document.getElementById('exHtml').lang=l;
+  const t=T[l];
+  document.title=t.title;
+  setHTML('heroTitle',t.heroTitle);setText('heroDesc',t.heroDesc);
+  setText('pill1',t.pill1);setText('pill2',t.pill2);setText('pill3',t.pill3);setText('pill4',t.pill4);
+  setText('legalTitle',t.legalTitle);setText('legalText',t.legalText);
+  setText('tipsTitle',t.tipsTitle);
+  document.getElementById('tipsList').innerHTML=t.tipsList.map(x=>`<li>${x}</li>`).join('');
+  setText('footerText',t.footer);
+  localStorage.setItem('cobbai_lang',l);
+}
+const p=new URLSearchParams(window.location.search);
+const saved=localStorage.getItem('cobbai_lang');
+const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';
+const initLang=p.get('lang')||saved||(tz.includes('Istanbul')?'tr':'en');
+setLang(initLang);
+</script>
+</body>
+</html>
+
+<!-- DAILY TRACKING SECTION -->
+<div class="container" style="padding-top:0;">
+
+<div style="background:linear-gradient(135deg,#0a1a0f,#0d1e14);border:1px solid rgba(0,200,83,.25);border-radius:14px;padding:1.5rem;margin-bottom:1.5rem;">
+  <div style="font-size:10px;letter-spacing:1.3px;color:#00c853;font-weight:700;margin-bottom:1rem;" id="track-title">📅 GÜNLÜK TAKİP</div>
+
+  <!-- Streak counter -->
+  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+    <div style="text-align:center;background:rgba(0,200,83,.1);border:1px solid rgba(0,200,83,.3);border-radius:10px;padding:12px 20px;">
+      <div style="font-size:36px;font-weight:700;color:#00c853;line-height:1;" id="streak-num">0</div>
+      <div style="font-size:12px;color:#7a8fa0;margin-top:2px;" id="streak-lbl">GÜN STREAK</div>
+    </div>
+    <div style="text-align:center;background:rgba(0,200,83,.06);border:1px solid rgba(0,200,83,.15);border-radius:10px;padding:12px 20px;">
+      <div style="font-size:36px;font-weight:700;color:#00c853;line-height:1;" id="total-num">0</div>
+      <div style="font-size:12px;color:#7a8fa0;margin-top:2px;" id="total-lbl">TOPLAM GÜN</div>
+    </div>
+    <div style="text-align:center;background:rgba(0,200,83,.06);border:1px solid rgba(0,200,83,.15);border-radius:10px;padding:12px 20px;">
+      <div style="font-size:36px;font-weight:700;color:#00c853;line-height:1;" id="this-week">0/7</div>
+      <div style="font-size:12px;color:#7a8fa0;margin-top:2px;" id="week-lbl">BU HAFTA</div>
+    </div>
+  </div>
+
+  <!-- Last 14 days calendar -->
+  <div style="margin-bottom:1rem;">
+    <div style="font-size:13px;color:#7a8fa0;margin-bottom:8px;" id="cal-lbl">Son 14 gün</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;" id="cal-dots"></div>
+  </div>
+
+  <!-- Mark today done button -->
+  <button id="mark-done-btn" onclick="markDone()" style="width:100%;padding:14px;background:#00c853;color:#000;border:none;border-radius:10px;font-size:17px;font-weight:700;cursor:pointer;transition:all .2s;">
+    ✅ Bugün Egzersizimi Yaptım
+  </button>
+  <div id="done-msg" style="display:none;text-align:center;padding:12px;font-size:15px;color:#00c853;font-weight:600;">🎉 Harika! Bugün tamamlandı.</div>
+
+  <!-- Progress bar -->
+  <div style="margin-top:1rem;">
+    <div style="display:flex;justify-content:space-between;font-size:13px;color:#7a8fa0;margin-bottom:5px;">
+      <span id="prog-lbl">Bu haftaki ilerleme</span><span id="prog-pct">0%</span>
+    </div>
+    <div style="background:rgba(255,255,255,.08);border-radius:20px;height:8px;">
+      <div id="prog-bar" style="background:#00c853;border-radius:20px;height:8px;width:0%;transition:width .5s;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Reminder tip -->
+<div style="background:#0e1419;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 16px;margin-bottom:1.5rem;">
+  <div style="font-size:13px;color:#7a8fa0;line-height:1.7;" id="reminder-tip">
+    💡 <strong style="color:#00c853;">İpucu:</strong> En iyi sonuç için egzersizleri her gün aynı saatte yapın. Sabah veya akşam rutininize ekleyin. Günlük streak'inizi korumak motivasyonunuzu artırır.
+  </div>
+</div>
+
+</div>
+
+<script>
+// ── SKOLYOZ EGZERSİZ TAKİP ────────────────────────
+var TRACK_KEY = 'cobbai_scol_track';
+
+function getTrackData() {
+  try { return JSON.parse(localStorage.getItem(TRACK_KEY) || '{"days":[]}'); }
+  catch(e) { return {days:[]}; }
+}
+
+function saveTrackData(d) {
+  localStorage.setItem(TRACK_KEY, JSON.stringify(d));
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function markDone() {
+  var data = getTrackData();
+  var today = todayStr();
+  if (data.days.indexOf(today) === -1) {
+    data.days.push(today);
+    saveTrackData(data);
+  }
+  renderTracking();
+}
+
+function renderTracking() {
+  var data = getTrackData();
+  var today = todayStr();
+  var days = data.days;
+  var todayDone = days.indexOf(today) !== -1;
+
+  // Done button state
+  var btn = document.getElementById('mark-done-btn');
+  var msg = document.getElementById('done-msg');
+  if (btn && msg) {
+    if (todayDone) {
+      btn.style.display = 'none';
+      msg.style.display = 'block';
+    } else {
+      btn.style.display = 'block';
+      msg.style.display = 'none';
+    }
+  }
+
+  // Streak calculation
+  var streak = 0;
+  var d = new Date();
+  while(true) {
+    var ds = d.toISOString().slice(0,10);
+    if (days.indexOf(ds) !== -1) { streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+
+  // Total
+  var total = days.length;
+
+  // This week (Mon–Sun)
+  var now = new Date();
+  var dow = now.getDay();
+  var weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+  weekStart.setHours(0,0,0,0);
+  var thisWeek = 0;
+  for (var i=0;i<7;i++) {
+    var wd = new Date(weekStart);
+    wd.setDate(weekStart.getDate()+i);
+    if(days.indexOf(wd.toISOString().slice(0,10))!==-1) thisWeek++;
+  }
+
+  // Update UI
+  var sn = document.getElementById('streak-num'); if(sn) sn.textContent = streak;
+  var tn = document.getElementById('total-num'); if(tn) tn.textContent = total;
+  var tw = document.getElementById('this-week'); if(tw) tw.textContent = thisWeek+'/7';
+  var pb = document.getElementById('prog-bar'); if(pb) pb.style.width = Math.round(thisWeek/7*100)+'%';
+  var pp = document.getElementById('prog-pct'); if(pp) pp.textContent = Math.round(thisWeek/7*100)+'%';
+
+  // Calendar dots - last 14 days
+  var cal = document.getElementById('cal-dots');
+  if(cal) {
+    cal.innerHTML = '';
+    for(var j=13;j>=0;j--) {
+      var cd = new Date();
+      cd.setDate(cd.getDate()-j);
+      var cds = cd.toISOString().slice(0,10);
+      var done = days.indexOf(cds) !== -1;
+      var isToday = cds === today;
+      var dot = document.createElement('div');
+      dot.title = cds;
+      dot.style.cssText = 'width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:default;' +
+        (done ? 'background:#00c853;color:#000;' : 'background:rgba(255,255,255,0.06);color:#4a5a6a;') +
+        (isToday ? 'outline:2px solid #00c853;outline-offset:1px;' : '');
+      dot.textContent = done ? '✓' : cd.getDate();
+      cal.appendChild(dot);
+    }
+  }
+}
+
+// Lang support
+var pg_lang = localStorage.getItem('cobbai_lang') || new URLSearchParams(location.search).get('lang') || 'tr';
+function updateTrackLang(l) {
+  if(l==='en') {
+    var t=document.getElementById('track-title');if(t)t.textContent='📅 DAILY TRACKING';
+    var sl=document.getElementById('streak-lbl');if(sl)sl.textContent='DAY STREAK';
+    var tl=document.getElementById('total-lbl');if(tl)tl.textContent='TOTAL DAYS';
+    var wl=document.getElementById('week-lbl');if(wl)wl.textContent='THIS WEEK';
+    var cl=document.getElementById('cal-lbl');if(cl)cl.textContent='Last 14 days';
+    var pl=document.getElementById('prog-lbl');if(pl)pl.textContent='This week\'s progress';
+    var bdb=document.getElementById('mark-done-btn');if(bdb)bdb.textContent='✅ I Did My Exercises Today';
+    var dm=document.getElementById('done-msg');if(dm)dm.textContent='🎉 Great! Today completed.';
+    var rt=document.getElementById('reminder-tip');if(rt)rt.innerHTML='💡 <strong style="color:#00c853;">Tip:</strong> For best results, do exercises at the same time every day. Add them to your morning or evening routine. Keeping your daily streak boosts motivation.';
+  }
+}
+updateTrackLang(pg_lang);
+
+// Override setLang to also update tracking
+var _origSetLang = typeof setLang === 'function' ? setLang : null;
+function setLang(l) { if(_origSetLang) _origSetLang(l); updateTrackLang(l); }
+
+renderTracking();
+</script>

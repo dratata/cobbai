@@ -1,0 +1,34 @@
+# Vercel
+.vercel
+
+# Build output
+dist/
+dist-ssr/
+
+# Dependencies
+node_modules/
+
+# Local env — GEMINI_API_KEY burada tutulur, asla commit edilmez!
+.env
+.env.local
+.env.*.local
+
+# Vite
+.vite/
+
+# Test coverage
+coverage/
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Geçici test görüntüleri (hasta verisi içerebilir — commit edilmemeli)
+test*.jpg
+test*.png
+sr2023_*.png
+xray_ok_*.jpg
