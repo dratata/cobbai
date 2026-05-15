@@ -149,9 +149,24 @@ const App: React.FC = () => {
         body: JSON.stringify(payload), signal: controller.signal,
       });
       clearTimeout(timer);
-      const rawJson = await resp.json();
+      // Guard: sunucu bazen JSON değil düz metin döndürebilir (502, 504, cold-start hataları)
+      let rawJson: unknown;
+      const rawText = await resp.text();
+      try {
+        rawJson = JSON.parse(rawText);
+      } catch {
+        const preview = rawText.slice(0, 120).replace(/\n/g, ' ');
+        store.setAnalyzeError(
+          resp.ok
+            ? `Sunucu geçersiz yanıt döndürdü: ${preview}`
+            : `Sunucu hatası (${resp.status}): ${preview}`
+        );
+        return;
+      }
       if (!resp.ok) {
-        store.setAnalyzeError((rawJson as { error?:string }).error ?? 'Hata: ' + resp.status);
+        store.setAnalyzeError(
+          (rawJson as { error?: string }).error ?? `Sunucu hatası: ${resp.status}`
+        );
         return;
       }
 

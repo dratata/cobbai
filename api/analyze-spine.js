@@ -59,7 +59,10 @@ export default async function handler(req, res) {
 
   try {
     let r = await callGemini();
-    let d = await r.json();
+    // Safe JSON parse — Gemini occasionally returns non-JSON on errors
+    let d;
+    try { d = await r.json(); }
+    catch { return res.status(502).json({ error: 'Gemini returned non-JSON response. Try again.' }); }
 
     // One retry on overload
     if (!r.ok) {
@@ -67,7 +70,8 @@ export default async function handler(req, res) {
       const busy = r.status === 429 || r.status === 503 || msg.includes('high demand') || msg.includes('overloaded');
       if (busy) {
         await new Promise(resolve => setTimeout(resolve, 5000));
-        r = await callGemini(); d = await r.json();
+        r = await callGemini();
+        try { d = await r.json(); } catch { return res.status(502).json({ error: 'Gemini retry returned non-JSON. Try again.' }); }
         if (!r.ok) return res.status(r.status).json({ error: d?.error?.message || 'Server busy. Please try again.' });
       } else {
         return res.status(r.status).json({ error: msg || 'Gemini error: ' + r.status });
