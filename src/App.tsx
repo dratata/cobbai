@@ -47,13 +47,24 @@ const Spinner: React.FC<{ label?: string }> = ({ label }) => (
 
 // ── Main App ──────────────────────────────────────────────────
 const App: React.FC = () => {
-  // ── HATA 2: Granular Zustand selectors ────────────────────────
-  // Only subscribe to values that actually change frequently.
-  // `isAnalyzing` is the main culprit — changes on every analysis tick.
-  // JSX uses store.xxx for everything else (stable enough for clinical use).
+  // ── Zustand granular selectors (Re-render optimisation) ────────
+  // Problem: `useMeasurementStore()` without a selector subscribes to ALL
+  // store changes and re-renders App.tsx on every state mutation — including
+  // rapid changes like `isAnalyzing`, `controls.zoom`, etc.
+  //
+  // Fix strategy:
+  //  • Frequent UI-critical booleans → individual selectors (stable refs)
+  //  • Grouped theme/locale → useShallow so only language/theme changes trigger
+  //  • Broad `store` kept only for rarely-changing data (patient info, results)
+  //    that the JSX tree needs for conditional rendering
   const { lightMode, language } = useMeasurementStore(
     useShallow(s => ({ lightMode: s.lightMode, language: s.language }))
   );
+  // These change often during analysis — separate subscriptions avoid
+  // cascading re-renders through the whole component tree.
+  const isAnalyzing  = useMeasurementStore(s => s.isAnalyzing);
+  const isPreproc    = useMeasurementStore(s => s.isPreprocessing);
+  const controls     = useMeasurementStore(useShallow(s => s.controls));
 
   const store      = useMeasurementStore();
   const canAnalyze = useMeasurementStore(selectCanAnalyze);
@@ -78,8 +89,15 @@ const App: React.FC = () => {
   const [showValidation, setShowValidation]       = useState(false);
   const [analyzeBtnPressed, setAnalyzeBtnPressed] = useState(false);
   const [uiToast, setUiToast]                     = useState<string | null>(null);
+  // Rate limiting (#27): 10-second client-side cooldown after each analysis.
+  // Prevents rapid-fire clicking that would burn API tokens.
+  const [cooldownSec, setCooldownSec] = useState(0);
+  const cooldownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   // GPT patch: KVKK React state (localStorage stays in sync)
   const [kvkkAccepted, setKvkkAccepted] = useState(() => localStorage.getItem('cobbai_kvkk') === '1');
+
+  // Cleanup cooldown interval on unmount
+  useEffect(() => () => { if (cooldownRef.current) clearInterval(cooldownRef.current); }, []);
 
   // Clear stale cache entries on mount — ensures old hash-collision results
   // (e.g. always "27.8°") are not served from a previous session.
@@ -350,16 +368,25 @@ const App: React.FC = () => {
     }
   }, [canAnalyze, store]);
 
-  // ── Analyze button wrapper — shows immediate press feedback ──
+  // ── Analyze button wrapper — press feedback + rate limiting ──
+  const COOLDOWN_SECS = 10;
   const handleAnalyzeClick = useCallback(async (force = false) => {
-    if (store.isAnalyzing) return;
+    if (isAnalyzing || cooldownSec > 0) return;
     setAnalyzeBtnPressed(true);
-    // Auto-clear press state after 800 ms (even if network is slow)
     const pressTimer = setTimeout(() => setAnalyzeBtnPressed(false), 800);
     await runAnalysis(force);
     clearTimeout(pressTimer);
     setAnalyzeBtnPressed(false);
-  }, [store.isAnalyzing, runAnalysis]);
+    // Start cooldown so the user can't spam the API
+    setCooldownSec(COOLDOWN_SECS);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldownSec(prev => {
+        if (prev <= 1) { clearInterval(cooldownRef.current!); cooldownRef.current = null; return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [isAnalyzing, cooldownSec, runAnalysis]);
 
   // ── Canvas overlay export — HATA 2 FIX ────────────────────────
   // Problem: overlay canvas uses CSS object-fit:contain scaling.
@@ -417,8 +444,8 @@ const App: React.FC = () => {
     a.click();
   }, [store]);
 
-  // ── Image filter string ────────────────────────────────────
-  const imgFilter = `brightness(${100 + store.controls.brightness}%) contrast(${store.controls.contrast}%)`;
+  // ── Image filter string — uses granular `controls` selector ──
+  const imgFilter = `brightness(${100 + controls.brightness}%) contrast(${controls.contrast}%)`;
 
   // ── Derived labels (language aware) ─────────────────────────
   const sidebarLabels = {
@@ -585,7 +612,7 @@ const App: React.FC = () => {
                       onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.2)';}}
                     >
                       <div style={{ fontSize:26, opacity:.5 }}>{store.modality==='spine' ? t.uIcoS : t.uIcoF}</div>
-                      <div style={{ fontSize:18, fontWeight:500 }}>{store.isPreprocessing ? 'İşleniyor...' : (store.modality==='spine' ? t.uTitleS : t.uTitleF)}</div>
+                      <div style={{ fontSize:18, fontWeight:500 }}>{isPreproc ? 'İşleniyor...' : (store.modality==='spine' ? t.uTitleS : t.uTitleF)}</div>
                       <div style={{ fontSize:14, color:'#7a8fa0', textAlign:'center', lineHeight:1.5 }}>{store.modality==='spine' ? t.uHintS : t.uHintF}</div>
                       <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); }}/>
                     </div>
@@ -593,7 +620,7 @@ const App: React.FC = () => {
                     /* Image viewer — constrained height so tall portrait X-rays don't dominate */
                     <div style={{ position:'relative', background:'#0a0e12', borderRadius:10, overflow:'auto', lineHeight:0, maxHeight:'min(540px,62vh)' }}>
                       {/* AI Loading overlay — shown while analyzing */}
-                      {store.isAnalyzing && <AILoadingScreen lang={store.language} />}
+                      {isAnalyzing && <AILoadingScreen lang={store.language} />}
 
                       {/* ── Manual mode toggle button ── */}
                       <button
@@ -640,7 +667,7 @@ const App: React.FC = () => {
                             src={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
                             alt="X-ray" id="main-xray-img"
                             draggable={false}
-                            style={{ width:'100%', display:'block', background:'#111', filter: imgFilter, opacity: store.isAnalyzing ? 0.3 : 1, transition: 'opacity .2s', userSelect:'none' }}
+                            style={{ width:'100%', display:'block', background:'#111', filter: imgFilter, opacity: isAnalyzing ? 0.3 : 1, transition: 'opacity .2s', userSelect:'none' }}
                           />
                           {/* Canvas overlay — always same size as img wrapper → always aligned */}
                           {store.processedSpine && store.controls.showOverlay && (
@@ -755,37 +782,39 @@ const App: React.FC = () => {
                       )}
                       <button
                         onClick={() => handleAnalyzeClick(false)}
-                        disabled={!canAnalyze || store.isAnalyzing || !kvkkAccepted}
-                        aria-busy={store.isAnalyzing}
-                        aria-label={store.isAnalyzing ? 'Analiz ediliyor...' : undefined}
+                        disabled={!canAnalyze || isAnalyzing || !kvkkAccepted || cooldownSec > 0}
+                        aria-busy={isAnalyzing}
+                        aria-label={isAnalyzing ? 'Analiz ediliyor...' : undefined}
                         style={{
                           padding:'17px', fontSize:18, fontWeight:700, border:'none', borderRadius:10,
-                          cursor: canAnalyze && !store.isAnalyzing && kvkkAccepted ? 'pointer' : 'not-allowed',
+                          cursor: canAnalyze && !isAnalyzing && kvkkAccepted && cooldownSec === 0 ? 'pointer' : 'not-allowed',
                           fontFamily:'inherit', minHeight:54, display:'flex', alignItems:'center', justifyContent:'center', gap:10,
-                          background: store.isAnalyzing ? '#0a2a18' : (canAnalyze && kvkkAccepted) ? '#00c853' : '#1a2e26',
-                          color: store.isAnalyzing ? '#00c853' : (canAnalyze && kvkkAccepted) ? '#000' : '#7a8fa0',
+                          background: isAnalyzing ? '#0a2a18' : cooldownSec > 0 ? '#1a2414' : (canAnalyze && kvkkAccepted) ? '#00c853' : '#1a2e26',
+                          color: isAnalyzing ? '#00c853' : cooldownSec > 0 ? '#4a7a4a' : (canAnalyze && kvkkAccepted) ? '#000' : '#7a8fa0',
                           transition: 'all .12s',
-                          transform: analyzeBtnPressed && !store.isAnalyzing ? 'scale(0.96) translateY(2px)' : 'none',
-                          boxShadow: store.isAnalyzing
+                          transform: analyzeBtnPressed && !isAnalyzing ? 'scale(0.96) translateY(2px)' : 'none',
+                          boxShadow: isAnalyzing
                             ? '0 0 0 4px rgba(0,200,83,.12), 0 0 24px rgba(0,200,83,.18)'
-                            : analyzeBtnPressed ? '0 2px 8px rgba(0,200,83,.12)' : (canAnalyze && kvkkAccepted) ? '0 8px 22px rgba(0,200,83,.18)' : 'none',
+                            : analyzeBtnPressed ? '0 2px 8px rgba(0,200,83,.12)' : (canAnalyze && kvkkAccepted && cooldownSec === 0) ? '0 8px 22px rgba(0,200,83,.18)' : 'none',
                           position: 'relative', overflow: 'hidden',
                         }}
                       >
                         {/* Shimmer strip during analysis */}
-                        {store.isAnalyzing && (
+                        {isAnalyzing && (
                           <div style={{ position:'absolute', inset:0, background:'linear-gradient(90deg,transparent,rgba(0,200,83,.12),transparent)', backgroundSize:'200% 100%', animation:'_shimmer 1.4s ease infinite' }} />
                         )}
                         <style>{`@keyframes _shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
-                        {store.isAnalyzing ? (
-                          <>
+                        {isAnalyzing ? (
+<>
                             <div style={{ width:20, height:20, border:'3px solid rgba(0,200,83,.2)', borderTopColor:'#00c853', borderRadius:'50%', animation:'_spin .75s linear infinite', flexShrink:0 }}/>
                             {store.language==='tr'?'Görüntü AI ile analiz ediliyor…':store.language==='ar'?'جارٍ التحليل…':'Analyzing with AI…'}
                           </>
-                        ) : (store.modality==='spine' ? t.abtnS : t.abtnF)}
+                        ) : cooldownSec > 0
+                          ? `⏳ ${cooldownSec}s`
+                          : (store.modality==='spine' ? t.abtnS : t.abtnF)}
                       </button>
                       {/* Re-analyze button (bypasses cache) — only shown when result exists */}
-                      {(store.spineResult || store.footResult) && !store.isAnalyzing && (
+                      {(store.spineResult || store.footResult) && !isAnalyzing && cooldownSec === 0 && (
                         <button onClick={() => handleAnalyzeClick(true)}
                           style={{ padding:'8px', background:'transparent', border:'1px solid rgba(255,255,255,.12)', borderRadius:8, color:'#7a8fa0', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>
                           🔄 {store.language==='tr'?'AI ile Yeniden Analiz Et':store.language==='ar'?'إعادة التحليل':'Re-analyze with AI'}
@@ -813,7 +842,7 @@ const App: React.FC = () => {
                     )}
                   </div>
 
-                  {store.isAnalyzing && <Spinner label={t.loadTxt} />}
+                  {isAnalyzing && <Spinner label={t.loadTxt} />}
 
                   {store.analyzeError && (
                     <div style={{ padding:'1rem', background:'rgba(224,85,85,.08)', border:'1px solid rgba(224,85,85,.3)', borderRadius:8, color:'#e05555', fontSize:14, lineHeight:1.6, marginBottom:8 }}>
@@ -822,7 +851,7 @@ const App: React.FC = () => {
                     </div>
                   )}
 
-                  {!store.isAnalyzing && !showResult && !store.analyzeError && (
+                  {!isAnalyzing && !showResult && !store.analyzeError && (
                     <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10, color:'#4a5a6a', fontSize:14 }}>
                       <svg width="52" height="52" viewBox="0 0 52 52" fill="none" style={{ opacity:.3 }}><rect x="16" y="4" width="20" height="44" rx="3" stroke="currentColor" strokeWidth="1.5"/><line x1="26" y1="4" x2="26" y2="48" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 3"/><path d="M22 15 Q26 20 30 15" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M19 26 Q26 33 33 26" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
                       {t.emptyMsg}
