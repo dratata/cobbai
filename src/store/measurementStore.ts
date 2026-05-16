@@ -144,7 +144,7 @@ export const useMeasurementStore = create<AppState>((set) => ({
   setShowHistory:    (v) => set({ showHistory:v }),
 
   setDoctorNotes:    (n) => set({ doctorNotes:n }),
-  addToHistory:      (s) => set(st => ({ history:[s,...st.history].slice(0,50) })),
+  addToHistory:      (s) => set(st => ({ history:[s,...st.history].slice(0,10) })),
 
   toggleTheme: () => set(s => {
     const next = !s.lightMode;

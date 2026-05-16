@@ -64,27 +64,29 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   }, [imageSrc]);
 
   // ── Coordinate transforms ─────────────────────────────────────
-  // canvas pixels → image pixels
+  // All positions are in CSS (logical) pixels. DPR handled by ctx.scale in draw().
+
+  // CSS canvas pixels → image pixels
   const cvs2img = useCallback((cx: number, cy: number): Point => {
     const { zoom, panX, panY } = stateRef.current;
     const cvs = canvasRef.current!;
-    // Image is drawn centered in canvas then panned+zoomed
+    const dpr  = window.devicePixelRatio || 1;
+    const cssW = cvs.width / dpr, cssH = cvs.height / dpr;
     const imgW = naturalW * zoom, imgH = naturalH * zoom;
-    const originX = (cvs.width  - imgW) / 2 + panX;
-    const originY = (cvs.height - imgH) / 2 + panY;
-    return {
-      x: (cx - originX) / zoom,
-      y: (cy - originY) / zoom,
-    };
+    const originX = (cssW - imgW) / 2 + panX;
+    const originY = (cssH - imgH) / 2 + panY;
+    return { x: (cx - originX) / zoom, y: (cy - originY) / zoom };
   }, [naturalW, naturalH]);
 
-  // image pixels → canvas pixels
+  // image pixels → CSS canvas pixels
   const img2cvs = useCallback((ix: number, iy: number): Point => {
     const { zoom, panX, panY } = stateRef.current;
     const cvs = canvasRef.current!;
+    const dpr  = window.devicePixelRatio || 1;
+    const cssW = cvs.width / dpr, cssH = cvs.height / dpr;
     const imgW = naturalW * zoom, imgH = naturalH * zoom;
-    const originX = (cvs.width  - imgW) / 2 + panX;
-    const originY = (cvs.height - imgH) / 2 + panY;
+    const originX = (cssW - imgW) / 2 + panX;
+    const originY = (cssH - imgH) / 2 + panY;
     return { x: originX + ix * zoom, y: originY + iy * zoom };
   }, [naturalW, naturalH]);
 
@@ -96,13 +98,21 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     const ctx = cvs.getContext('2d')!;
     const { zoom, panX, panY, points } = stateRef.current;
 
-    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    // ── Retina/HiDPI fix: draw in CSS (logical) pixel space ──────
+    // cvs.width/height are physical pixels; scale context so all draw calls
+    // use CSS pixel coordinates — keeps lines sharp on high-DPI displays.
+    const dpr  = window.devicePixelRatio || 1;
+    const cssW = cvs.width  / dpr;
+    const cssH = cvs.height / dpr;
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, cssW, cssH);
 
     // Draw image — Hata 1 fix: apply brightness/contrast so canvas matches the viewer
     ctx.save();
     const imgW = naturalW * zoom, imgH = naturalH * zoom;
-    const originX = (cvs.width  - imgW) / 2 + panX;
-    const originY = (cvs.height - imgH) / 2 + panY;
+    const originX = (cssW - imgW) / 2 + panX;
+    const originY = (cssH - imgH) / 2 + panY;
     const bVal = 100 + brightness;  // e.g. brightness offset 18 → brightness(118%)
     const cVal = contrast;          // e.g. 145 → contrast(145%)
     ctx.filter = `brightness(${bVal}%) contrast(${cVal}%)`;
@@ -190,12 +200,12 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       ];
       ctx.save();
       ctx.fillStyle = 'rgba(2,6,10,0.85)';
-      ctx.fillRect(8, cvs.height - 80, 280, 72);
+      ctx.fillRect(8, cssH - 80, 280, 72);
       instrLines.forEach(([key, val], j) => {
         ctx.font = `bold 11px ui-monospace,monospace`; ctx.textAlign = 'left';
-        ctx.fillStyle = '#00c853'; ctx.fillText(key, 16, cvs.height - 60 + j * 22);
+        ctx.fillStyle = '#00c853'; ctx.fillText(key, 16, cssH - 60 + j * 22);
         ctx.font = '11px ui-monospace,monospace';
-        ctx.fillStyle = '#b0bec5'; ctx.fillText(val, 80, cvs.height - 60 + j * 22);
+        ctx.fillStyle = '#b0bec5'; ctx.fillText(val, 80, cssH - 60 + j * 22);
       });
       ctx.restore();
     }
@@ -204,7 +214,10 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     ctx.save();
     ctx.font = '11px ui-monospace,monospace'; ctx.textAlign = 'right';
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText(`${Math.round(zoom * 100)}%`, cvs.width - 8, cvs.height - 6);
+    ctx.fillText(`${Math.round(zoom * 100)}%`, cssW - 8, cssH - 6);
+    ctx.restore();
+
+    // Restore DPR scale transform
     ctx.restore();
   }, [img2cvs, lang, naturalW, naturalH]);
 
@@ -213,11 +226,11 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
 
   // ── Mouse events ──────────────────────────────────────────────
 
+  // Returns position in CSS (logical) pixels — DPR scaling is handled by ctx.scale() in draw()
   const getCanvasPos = (e: React.MouseEvent | React.WheelEvent): Point => {
     const cvs = canvasRef.current!;
     const rect = cvs.getBoundingClientRect();
-    const sx = cvs.width / rect.width, sy = cvs.height / rect.height;
-    return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy };
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
   const handleClick = (e: React.MouseEvent) => {
@@ -246,19 +259,21 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const st   = stateRef.current;
-    const cp   = getCanvasPos(e);
+    const cp   = getCanvasPos(e);   // CSS px
     const cvs  = canvasRef.current!;
+    const dpr  = window.devicePixelRatio || 1;
+    const cssW = cvs.width / dpr, cssH = cvs.height / dpr;
     const imgW = naturalW * st.zoom, imgH = naturalH * st.zoom;
-    const originX = (cvs.width - imgW) / 2 + st.panX;
-    const originY = (cvs.height - imgH) / 2 + st.panY;
+    const originX = (cssW - imgW) / 2 + st.panX;
+    const originY = (cssH - imgH) / 2 + st.panY;
     const mouseImgX = (cp.x - originX) / st.zoom;
     const mouseImgY = (cp.y - originY) / st.zoom;
 
-    const delta  = e.deltaY > 0 ? 0.85 : 1.18;
+    const delta   = e.deltaY > 0 ? 0.85 : 1.18;
     const newZoom = Math.max(0.5, Math.min(10, st.zoom * delta));
     // Adjust pan so zoom pivots on mouse position
-    st.panX = cp.x - (cvs.width - naturalW * newZoom) / 2 - mouseImgX * newZoom;
-    st.panY = cp.y - (cvs.height - naturalH * newZoom) / 2 - mouseImgY * newZoom;
+    st.panX = cp.x - (cssW - naturalW * newZoom) / 2 - mouseImgX * newZoom;
+    st.panY = cp.y - (cssH - naturalH * newZoom) / 2 - mouseImgY * newZoom;
     st.zoom = newZoom;
     draw();
   };
@@ -292,8 +307,7 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   const getTouchCanvasPos = (touch: React.Touch): Point => {
     const cvs = canvasRef.current!;
     const rect = cvs.getBoundingClientRect();
-    const sx = cvs.width / rect.width, sy = cvs.height / rect.height;
-    return { x: (touch.clientX - rect.left) * sx, y: (touch.clientY - rect.top) * sy };
+    return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
   };
 
   // Ref to track the last distance between two fingers (for pinch)
@@ -332,21 +346,22 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       const scale = newDist / lastPinchDist.current;
       lastPinchDist.current = newDist;
 
-      // Midpoint of the two fingers (in canvas px)
-      const midX = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - cvs.getBoundingClientRect().left)
-        * (cvs.width / cvs.getBoundingClientRect().width);
-      const midY = ((e.touches[0].clientY + e.touches[1].clientY) / 2 - cvs.getBoundingClientRect().top)
-        * (cvs.height / cvs.getBoundingClientRect().height);
+      // Midpoint of the two fingers in CSS (logical) px
+      const rect = cvs.getBoundingClientRect();
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
 
+      const dpr  = window.devicePixelRatio || 1;
+      const cssW = cvs.width / dpr, cssH = cvs.height / dpr;
       const imgW = naturalW * st.zoom, imgH = naturalH * st.zoom;
-      const originX = (cvs.width - imgW) / 2 + st.panX;
-      const originY = (cvs.height - imgH) / 2 + st.panY;
+      const originX = (cssW - imgW) / 2 + st.panX;
+      const originY = (cssH - imgH) / 2 + st.panY;
       const imgPtX = (midX - originX) / st.zoom;
       const imgPtY = (midY - originY) / st.zoom;
 
       const newZoom = Math.max(0.5, Math.min(10, st.zoom * scale));
-      st.panX = midX - (cvs.width - naturalW * newZoom) / 2 - imgPtX * newZoom;
-      st.panY = midY - (cvs.height - naturalH * newZoom) / 2 - imgPtY * newZoom;
+      st.panX = midX - (cssW - naturalW * newZoom) / 2 - imgPtX * newZoom;
+      st.panY = midY - (cssH - naturalH * newZoom) / 2 - imgPtY * newZoom;
       st.zoom = newZoom;
       draw();
 
@@ -399,13 +414,20 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Size canvas to parent
+  // Size canvas to parent — backing store uses physical pixels for crisp rendering on Retina
   useEffect(() => {
     const cvs = canvasRef.current; if (!cvs) return;
     const fit = () => {
       const parent = cvs.parentElement; if (!parent) return;
-      cvs.width  = parent.clientWidth;
-      cvs.height = parent.clientHeight;
+      const dpr  = window.devicePixelRatio || 1;
+      const cssW = parent.clientWidth;
+      const cssH = parent.clientHeight;
+      // Physical backing store
+      cvs.width  = Math.round(cssW * dpr);
+      cvs.height = Math.round(cssH * dpr);
+      // CSS display size stays at logical pixels
+      cvs.style.width  = cssW + 'px';
+      cvs.style.height = cssH + 'px';
       draw();
     };
     fit();

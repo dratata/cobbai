@@ -14,8 +14,10 @@ export interface Point { x: number; y: number; }
 export function calculateCobbAngle(p1: Point, p2: Point, p3: Point, p4: Point): number {
   const dx1 = p2.x - p1.x, dy1 = p2.y - p1.y;
   const dx2 = p4.x - p3.x, dy2 = p4.y - p3.y;
+  // Guard: zero-length line → no angle defined
   if (Math.hypot(dx1, dy1) < 1e-9 || Math.hypot(dx2, dy2) < 1e-9) return 0;
-  // Use perpendicular intersection method (Cobb 1948 gold standard)
+  // Math.atan2 is division-by-zero safe: atan2(1,0)=π/2 handles perfectly vertical lines.
+  // Perpendicular intersection method (Cobb 1948 gold standard)
   const a1 = Math.atan2(dy1, dx1) + Math.PI / 2;
   const a2 = Math.atan2(dy2, dx2) + Math.PI / 2;
   let angle = Math.abs(a1 - a2) * 180 / Math.PI;

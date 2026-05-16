@@ -586,9 +586,15 @@ const App: React.FC = () => {
                   {store.loadedImage && !store.showCorrection && (
                     <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:'.85rem' }}>
                       {/* Main analyze button — Fix #8: aria-busy + microcopy + shimmer */}
+                      {/* KVKK gate warning */}
+                      {!kvkkAccepted && (
+                        <div style={{ padding:'8px 12px', background:'rgba(240,160,69,.08)', border:'1px solid rgba(240,160,69,.3)', borderRadius:8, color:'#f0a045', fontSize:13, marginBottom:4 }}>
+                          ⚠️ {store.language==='tr' ? 'Analiz için KVKK/onam kutusunu işaretleyin.' : store.language==='ar' ? 'يرجى قبول الموافقة لبدء التحليل.' : 'Please accept the consent checkbox to start analysis.'}
+                        </div>
+                      )}
                       <button
                         onClick={() => runAnalysis(false)}
-                        disabled={!canAnalyze || store.isAnalyzing}
+                        disabled={!canAnalyze || store.isAnalyzing || !kvkkAccepted}
                         aria-busy={store.isAnalyzing}
                         aria-label={store.isAnalyzing ? 'Analiz ediliyor...' : undefined}
                         style={{
