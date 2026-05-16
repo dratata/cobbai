@@ -203,7 +203,17 @@ const App: React.FC = () => {
           if (store.modality === 'spine') {
             const parsed = safeParseSpineResult(cached);
             if (parsed) {
+              if (analysisIdRef.current !== analysisId) return; // race guard
               store.setSpineResult(parsed.result, processSpineResult(parsed.result, store.language, store.patientAge, store.patientGender, store.risserStage), parsed.outcome);
+              store.setAnalyzing(false); analyzingRef.current = false;
+              return;
+            }
+          } else if (store.modality === 'foot') {
+            // Previously missing: foot results were cached but never read back
+            const foot = safeParseFootResult(cached);
+            if (foot) {
+              if (analysisIdRef.current !== analysisId) return; // race guard
+              store.setFootResult(foot);
               store.setAnalyzing(false); analyzingRef.current = false;
               return;
             }
@@ -255,10 +265,13 @@ const App: React.FC = () => {
         return;
       }
 
+      // Race condition guard: if a newer analysis started while we were waiting
+      // for the API response, discard this result instead of overwriting fresh state.
+      if (analysisIdRef.current !== analysisId) return;
+
       if (store.modality === 'spine') {
         const parsed = safeParseSpineResult(rawJson);
         if (!parsed) { store.setAnalyzeError('AI yanıtı geçersiz koordinatlar içeriyor. Lütfen tekrar deneyin.'); return; }
-        // HATA 3: Wrap cache in try-catch — QuotaExceededError must not crash the app
         try {
           const hash = await hashBase64(store.loadedImage.base64);
           setCachedResult(hash, store.modality, store.language, parsed.result);
@@ -302,9 +315,9 @@ const App: React.FC = () => {
     if (store.isAnalyzing) return;
     setAnalyzeBtnPressed(true);
     // Auto-clear press state after 800 ms (even if network is slow)
-    const t = setTimeout(() => setAnalyzeBtnPressed(false), 800);
+    const pressTimer = setTimeout(() => setAnalyzeBtnPressed(false), 800);
     await runAnalysis(force);
-    clearTimeout(t);
+    clearTimeout(pressTimer);
     setAnalyzeBtnPressed(false);
   }, [store.isAnalyzing, runAnalysis]);
 

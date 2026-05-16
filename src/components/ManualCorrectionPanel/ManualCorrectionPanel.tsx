@@ -58,18 +58,18 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
   const curve      = processedResult.processedCurves[curveIndex];
   const col        = CURVE_COLOURS[curveIndex % CURVE_COLOURS.length];
 
-  // Fix #3: Load X-ray image once so it can be drawn as canvas background
+  // Fix #3: Load X-ray image once so it can be drawn as canvas background.
+  // Uses refs (not captured state) to avoid stale-closure issues.
   useEffect(() => {
     if (!imageSrc) return;
     const img = new Image();
     img.onload = () => {
       xrayImgRef.current = img;
-      // Trigger redraw with the loaded image
-      redraw(linesRef.current, activeHandle, hoveredHandle);
+      // redrawRef always points to the latest redraw (updated after useCallback below)
+      redrawRef.current(linesRef.current, activeRef.current, hoveredRef.current);
     };
     img.src = imageSrc;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageSrc]);
+  }, [imageSrc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [lines, setLines]   = useState<EditLines>(() => ({
     upper: { ...curve.upper_line },
@@ -79,21 +79,37 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
   const [activeHandle, setActive]    = useState<HandleKey | null>(null);
   const [hoveredHandle, setHovered]  = useState<HandleKey | null>(null);
 
-  const linesRef = useRef(lines);
+  const linesRef   = useRef(lines);
   linesRef.current = lines;
+  // Refs so async callbacks (image onload) always have the current handle state
+  // (avoids stale closure when handles are moved before the image finishes loading)
+  const activeRef  = useRef<HandleKey | null>(null);
+  const hoveredRef = useRef<HandleKey | null>(null);
+  activeRef.current  = activeHandle;
+  hoveredRef.current = hoveredHandle;
+  // ref to redraw — allows image-load callback to call the latest redraw without
+  // capturing a stale closure or declaring it before the useCallback below
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const redrawRef  = useRef<(...args: any[]) => void>(() => {});
 
   // ── Drawing ───────────────────────────────────────────────
 
   const redraw = useCallback((currentLines: EditLines, active: HandleKey | null, hovered: HandleKey | null) => {
     const cvs = canvasRef.current;
-    if (!cvs) return;
+    if (!cvs || cvs.width === 0 || cvs.height === 0) return;
     const ctx = cvs.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, cvs.width, cvs.height);
-    const reg  = computeLetterbox(naturalW, naturalH, cvs.width, cvs.height);
-    const lw   = Math.max(2.5, cvs.width * 0.004);
-    const hR   = Math.max(12, cvs.width * HANDLE_RADIUS_RATIO);
+    // DPR-aware: draw in CSS (logical) pixel space
+    const dpr  = window.devicePixelRatio || 1;
+    const cssW = cvs.width  / dpr;
+    const cssH = cvs.height / dpr;
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, cssW, cssH);
+    const reg  = computeLetterbox(naturalW, naturalH, cssW, cssH);
+    const lw   = Math.max(2.5, cssW * 0.004);
+    const hR   = Math.max(12, cssW * HANDLE_RADIUS_RATIO);
 
     // Fix #3: Draw X-ray background so clinician can see the bones while correcting
     if (xrayImgRef.current) {
@@ -209,7 +225,12 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
       ctx.beginPath(); ctx.moveTo(pt.x, pt.y - s); ctx.lineTo(pt.x, pt.y + s); ctx.stroke();
       ctx.restore();
     });
+    // Restore DPR transform
+    ctx.restore();
   }, [naturalW, naturalH, col, curveIndex, processedResult]);
+
+  // Keep redrawRef pointing to the latest redraw so async callbacks can use it
+  useEffect(() => { redrawRef.current = redraw; }, [redraw]);
 
   useEffect(() => {
     const cobb = computeLiveCobb(lines.upper, lines.lower);
@@ -217,28 +238,34 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
     redraw(lines, activeHandle, hoveredHandle);
   }, [lines, activeHandle, hoveredHandle, redraw]);
 
-  // Fix #4: ResizeObserver — canvas sized to container width, height preserves aspect ratio
+  // Fix #4: ResizeObserver — canvas backing store scaled by devicePixelRatio for
+  // sharp rendering on Retina/HiDPI screens. CSS display size stays at logical px.
   useEffect(() => {
     const cvs = canvasRef.current;
     if (!cvs) return;
     const parent = cvs.parentElement;
     if (!parent) return;
     const syncSize = () => {
-      const w = parent.clientWidth || 600;
-      const h = naturalW > 0 && naturalH > 0
-        ? Math.max(240, Math.round(w * naturalH / naturalW))
-        : Math.max(240, Math.round(w * 1.5));
-      if (cvs.width !== w || cvs.height !== h) {
-        cvs.width  = w;
-        cvs.height = h;
-        redraw(linesRef.current, activeHandle, hoveredHandle);
+      const dpr  = window.devicePixelRatio || 1;
+      const cssW = parent.clientWidth || 600;
+      const cssH = naturalW > 0 && naturalH > 0
+        ? Math.max(240, Math.round(cssW * naturalH / naturalW))
+        : Math.max(240, Math.round(cssW * 1.5));
+      const physW = Math.round(cssW * dpr);
+      const physH = Math.round(cssH * dpr);
+      if (cvs.width !== physW || cvs.height !== physH) {
+        cvs.width        = physW;
+        cvs.height       = physH;
+        cvs.style.width  = cssW + 'px';
+        cvs.style.height = cssH + 'px';
+        redraw(linesRef.current, activeRef.current, hoveredRef.current);
       }
     };
     const obs = new ResizeObserver(syncSize);
     obs.observe(parent);
     requestAnimationFrame(syncSize);
     return () => obs.disconnect();
-  }, [naturalW, naturalH, redraw, activeHandle, hoveredHandle]);
+  }, [naturalW, naturalH, redraw]);
 
   // ── Mouse events ──────────────────────────────────────────
 

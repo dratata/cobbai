@@ -20,6 +20,12 @@ const BLUR_THRESHOLD    = 80;     // Laplacian variance below this → blurry
 const LOW_CONTRAST      = 0.25;   // normalised RMS contrast below this → low contrast
 const STRETCH_LO_PCT    = 0.02;   // lower percentile for histogram stretch
 const STRETCH_HI_PCT    = 0.98;   // upper percentile
+/** Minimum pixel value after histogram stretch (0–255).
+ *  Lifting the black floor from 0 to this value prevents JPEG compression
+ *  and the stretch algorithm from creating jet-black areas where subtle
+ *  anatomical detail (e.g. pedicle edges in low-contrast X-rays) should
+ *  still be faintly visible on screen. */
+const STRETCH_FLOOR     = 8;
 
 // ── Image loading ─────────────────────────────────────────────
 
@@ -220,7 +226,7 @@ export async function preprocessXray(
         for (let c = 0; c < 3; c++) {
           // Floor at 8 instead of 0: lifts jet-black areas to dark-gray
           // so anatomical detail in shadows remains visible on screen
-          data[i + c] = Math.max(8, Math.min(255, Math.round((data[i + c] - lo) * scale)));
+          data[i + c] = Math.max(STRETCH_FLOOR, Math.min(255, Math.round((data[i + c] - lo) * scale)));
         }
       }
       ctx.putImageData(id, 0, 0);

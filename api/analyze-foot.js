@@ -20,6 +20,9 @@ export default async function handler(req, res) {
 
   const { imageBase64, mimeType, patientAge, patientGender, lang = 'en' } = body || {};
   if (!imageBase64 || !mimeType) return res.status(400).json({ error: 'Missing fields.' });
+  if (typeof imageBase64 === 'string' && imageBase64.length > 12_000_000) {
+    return res.status(413).json({ error: 'Image too large. Please resize to under 8 MB before uploading.' });
+  }
 
   const isTR = lang === 'tr';
 
