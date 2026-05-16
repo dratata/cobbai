@@ -14,7 +14,13 @@ import type { ImageQualityReport } from '@/types';
 
 // ── Constants ─────────────────────────────────────────────────
 
-const MAX_DIMENSION_PX  = 1200;   // Max width or height before compressing
+const MAX_DIMENSION_PX  = 1200;   // Max width or height for API-bound images
+/** Maximum dimension before ANY canvas operation.
+ *  iOS Safari throws "Maximum Canvas Area Exceeded" beyond ~16.7 MP (4096×4096).
+ *  We cap at 2048 px to stay safe on all devices including older iPhones.
+ *  This only affects intermediate canvases (crop detection, EXIF rotation);
+ *  preprocessXray already enforces MAX_DIMENSION_PX=1200 for the final output. */
+const MAX_SAFE_CANVAS_DIM = 2048;
 const JPEG_QUALITY      = 0.87;   // JPEG export quality [0,1]
 const BLUR_THRESHOLD    = 80;     // Laplacian variance below this → blurry
 const LOW_CONTRAST      = 0.25;   // normalised RMS contrast below this → low contrast
@@ -275,11 +281,21 @@ export async function autoCropBlackBorders(
       const ctx = canvas.getContext('2d');
       if (!ctx) { resolve(imgSrc); return; }
 
-      canvas.width = img.naturalWidth || img.width;
-      canvas.height = img.naturalHeight || img.height;
-      ctx.drawImage(img, 0, 0);
+      // Fix 3 — iOS Canvas crash: 8K+ images exceed iOS Safari's canvas area limit
+      // (~16.7 MP). Pre-scale to MAX_SAFE_CANVAS_DIM before drawing.
+      // The scale factor is used later to convert crop coordinates back to the
+      // original image space so the final output preserves full detail.
+      const naturalW = img.naturalWidth  || img.width;
+      const naturalH = img.naturalHeight || img.height;
+      const scaleF   = Math.min(1, MAX_SAFE_CANVAS_DIM / Math.max(naturalW, naturalH));
+      const safeW    = Math.max(1, Math.round(naturalW * scaleF));
+      const safeH    = Math.max(1, Math.round(naturalH * scaleF));
 
-      const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      canvas.width  = safeW;
+      canvas.height = safeH;
+      ctx.drawImage(img, 0, 0, safeW, safeH); // downscaled draw — safe on all devices
+
+      const { data, width, height } = ctx.getImageData(0, 0, safeW, safeH);
 
       let minX = width, minY = height, maxX = 0, maxY = 0;
       for (let y = 0; y < height; y++) {
@@ -298,7 +314,7 @@ export async function autoCropBlackBorders(
       // No content found — return original
       if (minX > maxX || minY > maxY) { resolve(imgSrc); return; }
 
-      // Apply padding
+      // Apply padding (in safe-canvas pixel space)
       minX = Math.max(0, minX - padding);
       minY = Math.max(0, minY - padding);
       maxX = Math.min(width,  maxX + padding);
@@ -459,22 +475,29 @@ function _readJpegExifOrientation(dataUrl: string): number | null {
   return null;
 }
 
-/** Apply EXIF orientation transform to an already-loaded HTMLImageElement. */
+/** Apply EXIF orientation transform to an already-loaded HTMLImageElement.
+ *  Pre-scales to MAX_SAFE_CANVAS_DIM to prevent iOS canvas crash on 8K images. */
 function _applyExifRotation(img: HTMLImageElement, orientation: number): string {
-  const w = img.naturalWidth, h = img.naturalHeight;
+  const nw = img.naturalWidth, nh = img.naturalHeight;
+  // Fix 3: scale down large images before canvas operations
+  const sf  = Math.min(1, MAX_SAFE_CANVAS_DIM / Math.max(nw, nh));
+  const w   = Math.max(1, Math.round(nw * sf));
+  const h   = Math.max(1, Math.round(nh * sf));
   const cvs = document.createElement('canvas');
   const ctx = cvs.getContext('2d')!;
   // Orientations 5–8 swap width and height
   if (orientation >= 5) { cvs.width = h; cvs.height = w; }
   else                  { cvs.width = w; cvs.height = h; }
+  // Apply scale so ctx.transform values (which reference original w/h) work correctly
+  ctx.scale(sf, sf);
   switch (orientation) {
-    case 2: ctx.transform(-1,  0,  0,  1, w, 0); break;
-    case 3: ctx.transform(-1,  0,  0, -1, w, h); break;
-    case 4: ctx.transform( 1,  0,  0, -1, 0, h); break;
-    case 5: ctx.transform( 0,  1,  1,  0, 0, 0); break;
-    case 6: ctx.transform( 0,  1, -1,  0, h, 0); break;
-    case 7: ctx.transform( 0, -1, -1,  0, h, w); break;
-    case 8: ctx.transform( 0, -1,  1,  0, 0, w); break;
+    case 2: ctx.transform(-1,  0,  0,  1, nw, 0);  break;
+    case 3: ctx.transform(-1,  0,  0, -1, nw, nh); break;
+    case 4: ctx.transform( 1,  0,  0, -1, 0, nh);  break;
+    case 5: ctx.transform( 0,  1,  1,  0, 0, 0);   break;
+    case 6: ctx.transform( 0,  1, -1,  0, nh, 0);  break;
+    case 7: ctx.transform( 0, -1, -1,  0, nh, nw); break;
+    case 8: ctx.transform( 0, -1,  1,  0, 0, nw);  break;
     default: break;
   }
   ctx.drawImage(img, 0, 0);

@@ -40,30 +40,56 @@ export async function hashBase64(b64: string): Promise<string> {
   return (h >>> 0).toString(16);
 }
 
-function cacheKey(hash: string, modality: string, lang: string): string {
-  return CACHE_KEY_PREFIX + hash + '_' + modality + '_' + lang;
+/**
+ * Build the cache key.
+ *
+ * Fix 2 — patient demographics (age / gender) are now part of the key.
+ *
+ * Problem: the AI prompt includes patientAge and patientGender to tailor
+ * age-based recommendations. If a doctor uploaded an image, got a result,
+ * then corrected the age from "15" to "45" and hit Analyze again WITHOUT
+ * force-refresh, the old cached result (with "15-year-old" recommendations)
+ * was returned because the key only used the image hash + modality + lang.
+ *
+ * Fix: append age and gender (normalized to lower-case, trimmed) so that any
+ * change in demographics produces a different key → new API call.
+ */
+function cacheKey(
+  hash: string, modality: string, lang: string,
+  age = '', gender = ''
+): string {
+  const ageKey    = age.trim().toLowerCase()    || 'noage';
+  const genderKey = gender.trim().toLowerCase() || 'nogender';
+  return `${CACHE_KEY_PREFIX}${hash}_${modality}_${lang}_${ageKey}_${genderKey}`;
 }
 
-export function getCachedResult<T>(hash: string, modality: string, lang: string): T | null {
+export function getCachedResult<T>(
+  hash: string, modality: string, lang: string,
+  age?: string, gender?: string
+): T | null {
   try {
-    const raw = sessionStorage.getItem(cacheKey(hash, modality, lang));
+    const key = cacheKey(hash, modality, lang, age, gender);
+    const raw = sessionStorage.getItem(key);
     if (!raw) return null;
     const entry = JSON.parse(raw) as { result: T; ts: number };
     // Expire after 30 minutes (same session)
     if (Date.now() - entry.ts > 30 * 60 * 1000) {
-      sessionStorage.removeItem(cacheKey(hash, modality, lang));
+      sessionStorage.removeItem(key);
       return null;
     }
     return entry.result;
   } catch { return null; }
 }
 
-export function setCachedResult<T>(hash: string, modality: string, lang: string, result: T): void {
+export function setCachedResult<T>(
+  hash: string, modality: string, lang: string,
+  result: T,
+  age?: string, gender?: string
+): void {
   try {
     // Evict oldest entries if over limit
     const keys = Object.keys(sessionStorage).filter(k => k.startsWith(CACHE_KEY_PREFIX));
     if (keys.length >= MAX_ENTRIES) {
-      // Remove the oldest (lowest ts)
       const sorted = keys.map(k => {
         try { return { k, ts: (JSON.parse(sessionStorage.getItem(k)!) as { ts: number }).ts }; }
         catch { return { k, ts: 0 }; }
@@ -71,7 +97,7 @@ export function setCachedResult<T>(hash: string, modality: string, lang: string,
       sessionStorage.removeItem(sorted[0].k);
     }
     sessionStorage.setItem(
-      cacheKey(hash, modality, lang),
+      cacheKey(hash, modality, lang, age, gender),
       JSON.stringify({ result, ts: Date.now() })
     );
   } catch { /* ignore quota errors */ }

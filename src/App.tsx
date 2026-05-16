@@ -107,7 +107,23 @@ const App: React.FC = () => {
       const src = await new Promise<string>((res, rej) => {
         const r = new FileReader(); r.onload = e => res(e.target!.result as string); r.onerror = rej; r.readAsDataURL(file);
       });
-      const img = new Image(); img.src = src; await new Promise(r => { img.onload = r; });
+      // Fix 1 — Corrupted / misnamed files: add onerror so the Promise rejects
+      // instead of hanging forever. A PDF renamed to .jpg would cause img.onload
+      // to never fire, leaving the app stuck on "İşleniyor..." indefinitely.
+      const img = new Image();
+      img.src = src;
+      await new Promise<void>((resolve, reject) => {
+        img.onload  = () => resolve();
+        img.onerror = () => reject(
+          new Error(
+            store.language === 'tr'
+              ? 'Görüntü okunamadı — dosya bozuk veya desteklenmeyen format (JPEG/PNG bekleniyor).'
+              : store.language === 'ar'
+              ? 'تعذّر قراءة الصورة — الملف تالف أو غير مدعوم.'
+              : 'Image could not be decoded — file may be corrupt or unsupported (JPEG/PNG expected).'
+          )
+        );
+      });
       const quality = await analyseImageQuality(img);
 
   // Fix 1 (EXIF): Bake EXIF orientation into pixels BEFORE any canvas op.
@@ -196,9 +212,15 @@ const App: React.FC = () => {
 
     try {
       // ── Check cache first ──────────────────────────────────
+      // Fix 2: pass patientAge + patientGender to cache key so that changing
+      // demographics after upload correctly re-triggers the API call instead of
+      // returning the stale cached result that used the old demographics.
       if (!forceRefresh) {
         const hash = await hashBase64(store.loadedImage.base64);
-        const cached = getCachedResult<SpineAnalysisResult>(hash, store.modality, store.language);
+        const cached = getCachedResult<SpineAnalysisResult>(
+          hash, store.modality, store.language,
+          store.patientAge, store.patientGender
+        );
         if (cached) {
           if (store.modality === 'spine') {
             const parsed = safeParseSpineResult(cached);
@@ -278,7 +300,8 @@ const App: React.FC = () => {
         if (!parsed) { store.setAnalyzeError('AI yanıtı geçersiz koordinatlar içeriyor. Lütfen tekrar deneyin.'); return; }
         try {
           const hash = await hashBase64(store.loadedImage.base64);
-          setCachedResult(hash, store.modality, store.language, parsed.result);
+          setCachedResult(hash, store.modality, store.language, parsed.result,
+                          store.patientAge, store.patientGender);
         } catch (qe) {
           console.warn('[CobbAI] localStorage quota exceeded — result not cached', qe);
         }
@@ -296,7 +319,8 @@ const App: React.FC = () => {
         }
         try {
           const hash = await hashBase64(store.loadedImage.base64);
-          setCachedResult(hash, store.modality, store.language, foot);
+          setCachedResult(hash, store.modality, store.language, foot,
+                          store.patientAge, store.patientGender);
         } catch (qe) {
           console.warn('[CobbAI] localStorage quota exceeded — foot result not cached', qe);
         }
