@@ -314,3 +314,113 @@ export async function autoCropBlackBorders(
     img.src = imgSrc;
   });
 }
+
+// ── EXIF Orientation Normalisation ────────────────────────────
+/**
+ * normalizeExifOrientation
+ *
+ * Phones (iPhone, Android) embed an EXIF Orientation tag so the OS/browser
+ * can rotate the image on display.  The <img> element honours this tag and
+ * shows the photo correctly.  Canvas.drawImage() does NOT — it always draws
+ * raw pixels, so AI receives a rotated image while the UI looks fine.
+ *
+ * Strategy (modern-first):
+ *   1. `createImageBitmap(blob, { imageOrientation:'from-image' })` — Chrome 87+,
+ *      Firefox 86+, Safari 15+.  Bakes the EXIF transform into the bitmap.
+ *   2. Fallback: read EXIF orientation byte from the JPEG binary and apply
+ *      the matching canvas transform manually.
+ *
+ * Returns a new data URL with the rotation baked in (orientation = 1).
+ */
+export async function normalizeExifOrientation(dataUrl: string): Promise<string> {
+  // ── Modern path ────────────────────────────────────────────
+  if (typeof createImageBitmap !== 'undefined') {
+    try {
+      const res    = await fetch(dataUrl);
+      const blob   = await res.blob();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const bitmap = await (createImageBitmap as any)(blob, { imageOrientation: 'from-image' });
+      const cvs    = document.createElement('canvas');
+      cvs.width    = bitmap.width;
+      cvs.height   = bitmap.height;
+      cvs.getContext('2d')!.drawImage(bitmap, 0, 0);
+      bitmap.close?.();
+      return cvs.toDataURL('image/jpeg', 0.92);
+    } catch {
+      /* fall through to manual EXIF parse */
+    }
+  }
+
+  // ── Legacy fallback: manual EXIF parse + canvas rotate ────
+  const orientation = await _readJpegExifOrientation(dataUrl);
+  if (!orientation || orientation === 1) return dataUrl; // already upright
+
+  return new Promise<string>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve(_applyExifRotation(img, orientation));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+/** Read the EXIF Orientation tag value (1–8) from a JPEG data URL. */
+async function _readJpegExifOrientation(dataUrl: string): Promise<number | null> {
+  try {
+    const res  = await fetch(dataUrl);
+    const buf  = await res.arrayBuffer();
+    const view = new DataView(buf);
+    if (view.getUint16(0) !== 0xFFD8) return null;  // not JPEG
+    let offset = 2;
+    const limit = Math.min(view.byteLength, 131072);  // search first 128 KB
+    while (offset + 4 <= limit) {
+      const marker = view.getUint16(offset);   offset += 2;
+      const segLen = view.getUint16(offset);               // length including itself
+      if (marker === 0xFFE1) {                             // APP1 segment
+        const exifMark = view.getUint32(offset + 2);
+        if (exifMark === 0x45786966) {                     // 'Exif'
+          const tiffBase = offset + 8;                     // start of TIFF header
+          const le       = view.getUint16(tiffBase) === 0x4949; // little-endian?
+          const ifd0     = tiffBase + (le ? view.getUint32(tiffBase + 4, true)
+                                          : view.getUint32(tiffBase + 4, false));
+          const numTags  = le ? view.getUint16(ifd0, true)
+                              : view.getUint16(ifd0, false);
+          for (let i = 0; i < numTags; i++) {
+            const tagOff = ifd0 + 2 + i * 12;
+            const tag    = le ? view.getUint16(tagOff, true) : view.getUint16(tagOff, false);
+            if (tag === 0x0112) {                          // Orientation tag
+              return le ? view.getUint16(tagOff + 8, true)
+                        : view.getUint16(tagOff + 8, false);
+            }
+          }
+        }
+      }
+      if (marker === 0xFFDA) break;                        // SOS — stop parsing
+      offset += segLen;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+/** Apply EXIF orientation transform to an already-loaded HTMLImageElement. */
+function _applyExifRotation(img: HTMLImageElement, orientation: number): string {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const cvs = document.createElement('canvas');
+  const ctx = cvs.getContext('2d')!;
+  // Orientations 5–8 swap width and height
+  if (orientation >= 5) { cvs.width = h; cvs.height = w; }
+  else                  { cvs.width = w; cvs.height = h; }
+  switch (orientation) {
+    case 2: ctx.transform(-1,  0,  0,  1, w, 0); break;
+    case 3: ctx.transform(-1,  0,  0, -1, w, h); break;
+    case 4: ctx.transform( 1,  0,  0, -1, 0, h); break;
+    case 5: ctx.transform( 0,  1,  1,  0, 0, 0); break;
+    case 6: ctx.transform( 0,  1, -1,  0, h, 0); break;
+    case 7: ctx.transform( 0, -1, -1,  0, h, w); break;
+    case 8: ctx.transform( 0, -1,  1,  0, 0, w); break;
+    default: break;
+  }
+  ctx.drawImage(img, 0, 0);
+  return cvs.toDataURL('image/jpeg', 0.92);
+}

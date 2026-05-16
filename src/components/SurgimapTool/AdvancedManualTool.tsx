@@ -403,16 +403,24 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     if (e.touches.length === 0) st.isPanning = false;
   };
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'r' || e.key === 'R') {
-      stateRef.current.points = []; stateRef.current.cobb = null;
-      setPtCount(0); setCobb(null); draw();
-    }
-  }, [draw]);
+  // Fix 2 (Memory Leak): keydown handler via stable ref.
+  // Previously: useCallback([draw]) → draw changes → handleKeyDown changes →
+  // useEffect([handleKeyDown]) re-fires → remove+add each render → n listeners.
+  // Fix: register ONE stable wrapper on mount; it calls the latest logic via ref.
+  const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+    keyHandlerRef.current = (e: KeyboardEvent) => {
+      if (e.key === 'r' || e.key === 'R') {
+        stateRef.current.points = []; stateRef.current.cobb = null;
+        setPtCount(0); setCobb(null); draw();
+      }
+    };
+  }); // Run every render to keep ref current — no dep array needed
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => keyHandlerRef.current(e);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []); // Register ONCE — cleanup on unmount only
 
   // Size canvas to parent — backing store uses physical pixels for crisp rendering on Retina
   useEffect(() => {

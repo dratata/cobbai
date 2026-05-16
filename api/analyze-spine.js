@@ -266,6 +266,11 @@ STEP 5 — ENDPLATE LINES (Cobb standard)
   ✓ cobb_angle = |upper_slope_deg − lower_slope_deg|, within 3° of geometric calculation
   ✓ If endplates obscured → use pedicle method, set measurement_method="pedicle"
 
+  SPATIAL PRECISION: Pay extreme attention to coordinate accuracy. Corner coordinates
+  MUST align with the actual visible bone edge — not the estimated center of the vertebral
+  body. DO NOT interpolate or guess; trace the exact pixel ratios from the image boundaries.
+  A 1% coordinate error in a 400px-wide image = 4px drift = potentially 3-5° Cobb error.
+
 STEP 6 — CLASSIFY
   curve_location: thoracic / thoracolumbar / lumbar
   severity: normal (<10°) / mild (10-24°) / moderate (25-44°) / severe (≥45°)

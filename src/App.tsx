@@ -8,7 +8,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useMeasurementStore, selectCanAnalyze } from '@/store/measurementStore';
 import { processSpineResult } from '@/lib/cobbCalculation';
 import { safeParseSpineResult, safeParseFootResult } from '@/lib/validateAIResponse';
-import { analyseImageQuality, preprocessXray, autoCropBlackBorders } from '@/lib/imagePreprocessing';
+import { analyseImageQuality, preprocessXray, autoCropBlackBorders, normalizeExifOrientation } from '@/lib/imagePreprocessing';
 import { hashBase64, getCachedResult, setCachedResult, clearAllCache, clearTrackingHistory, clearAllLocalData } from '@/lib/imageCache';
 import { getT } from '@/lib/i18n';
 import { SafeSuspense } from '@/components/ErrorBoundary/ErrorBoundary';
@@ -63,6 +63,13 @@ const App: React.FC = () => {
   const imgRef          = useRef<HTMLImageElement>(null);
   const abortRef        = useRef<AbortController | null>(null);
   const analyzingRef    = useRef(false);
+  // Fix 2 (Memory Leak): keep a ref to handleFile so the global drop listener
+  // can be registered ONCE (empty dep array) and always call the latest version.
+  // Previously the effect depended on [handleFile] which re-registers on every
+  // store update, causing listener pile-up after many renders.
+  const handleFileRef   = useRef<(f: File) => void>(() => {});
+  // Fix 3 (Race Condition): unique symbol per analysis run; guards catch/finally
+  const analysisIdRef   = useRef<symbol | null>(null);
 
   const [selectedCurveIdx, setSelectedCurveIdx]   = useState(0);
   const [showPrivacy, setShowPrivacy]             = useState(false);
@@ -103,9 +110,20 @@ const App: React.FC = () => {
       const img = new Image(); img.src = src; await new Promise(r => { img.onload = r; });
       const quality = await analyseImageQuality(img);
 
+      // Fix 2: Always point handleFileRef at the latest handleFile closure
+  useEffect(() => { handleFileRef.current = handleFile; }, [handleFile]);
+
+  // Fix 1 (EXIF): Bake EXIF orientation into pixels BEFORE any canvas op.
+      // iPhone/Android embed orientation in metadata; canvas ignores it and draws raw
+      // (rotated) pixels, causing AI to receive a sideways/upside-down image while the
+      // <img> element displays it correctly. normalizeExifOrientation() uses
+      // createImageBitmap({ imageOrientation:'from-image' }) on modern browsers and
+      // falls back to manual EXIF byte parsing + canvas transform on older ones.
+      const exifSrc = await normalizeExifOrientation(src);
+
       // Auto-crop black borders (20-40% token savings)
-      const croppedSrc    = await autoCropBlackBorders(src, 15, 20);
-      const srcToProcess  = croppedSrc !== src ? croppedSrc : src;
+      const croppedSrc    = await autoCropBlackBorders(exifSrc, 15, 20);
+      const srcToProcess  = croppedSrc !== exifSrc ? croppedSrc : exifSrc;
 
       const { base64, mimeType, width, height } = await preprocessXray(
         srcToProcess,
@@ -130,19 +148,17 @@ const App: React.FC = () => {
     }
   }, [store]);
 
-  // Global drag-drop: accept file drops ONLY when no image is loaded.
-  // When an image IS loaded, ignore drops — prevents accidental replacement
-  // when the user tries to drag/pan within the viewer.
+  // Global drag-drop: registered ONCE on mount (empty dep array).
+  // Uses handleFileRef so it always calls the latest handleFile without
+  // re-registering listeners on every render — prevents event listener pile-up.
   useEffect(() => {
     const stop = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); };
     const onDrop = (e: DragEvent) => {
       e.preventDefault(); e.stopPropagation();
-      // Ignore DOM-element drags (no actual files)
-      if (!e.dataTransfer?.files?.length) return;
-      // If image already loaded, ignore the drop — use "Yeni Görüntü" button instead
-      if (useMeasurementStore.getState().loadedImage) return;
+      if (!e.dataTransfer?.files?.length) return;          // DOM drag, not a file
+      if (useMeasurementStore.getState().loadedImage) return; // image already loaded
       const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('image/')) handleFile(file);
+      if (file && file.type.startsWith('image/')) handleFileRef.current(file);
     };
     window.addEventListener('dragover', stop);
     window.addEventListener('drop',     onDrop);
@@ -150,13 +166,22 @@ const App: React.FC = () => {
       window.removeEventListener('dragover', stop);
       window.removeEventListener('drop',     onDrop);
     };
-  }, [handleFile]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — intentionally empty
 
   // ── Analysis with caching + debounce ─────────────────────────
   const runAnalysis = useCallback(async (forceRefresh = false) => {
     if (!canAnalyze || !store.loadedImage) return;
     if (analyzingRef.current) return;  // debounce
     analyzingRef.current = true;
+
+    // Fix 3 (Race Condition): unique token for this analysis run.
+    // If the user loads a new image and triggers a 2nd analysis before the 1st
+    // finishes, analysisIdRef is updated to the new token. The old analysis's
+    // catch/finally blocks check their token against the ref and bail out if
+    // they're no longer the "active" run — preventing them from calling
+    // setAnalyzing(false) or setAnalyzeError() over the new analysis's state.
+    const analysisId = Symbol('analysis');
+    analysisIdRef.current = analysisId;
 
     store.setAnalyzing(true); store.setAnalyzeError(null);
 
@@ -256,12 +281,17 @@ const App: React.FC = () => {
       }
     } catch(e) {
       const err = e as Error;
+      // Fix 3 guard: skip if a newer analysis has taken over
+      if (analysisIdRef.current !== analysisId) return;
       if (err.name !== 'AbortError') {
-        store.setAnalyzeError(err.name==='AbortError' ? 'Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin.' : err.message);
+        store.setAnalyzeError(err.message || 'Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin.');
       }
     } finally {
-      store.setAnalyzing(false);
-      analyzingRef.current = false;
+      // Fix 3 guard: only reset UI state if THIS run is still the active one
+      if (analysisIdRef.current === analysisId) {
+        store.setAnalyzing(false);
+        analyzingRef.current = false;
+      }
     }
   }, [canAnalyze, store]);
 
