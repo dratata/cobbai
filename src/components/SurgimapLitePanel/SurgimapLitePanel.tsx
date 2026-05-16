@@ -16,7 +16,7 @@ export const SurgimapLitePanel: React.FC<Props> = ({ processed, onEditCurve }) =
     <div style={{ marginTop:10, background:'rgba(0,200,83,.035)', border:'1px solid rgba(0,200,83,.16)', borderRadius:10, padding:12 }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:10 }}>
         <div>
-          <div style={{ fontSize:10, letterSpacing:'1px', color:'#00c853', fontWeight:800 }}>SURGIMAP-LITE · LOCAL WORKFLOW</div>
+          <div style={{ fontSize:10, letterSpacing:'1px', color:'#00c853', fontWeight:800 }}>LOKAL GEOMETRİ ANALİZİ</div>
           <div style={{ fontSize:12, color:'#7a8fa0', marginTop:3 }}>Ek API kullanmadan vertebra etiketleri, endplate eğimleri ve hızlı düzeltme.</div>
         </div>
         <div style={{ fontSize:11, color: processed.isReliable ? '#00c853' : '#f0a045', border:`1px solid ${processed.isReliable ? '#00c85344' : '#f0a04555'}`, borderRadius:20, padding:'4px 9px' }}>

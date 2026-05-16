@@ -88,8 +88,9 @@ function drawTick(ctx: CanvasRenderingContext2D, col: string, lw: number, from: 
   ctx.restore();
 }
 
-// Fix #5: Small vertebra level label (T6, T7… inferred locally, no API)
-// cssW/cssH are in logical pixels (canvas.width / dpr) — already in scaled context
+// Small vertebra level label (T6, T7… inferred locally, no API)
+// Uses text-outline approach — no background box, so the X-ray shows through.
+// The thick black stroke + colored fill gives readability without dark rectangles.
 function drawSmallLevelLabel(
   ctx: CanvasRenderingContext2D,
   text: string, col: string,
@@ -100,22 +101,19 @@ function drawSmallLevelLabel(
   const cW  = cssW ?? ctx.canvas.width  / dpr;
   const cH  = cssH ?? ctx.canvas.height / dpr;
   ctx.save();
-  ctx.font = `800 ${fontSize}px ui-monospace, Consolas, monospace`;
+  ctx.font = `700 ${fontSize}px ui-monospace, Consolas, monospace`;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  const pad = Math.max(3, fontSize * 0.3);
-  const tm  = ctx.measureText(text);
-  const bx  = Math.max(4, Math.min(cW - tm.width - pad * 2 - 4, x));
-  const by  = Math.max(4, Math.min(cH - fontSize - pad * 2 - 4, y - fontSize / 2 - pad));
-  ctx.fillStyle   = 'rgba(4,12,20,0.55)';
-  ctx.strokeStyle = col + '88'; ctx.lineWidth = 1;
-  if (ctx.roundRect) ctx.roundRect(bx, by, tm.width + pad * 2, fontSize + pad * 2, 4);
-  else               ctx.rect(bx, by, tm.width + pad * 2, fontSize + pad * 2);
-  ctx.fill(); ctx.stroke();
-  ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
-  ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-  ctx.strokeText(text, bx + pad, by + pad + fontSize / 2);
+  const tm = ctx.measureText(text);
+  const tx = Math.max(2, Math.min(cW - tm.width - 2, x));
+  const ty = Math.max(fontSize / 2 + 2, Math.min(cH - fontSize / 2 - 2, y));
+  // Thick dark outline for contrast on any X-ray background, then colored fill
+  ctx.shadowBlur  = 0;
+  ctx.shadowColor = 'transparent';
+  ctx.lineWidth   = Math.max(2.5, fontSize * 0.28);
+  ctx.strokeStyle = 'rgba(0,0,0,0.92)';
+  ctx.strokeText(text, tx, ty);
   ctx.fillStyle = col;
-  ctx.fillText(text, bx + pad, by + pad + fontSize / 2);
+  ctx.fillText(text, tx, ty);
   ctx.restore();
 }
 
@@ -132,32 +130,29 @@ function drawLabelBox(
   ctx.font = `bold ${fontSize}px ui-monospace, Consolas, monospace`;
   ctx.textAlign    = align;
   ctx.textBaseline = 'middle';
-  ctx.shadowColor  = 'rgba(0,0,0,0.95)';
-  ctx.shadowBlur   = 5;
   const tm  = ctx.measureText(text);
-  const pad = fontSize * 0.45;
+  const pad = fontSize * 0.35;
   const bw  = tm.width + pad * 2;
-  const bh  = fontSize + pad * 1.4;
+  const bh  = fontSize + pad * 1.2;
   const bx  = align === 'right'  ? x - tm.width - pad * 2 :
                align === 'center' ? x - tm.width / 2 - pad : x - pad;
-  // Clamp to canvas logical-pixel bounds
   const cbx = Math.max(4, Math.min(cW - bw - 4, bx));
   const by  = Math.max(4, Math.min(cH - bh - 4, y - bh / 2));
   const cx  = align === 'right' ? cbx + bw - pad : align === 'center' ? cbx + bw / 2 : cbx + pad;
   const cy  = by + bh / 2;
-  // Background box — semi-transparent so X-ray anatomy shows through
-  ctx.fillStyle   = 'rgba(4,12,20,0.62)';
-  ctx.strokeStyle = 'rgba(255,255,255,0.20)';
-  ctx.lineWidth   = 1;
-  if (ctx.roundRect) ctx.roundRect(cbx, by, bw, bh, 5);
-  else ctx.rect(cbx, by, bw, bh);
-  ctx.fill(); ctx.stroke();
-  // Text: turn off shadow before text so it doesn't overwhelm the colored fill
+  // Slim background pill — 48% opacity so X-ray anatomy shows through.
+  // Colored border matches the endpoint (cyan/magenta/yellow) for visual grouping.
   ctx.shadowBlur  = 0;
   ctx.shadowColor = 'transparent';
-  // Dark stroke for contrast on any background, then colored fill on top
-  ctx.lineWidth   = Math.max(1.5, fontSize * 0.12);
-  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+  ctx.fillStyle   = 'rgba(0,0,0,0.48)';
+  ctx.strokeStyle = col + 'aa';
+  ctx.lineWidth   = 1.2;
+  if (ctx.roundRect) ctx.roundRect(cbx, by, bw, bh, 4);
+  else ctx.rect(cbx, by, bw, bh);
+  ctx.fill(); ctx.stroke();
+  // Thick black outline first → colored fill on top (maximum contrast)
+  ctx.lineWidth   = Math.max(2, fontSize * 0.18);
+  ctx.strokeStyle = 'rgba(0,0,0,0.95)';
   ctx.strokeText(text, cx, cy);
   ctx.fillStyle = col;
   ctx.fillText(text, cx, cy);
@@ -187,9 +182,9 @@ function drawVertebraHighlight(
   ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 3;
   ctx.stroke();
   ctx.restore();
-  const cx2 = pts.reduce((s, p) => s + p.x, 0) / pts.length;
-  const cy2 = pts.reduce((s, p) => s + p.y, 0) / pts.length;
-  drawLabelBox(ctx, label, stroke, cx2, cy2, fontSize, 'center');
+  // NOTE: center drawLabelBox REMOVED — it created duplicate labels and dark boxes.
+  // Labels are already drawn by the side-label step (drawLabelBox on the left edge).
+  void label; void fontSize; // suppress unused-param warnings
 }
 
 // ── Component ─────────────────────────────────────────────────
