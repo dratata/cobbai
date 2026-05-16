@@ -110,9 +110,6 @@ const App: React.FC = () => {
       const img = new Image(); img.src = src; await new Promise(r => { img.onload = r; });
       const quality = await analyseImageQuality(img);
 
-      // Fix 2: Always point handleFileRef at the latest handleFile closure
-  useEffect(() => { handleFileRef.current = handleFile; }, [handleFile]);
-
   // Fix 1 (EXIF): Bake EXIF orientation into pixels BEFORE any canvas op.
       // iPhone/Android embed orientation in metadata; canvas ignores it and draws raw
       // (rotated) pixels, causing AI to receive a sideways/upside-down image while the
@@ -147,6 +144,11 @@ const App: React.FC = () => {
       store.setPreprocessing(false);
     }
   }, [store]);
+
+  // Fix 2: Keep handleFileRef pointing to the latest handleFile closure.
+  // This MUST be at component level — hooks cannot be called inside callbacks.
+  // (Previously was accidentally placed inside handleFile's try block → React error #321)
+  useEffect(() => { handleFileRef.current = handleFile; }, [handleFile]);
 
   // Global drag-drop: registered ONCE on mount (empty dep array).
   // Uses handleFileRef so it always calls the latest handleFile without
