@@ -11,16 +11,30 @@
 const CACHE_KEY_PREFIX = 'cobbai_cache_';
 const MAX_ENTRIES = 20; // safety limit
 
-/** Lightweight hash of a base64 string (not cryptographic — for dedup only) */
+/** Lightweight hash of a base64 string (not cryptographic — for dedup only).
+ *
+ * IMPORTANT: Do NOT only sample first+last bytes!
+ * Preprocessed JPEGs share identical headers (same quality=0.87 quantisation
+ * tables) so first ~2 KB of base64 is identical across ALL images.
+ * We sample 5 evenly-spaced 2 KB windows throughout the file so that
+ * different X-ray anatomies produce different hashes. */
 export async function hashBase64(b64: string): Promise<string> {
-  // Use first 4KB + last 4KB + length for a fast discriminator
-  const sample = b64.slice(0, 4096) + b64.slice(-4096) + b64.length.toString();
+  const len = b64.length;
+  const chunk = 2048;
+  const sample =
+    b64.slice(0, chunk) +
+    b64.slice(Math.floor(len * 0.25), Math.floor(len * 0.25) + chunk) +
+    b64.slice(Math.floor(len * 0.50), Math.floor(len * 0.50) + chunk) +
+    b64.slice(Math.floor(len * 0.75), Math.floor(len * 0.75) + chunk) +
+    b64.slice(-chunk) +
+    len.toString();
+
   if (typeof crypto?.subtle?.digest === 'function') {
-    const buf = new TextEncoder().encode(sample);
+    const buf  = new TextEncoder().encode(sample);
     const hash = await crypto.subtle.digest('SHA-256', buf);
-    return Array.from(new Uint8Array(hash)).slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
+    return Array.from(new Uint8Array(hash)).slice(0, 10).map(b => b.toString(16).padStart(2, '0')).join('');
   }
-  // Fallback: simple djb2 hash
+  // Fallback: djb2 over the full sample string
   let h = 5381;
   for (let i = 0; i < sample.length; i++) h = ((h << 5) + h) ^ sample.charCodeAt(i);
   return (h >>> 0).toString(16);

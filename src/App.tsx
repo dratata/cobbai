@@ -73,6 +73,18 @@ const App: React.FC = () => {
   // GPT patch: KVKK React state (localStorage stays in sync)
   const [kvkkAccepted, setKvkkAccepted] = useState(() => localStorage.getItem('cobbai_kvkk') === '1');
 
+  // Clear stale cache entries on mount — ensures old hash-collision results
+  // (e.g. always "27.8°") are not served from a previous session.
+  useEffect(() => {
+    const CACHE_VERSION = 'v4'; // bump when cache format/hash changes
+    if (sessionStorage.getItem('cobbai_cache_ver') !== CACHE_VERSION) {
+      Object.keys(sessionStorage)
+        .filter(k => k.startsWith('cobbai_cache_'))
+        .forEach(k => sessionStorage.removeItem(k));
+      sessionStorage.setItem('cobbai_cache_ver', CACHE_VERSION);
+    }
+  }, []);
+
   useEffect(() => {
     document.body.classList.toggle('light-mode', lightMode);
     document.documentElement.lang = language;
@@ -117,12 +129,18 @@ const App: React.FC = () => {
     }
   }, [store]);
 
-  // HATA 3 FIX: Global drag-drop prevention (AFTER handleFile declaration)
+  // Global drag-drop: accept file drops ONLY when no image is loaded.
+  // When an image IS loaded, ignore drops — prevents accidental replacement
+  // when the user tries to drag/pan within the viewer.
   useEffect(() => {
     const stop = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); };
     const onDrop = (e: DragEvent) => {
       e.preventDefault(); e.stopPropagation();
-      const file = e.dataTransfer?.files?.[0];
+      // Ignore DOM-element drags (no actual files)
+      if (!e.dataTransfer?.files?.length) return;
+      // If image already loaded, ignore the drop — use "Yeni Görüntü" button instead
+      if (useMeasurementStore.getState().loadedImage) return;
+      const file = e.dataTransfer.files[0];
       if (file && file.type.startsWith('image/')) handleFile(file);
     };
     window.addEventListener('dragover', stop);
@@ -507,7 +525,8 @@ const App: React.FC = () => {
                             ref={imgRef}
                             src={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
                             alt="X-ray" id="main-xray-img"
-                            style={{ width:'100%', display:'block', background:'#000', filter: imgFilter, opacity: store.isAnalyzing ? 0.3 : 1, transition: 'opacity .2s' }}
+                            draggable={false}
+                            style={{ width:'100%', display:'block', background:'#111', filter: imgFilter, opacity: store.isAnalyzing ? 0.3 : 1, transition: 'opacity .2s', userSelect:'none' }}
                           />
                           {/* Canvas overlay — always same size as img wrapper → always aligned */}
                           {store.processedSpine && store.controls.showOverlay && (
@@ -534,7 +553,15 @@ const App: React.FC = () => {
                         </div>
                       )}
 
-                      <button onClick={() => store.resetImage()} style={{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,.75)', color:'#fff', border:'1px solid rgba(255,255,255,.25)', borderRadius:6, padding:'6px 12px', fontSize:13, cursor:'pointer' }}>
+                      <button
+                        onClick={() => {
+                          const msg = store.language === 'tr' ? 'Görüntüyü değiştirmek istiyor musunuz? Ölçüm sonuçları silinecek.' :
+                                      store.language === 'ar' ? 'هل تريد تغيير الصورة؟ ستُحذف نتائج القياس.' :
+                                      'Replace image? Measurement results will be cleared.';
+                          if (!store.spineResult && !store.footResult) { store.resetImage(); return; }
+                          if (window.confirm(msg)) store.resetImage();
+                        }}
+                        style={{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,.75)', color:'#fff', border:'1px solid rgba(255,255,255,.25)', borderRadius:6, padding:'6px 12px', fontSize:13, cursor:'pointer' }}>
                         {t.changBtn}
                       </button>
                       {/* Quality hint */}

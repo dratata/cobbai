@@ -111,7 +111,8 @@ function drawSmallLevelLabel(
   if (ctx.roundRect) ctx.roundRect(bx, by, tm.width + pad * 2, fontSize + pad * 2, 4);
   else               ctx.rect(bx, by, tm.width + pad * 2, fontSize + pad * 2);
   ctx.fill(); ctx.stroke();
-  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,0.95)';
+  ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+  ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,0.9)';
   ctx.strokeText(text, bx + pad, by + pad + fontSize / 2);
   ctx.fillStyle = col;
   ctx.fillText(text, bx + pad, by + pad + fontSize / 2);
@@ -151,9 +152,12 @@ function drawLabelBox(
   if (ctx.roundRect) ctx.roundRect(cbx, by, bw, bh, 5);
   else ctx.rect(cbx, by, bw, bh);
   ctx.fill(); ctx.stroke();
-  // Text: dark outline first for contrast on any background
-  ctx.lineWidth   = Math.max(2, fontSize * 0.16);
-  ctx.strokeStyle = 'rgba(0,0,0,0.95)';
+  // Text: turn off shadow before text so it doesn't overwhelm the colored fill
+  ctx.shadowBlur  = 0;
+  ctx.shadowColor = 'transparent';
+  // Dark stroke for contrast on any background, then colored fill on top
+  ctx.lineWidth   = Math.max(1.5, fontSize * 0.12);
+  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
   ctx.strokeText(text, cx, cy);
   ctx.fillStyle = col;
   ctx.fillText(text, cx, cy);
@@ -247,14 +251,18 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
 
   const draw = useCallback(() => {
     const cvs = canvasRef.current;
-    if (!cvs) return;
+    if (!cvs || cvs.width === 0 || cvs.height === 0) return;
     const ctx = cvs.getContext('2d');
     if (!ctx) return;
 
     // ── DPR scaling: draw in CSS (logical) pixels ──
+    // cvs.width/height are physical pixels (set by syncSize × devicePixelRatio).
+    // ctx.scale(dpr, dpr) lets all drawing code use CSS pixel coordinates
+    // while the backing store renders at full physical resolution → sharp Retina.
     const dpr  = window.devicePixelRatio || 1;
     const cssW = cvs.width  / dpr;
     const cssH = cvs.height / dpr;
+    if (cssW <= 0 || cssH <= 0) return;
     ctx.save();
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, cssW, cssH);
@@ -515,13 +523,14 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         cssH = Math.round(rect.height);
       }
       if (cssW > 0 && cssH > 0) {
+        // Set backing store to physical pixels for crisp Retina rendering.
+        // Do NOT override cvs.style.width/height — React owns those via
+        // style={{ width:'100%', height:'100%' }} and will fight us if we do.
         const physW = Math.round(cssW * dpr);
         const physH = Math.round(cssH * dpr);
         if (cvs.width !== physW || cvs.height !== physH) {
           cvs.width  = physW;
           cvs.height = physH;
-          cvs.style.width  = cssW + 'px';
-          cvs.style.height = cssH + 'px';
         }
       }
       draw();
