@@ -11,10 +11,14 @@ interface ImageControlsProps {
   onZoomOut: () => void;
   onResetZoom: () => void;
   onToggleOverlay: () => void;
+  onToggleVertebraLabels: () => void;
+  onToggleApexLabel: () => void;
   onAutoEnhance: () => void;
   onReset: () => void;
   onExportPNG: () => void;
   showOverlay: boolean;
+  showVertebraLabels: boolean;
+  showApexLabel: boolean;
   // Fix #1+#2: Controlled values from store so reset/auto-enhance sync sliders
   brightnessValue?: number;
   contrastValue?: number;
@@ -31,10 +35,14 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
   onZoomOut,
   onResetZoom,
   onToggleOverlay,
+  onToggleVertebraLabels,
+  onToggleApexLabel,
   onAutoEnhance,
   onReset,
   onExportPNG,
   showOverlay,
+  showVertebraLabels,
+  showApexLabel,
   brightnessValue,
   contrastValue,
   opacityValue,
@@ -248,8 +256,31 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           onClick={onToggleOverlay}
           onMouseEnter={(e) => hoverBtn(e, showOverlay)}
           onMouseLeave={(e) => unhoverBtn(e, showOverlay)}
+          title={lang === 'tr' ? 'Overlay\'i göster/gizle' : 'Show/hide overlay'}
         >
           {t.ctrlBA}
+        </button>
+
+        {/* Toggle vertebra labels (intermediate: T6, T7…) */}
+        <button
+          style={showVertebraLabels ? activeBtnStyle : btnStyle}
+          onClick={onToggleVertebraLabels}
+          onMouseEnter={(e) => hoverBtn(e, showVertebraLabels)}
+          onMouseLeave={(e) => unhoverBtn(e, showVertebraLabels)}
+          title={lang === 'tr' ? 'Ara vertebra etiketleri (T6, T7…)' : 'Intermediate vertebra labels (T6, T7…)'}
+        >
+          T▪
+        </button>
+
+        {/* Toggle apex label */}
+        <button
+          style={showApexLabel ? activeBtnStyle : btnStyle}
+          onClick={onToggleApexLabel}
+          onMouseEnter={(e) => hoverBtn(e, showApexLabel)}
+          onMouseLeave={(e) => unhoverBtn(e, showApexLabel)}
+          title={lang === 'tr' ? 'Apeks vertebra etiketini göster/gizle' : 'Show/hide apex label'}
+        >
+          ◇
         </button>
 
         {/* Auto enhance */}

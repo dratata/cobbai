@@ -173,20 +173,65 @@ function drawVertebraHighlight(
 // ── Component ─────────────────────────────────────────────────
 
 interface CobbOverlayProps {
-  result:          ProcessedSpineResult;
-  naturalW:        number;
-  naturalH:        number;
-  overlayOpacity?: number;
-  lang?:           'en' | 'tr' | 'ar';
-  style?:          React.CSSProperties;
-  className?:      string;
-  id?:             string;
+  result:               ProcessedSpineResult;
+  naturalW:             number;
+  naturalH:             number;
+  overlayOpacity?:      number;
+  lang?:                'en' | 'tr' | 'ar';
+  /** Show inferred intermediate vertebra labels (T6, T7…). Default: false */
+  showVertebraLabels?:  boolean;
+  /** Show apical vertebra ◇ marker. Default: true */
+  showApexLabel?:       boolean;
+  style?:               React.CSSProperties;
+  className?:           string;
+  id?:                  string;
+}
+
+// ── Label collision avoidance ──────────────────────────────────
+interface LabelBox { x: number; y: number; w: number; h: number; }
+
+function boxesOverlap(a: LabelBox, b: LabelBox): boolean {
+  return !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y);
+}
+
+function placeLabel(
+  preferredX: number, preferredY: number,
+  w: number, h: number,
+  occupied: LabelBox[],
+  canvasW: number, canvasH: number,
+): LabelBox {
+  const PAD = 10;
+  const candidates: [number, number][] = [
+    [preferredX,           preferredY],
+    [preferredX + PAD,     preferredY - h - PAD],
+    [preferredX + PAD,     preferredY + PAD],
+    [preferredX - w - PAD, preferredY],
+    [preferredX - w - PAD, preferredY - h - PAD],
+  ];
+  for (const [cx, cy] of candidates) {
+    // Clamp within canvas
+    const bx = Math.max(2, Math.min(canvasW - w - 2, cx));
+    const by = Math.max(2, Math.min(canvasH - h - 2, cy));
+    const box: LabelBox = { x: bx, y: by, w, h };
+    if (!occupied.some(o => boxesOverlap(o, box))) {
+      occupied.push(box);
+      return box;
+    }
+  }
+  // Fallback — place anyway at preferred (still clamp)
+  const bx = Math.max(2, Math.min(canvasW - w - 2, preferredX));
+  const by = Math.max(2, Math.min(canvasH - h - 2, preferredY));
+  const box: LabelBox = { x: bx, y: by, w, h };
+  occupied.push(box);
+  return box;
 }
 
 export const CobbOverlay: React.FC<CobbOverlayProps> = ({
   result, naturalW, naturalH,
   overlayOpacity = 100,
   lang = 'en',
+  showVertebraLabels = false,
+  showApexLabel = true,
   style, className, id,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -199,6 +244,9 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
 
     ctx.clearRect(0, 0, cvs.width, cvs.height);
     const reg = computeLetterbox(naturalW, naturalH, cvs.width, cvs.height);
+
+    // Label collision avoidance — accumulated across all curves in this draw pass
+    const occupiedLabels: LabelBox[] = [];
 
     const curves = result.processedCurves;
     const lw     = Math.max(2.5, cvs.width * 0.004);
@@ -327,14 +375,33 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
       const fs  = Math.max(15, Math.round(cvs.width * 0.038));
       drawLabelBox(ctx, `${curve.cobb_angle}°`, col, labelX, labelY, fs);
 
-      // ── 4. Side labels (right edge — coloured per role) ────
-      drawLabelBox(ctx, upperLabel, UPPER_END_COLOUR,
-        Math.min(u1.x, u2.x) - 6, (u1.y + u2.y) / 2, nameFontSize, 'right');
-      drawLabelBox(ctx, lowerLabel, LOWER_END_COLOUR,
-        Math.min(l1.x, l2.x) - 6, (l1.y + l2.y) / 2, nameFontSize, 'right');
+      // ── 4. Side labels with collision avoidance ────────────
+      // Estimate box dimensions (monospace ~0.65× font width per char)
+      const estW = (text: string, fs: number) => text.length * fs * 0.65 + fs * 0.9;
+      const estH = (fs: number) => fs + fs * 0.7;
 
-      // ── 5. Apical vertebra diamond ◇ ──────────────────────
-      if (curve.apex_x != null && curve.apex_y != null) {
+      const ulx = Math.min(u1.x, u2.x) - 6;
+      const uly = (u1.y + u2.y) / 2;
+      const upperBox = placeLabel(
+        ulx - estW(upperLabel, nameFontSize), uly - estH(nameFontSize) / 2,
+        estW(upperLabel, nameFontSize), estH(nameFontSize),
+        occupiedLabels, cvs.width, cvs.height
+      );
+      drawLabelBox(ctx, upperLabel, UPPER_END_COLOUR,
+        upperBox.x + upperBox.w, upperBox.y + upperBox.h / 2, nameFontSize, 'right');
+
+      const llx = Math.min(l1.x, l2.x) - 6;
+      const lly = (l1.y + l2.y) / 2;
+      const lowerBox = placeLabel(
+        llx - estW(lowerLabel, nameFontSize), lly - estH(nameFontSize) / 2,
+        estW(lowerLabel, nameFontSize), estH(nameFontSize),
+        occupiedLabels, cvs.width, cvs.height
+      );
+      drawLabelBox(ctx, lowerLabel, LOWER_END_COLOUR,
+        lowerBox.x + lowerBox.w, lowerBox.y + lowerBox.h / 2, nameFontSize, 'right');
+
+      // ── 5. Apical vertebra diamond ◇ (gated by showApexLabel) ──
+      if (showApexLabel && curve.apex_x != null && curve.apex_y != null) {
         const ap   = normToCanvas(curve.apex_x, curve.apex_y, reg);
         const sz   = Math.max(cvs.width * 0.018, 8);
         ctx.save();
@@ -350,8 +417,14 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         ctx.fill(); ctx.stroke();
         if (curve.apical_vertebra_name) {
           const afs = Math.max(9, Math.round(cvs.width * 0.022));
-          drawLabelBox(ctx, `A:${curve.apical_vertebra_name}`, APEX_COLOUR,
-            ap.x, ap.y - sz - afs * 0.8, afs, 'center');
+          const apText = `A:${curve.apical_vertebra_name}`;
+          const apBox = placeLabel(
+            ap.x - estW(apText, afs) / 2, ap.y - sz - afs * 1.4,
+            estW(apText, afs), estH(afs),
+            occupiedLabels, cvs.width, cvs.height
+          );
+          drawLabelBox(ctx, apText, APEX_COLOUR,
+            apBox.x + apBox.w / 2, apBox.y + apBox.h / 2, afs, 'center');
         }
         ctx.restore();
       }
@@ -365,31 +438,37 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         );
       }
 
-      // ── 7. Fix #5: Sequential vertebra labels (T5→T6→T7… local, no API) ──
-      const upperY = (curve.upper_line.y1 + curve.upper_line.y2) / 2;
-      const lowerY = (curve.lower_line.y1 + curve.lower_line.y2) / 2;
-      const inferredLabels = getSpineLevelLabels(
-        curve.upper_vertebra_name, curve.lower_vertebra_name, upperY, lowerY
-      );
-      if (inferredLabels.length >= 2 && inferredLabels.length <= 16) {
-        const labelFont = Math.max(8, Math.round(cvs.width * 0.018));
-        const sideX = Math.max(8, Math.min(cvs.width - 42, normToCanvas(0.03, 0, reg).x));
-        inferredLabels.forEach(lv => {
-          const p = normToCanvas(0.04, lv.normY, reg);
-          const lvCol = lv.isMeasured
-            ? (lv.name === curve.upper_vertebra_name ? UPPER_END_COLOUR : LOWER_END_COLOUR)
-            : 'rgba(215,228,234,0.86)';
-          drawSmallLevelLabel(ctx, lv.name, lvCol, sideX, p.y, labelFont);
-        });
+      // ── 7. Sequential vertebra labels (T5→T6→T7… local, no API) ──
+      // Only rendered when showVertebraLabels is toggled ON (default: off)
+      if (showVertebraLabels) {
+        const upperY = (curve.upper_line.y1 + curve.upper_line.y2) / 2;
+        const lowerY = (curve.lower_line.y1 + curve.lower_line.y2) / 2;
+        const inferredLabels = getSpineLevelLabels(
+          curve.upper_vertebra_name, curve.lower_vertebra_name, upperY, lowerY
+        );
+        if (inferredLabels.length >= 2 && inferredLabels.length <= 16) {
+          const labelFont = Math.max(8, Math.round(cvs.width * 0.018));
+          const sideX = Math.max(8, Math.min(cvs.width - 42, normToCanvas(0.03, 0, reg).x));
+          inferredLabels.forEach(lv => {
+            const p = normToCanvas(0.04, lv.normY, reg);
+            // Skip intermediate if its box overlaps an already-placed label
+            const lvW = estW(lv.name, labelFont), lvH = estH(labelFont);
+            const lvBox = placeLabel(sideX, p.y - lvH / 2, lvW, lvH, occupiedLabels, cvs.width, cvs.height);
+            const lvCol = lv.isMeasured
+              ? (lv.name === curve.upper_vertebra_name ? UPPER_END_COLOUR : LOWER_END_COLOUR)
+              : 'rgba(215,228,234,0.86)';
+            drawSmallLevelLabel(ctx, lv.name, lvCol, lvBox.x, lvBox.y + lvH / 2, labelFont);
+          });
+        }
       }
     });
 
-    // ── 7. Coronal balance ────────────────────────────────────
+    // ── 8. Coronal balance ────────────────────────────────────
     if (result.raw.coronal_balance !== 'balanced') {
       const bx = cvs.width - 14, by = 14;
       drawLabelBox(ctx, '⚖ Coronal imbalance', '#f0a045', bx, by, 11, 'right');
     }
-  }, [result, naturalW, naturalH, lang]);
+  }, [result, naturalW, naturalH, lang, showVertebraLabels, showApexLabel]);
 
   // Redraw whenever result changes
   useEffect(() => {

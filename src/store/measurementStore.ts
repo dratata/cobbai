@@ -7,15 +7,20 @@ import type { ProcessedSpineResult } from '@/lib/cobbCalculation';
 import type { ValidationOutcome } from '@/lib/validateAIResponse';
 
 export interface ImageControls {
-  brightness:     number;   // [-80, +80]
-  contrast:       number;   // [50, 200]
-  overlayOpacity: number;   // [0, 100]
-  zoom:           number;   // [0.5, 4.0]
-  showOverlay:    boolean;
+  brightness:          number;   // [-80, +80]
+  contrast:            number;   // [50, 200]
+  overlayOpacity:      number;   // [0, 100]
+  zoom:                number;   // [0.5, 4.0]
+  showOverlay:         boolean;
+  /** Show inferred intermediate vertebra labels (T6, T7 …) on overlay */
+  showVertebraLabels:  boolean;
+  /** Show apical vertebra diamond ◇ on overlay */
+  showApexLabel:       boolean;
 }
 
 export const DEFAULT_CONTROLS: ImageControls = {
-  brightness: 0, contrast: 100, overlayOpacity: 100, zoom: 1.0, showOverlay: true,
+  brightness: 0, contrast: 100, overlayOpacity: 100, zoom: 1.0,
+  showOverlay: true, showVertebraLabels: false, showApexLabel: true,
 };
 
 export interface AppState {

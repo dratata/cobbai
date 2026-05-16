@@ -510,6 +510,8 @@ const App: React.FC = () => {
                                 naturalH={store.loadedImage.naturalHeight}
                                 overlayOpacity={store.controls.overlayOpacity}
                                 lang={store.language}
+                                showVertebraLabels={store.controls.showVertebraLabels}
+                                showApexLabel={store.controls.showApexLabel}
                                 style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', pointerEvents:'none' }}
                               />
                             </SafeSuspense>
@@ -566,6 +568,10 @@ const App: React.FC = () => {
                       onZoomOut={() => store.setControls({ zoom: Math.max(0.5, store.controls.zoom-0.2) })}
                       onResetZoom={() => store.setControls({ zoom:1 })}
                       onToggleOverlay={() => store.setControls({ showOverlay:!store.controls.showOverlay })}
+                      onToggleVertebraLabels={() => store.setControls({ showVertebraLabels:!store.controls.showVertebraLabels })}
+                      onToggleApexLabel={() => store.setControls({ showApexLabel:!store.controls.showApexLabel })}
+                      showVertebraLabels={store.controls.showVertebraLabels}
+                      showApexLabel={store.controls.showApexLabel}
                       // Fix #1: Real auto-enhance based on qualityReport
                       onAutoEnhance={() => {
                         const q = store.qualityReport;

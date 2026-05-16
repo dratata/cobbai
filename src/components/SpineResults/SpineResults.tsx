@@ -93,6 +93,23 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
               <Metric val={isL ? t.dL : t.dR} sub={t.conv} lbl="" col={col} />
               <Metric val={`${c.upper_vertebra_name??'?'}↓${c.lower_vertebra_name??'?'}`} lbl={t.vert} col="#eef2f7" small />
             </div>
+
+            {/* AI vs local geometry audit row — shows both values so physician can verify */}
+            {c.validation && (
+              <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,.06)', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', fontSize:11 }}>
+                <span style={{ color:'#4a5a6a', fontFamily:'monospace' }}>
+                  AI: <span style={{ color:'#7a8fa0' }}>{c.validation.aiReportedCobb}°</span>
+                  <span style={{ color:'rgba(255,255,255,.15)', margin:'0 5px' }}>·</span>
+                  Lokal: <span style={{ color: col }}>{c.validation.geometryCobb}°</span>
+                </span>
+                {!c.validation.isConsistent && (
+                  <span style={{ padding:'1px 7px', borderRadius:10, background:'rgba(240,160,69,.1)', border:'1px solid rgba(240,160,69,.3)', color:'#f0a045', fontWeight:700 }}>
+                    ⚠ Δ{c.validation.discrepancyDeg.toFixed(1)}° — Manuel doğrulayın
+                  </span>
+                )}
+              </div>
+            )}
+
             {c.manually_corrected && (
               <div style={{ marginTop:8, fontSize:11, color:'#f0a045' }}>✎ Hekim tarafından düzeltildi</div>
             )}
