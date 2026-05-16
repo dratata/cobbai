@@ -66,19 +66,58 @@ export default async function handler(req, res) {
     }
   };
 
+  // ── Fix 1: Server-side abort when client disconnects ─────────────────────
+  // Problem: abortRef.current?.abort() on the client cancels the TCP connection
+  // to Vercel, but Vercel's function keeps running and Gemini keeps generating
+  // tokens — wasting API cost. The function then tries to write a response to
+  // a closed socket (silent error) but the tokens are already burned.
+  //
+  // Fix: AbortController shared between the client-close listener and the
+  // Gemini fetch. When the client disconnects, req emits 'close' and we abort
+  // the in-flight Gemini request before it generates any more tokens.
+  //
+  // ── Fix 3: Hard 8-second timeout on the Gemini fetch ─────────────────────
+  // Problem: Gemini occasionally stalls (no headers, no body) and the Vercel
+  // function hits its max execution time, producing an opaque 504 gateway error.
+  //
+  // Fix: the same AbortController is armed with an 8-second timeout. If Gemini
+  // doesn't respond within 8 s we abort and return a clean 504 message.
+  // Vercel Hobby limit is 10 s; 8 s gives us 2 s of slack for JSON parsing.
+  const geminiCtrl    = new AbortController();
+  let   clientClosed  = false;
+
+  // Fix 1: detect client disconnect
+  req.on('close', () => {
+    clientClosed = true;
+    geminiCtrl.abort(new Error('CLIENT_DISCONNECTED'));
+  });
+
+  // Fix 3: 8 s hard timeout
+  const GEMINI_TIMEOUT_MS = 8_000;
+  const timeoutId = setTimeout(
+    () => geminiCtrl.abort(new Error('GEMINI_TIMEOUT')),
+    GEMINI_TIMEOUT_MS
+  );
+
   async function callGemini() {
-    return fetch(apiUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(reqBody) });
+    return fetch(apiUrl, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(reqBody),
+      signal:  geminiCtrl.signal,  // ← propagates both abort signals to Gemini
+    });
   }
 
   try {
     let r = await callGemini();
+    clearTimeout(timeoutId); // ← cancel the 8-s timer now that we have a response
+
     // Safe JSON parse — Gemini occasionally returns non-JSON on errors
     let d;
     try { d = await r.json(); }
     catch { return res.status(502).json({ error: 'Gemini returned non-JSON response. Try again.' }); }
 
-    // HATA 1 FIX: Vercel Hobby timeout = 10s. 5s sleep + retry = guaranteed 504.
-    // Solution: return 429 immediately so the CLIENT retries after a delay.
+    // Return 429 immediately on overload (no sleep — Vercel timeout risk)
     if (!r.ok) {
       const msg = d?.error?.message || '';
       const busy = r.status === 429 || r.status === 503
@@ -93,7 +132,6 @@ export default async function handler(req, res) {
     }
 
     const finishReason = d?.candidates?.[0]?.finishReason;
-    // Join all parts — plain JS (no TypeScript types in .js files!)
     const raw = ((d?.candidates?.[0]?.content?.parts || [])
       .map(p => p?.text || '')
       .join('') || '').trim();
@@ -104,7 +142,28 @@ export default async function handler(req, res) {
     return res.status(200).json(parsed.result);
 
   } catch (err) {
-    return res.status(500).json({ error: 'Server error: ' + err.message });
+    clearTimeout(timeoutId);
+
+    if (err.name === 'AbortError') {
+      if (clientClosed) {
+        // Fix 1: client already disconnected — nothing to respond to, exit silently
+        return;
+      }
+      // Fix 3: timed out waiting for Gemini — return a clean error
+      if (!res.headersSent) {
+        return res.status(504).json({
+          error: lang === 'tr'
+            ? 'Google AI 8 saniye içinde yanıt vermedi. Lütfen tekrar deneyin.'
+            : lang === 'ar'
+            ? 'لم يستجب Google AI خلال 8 ثوانٍ. يرجى المحاولة مرة أخرى.'
+            : 'Google AI did not respond within 8 seconds. Please try again.',
+        });
+      }
+      return;
+    }
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Server error: ' + err.message });
+    }
   }
 }
 

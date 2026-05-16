@@ -376,28 +376,30 @@ function _dataUrlToPartialArrayBuffer(dataUrl: string, maxBytes = 65536): ArrayB
 /**
  * normalizeExifOrientation
  *
- * Phones (iPhone, Android) embed an EXIF Orientation tag so the OS/browser
- * can rotate the image on display. The <img> element honours this tag and
- * shows the photo correctly. Canvas.drawImage() does NOT — it always draws
- * raw pixels, so AI receives a rotated image while the UI looks fine.
+ * Accepts either a data: URL (legacy) OR a blob: URL (Fix 2 — from
+ * URL.createObjectURL). Both forms are handled transparently.
  *
  * Strategy (modern-first):
- *   1. createImageBitmap(blob, { imageOrientation:'from-image' }) — Chrome 87+,
- *      Firefox 86+, Safari 15+. Bakes the EXIF transform into the bitmap.
- *   2. Fallback: read EXIF orientation byte from the JPEG binary (via atob —
- *      CSP-safe) and apply the matching canvas transform manually.
+ *   1. createImageBitmap(blob, { imageOrientation:'from-image' }) bakes EXIF.
+ *      For data: URLs the blob is built via atob() (CSP-safe, no fetch needed).
+ *      For blob: URLs the browser's Blob is fetched via the same-origin blob scheme.
+ *   2. Legacy fallback: read EXIF orientation byte, apply canvas rotation.
  *
- * IMPORTANT: Does NOT use fetch(). All binary access goes through atob() so
- * CSP 'connect-src' restrictions cannot block it.
- * Returns a new JPEG data URL with rotation baked in (EXIF orientation = 1).
- * On any error, returns the original dataUrl unchanged (fail-safe).
+ * Returns a JPEG data URL with EXIF rotation baked in, or the original url on error.
  */
-export async function normalizeExifOrientation(dataUrl: string): Promise<string> {
+export async function normalizeExifOrientation(url: string): Promise<string> {
+  const isDataUrl = url.startsWith('data:');
   try {
-    // ── Modern path — createImageBitmap with imageOrientation ──
+    // ── Modern path — createImageBitmap ───────────────────────
     if (typeof createImageBitmap !== 'undefined') {
       try {
-        const blob   = _dataUrlToBlob(dataUrl);                    // no fetch!
+        let blob: Blob;
+        if (isDataUrl) {
+          blob = _dataUrlToBlob(url);           // atob() path — CSP-safe
+        } else {
+          // blob: URL — fetch is same-origin and exempt from connect-src CSP
+          blob = await fetch(url).then(r => r.blob());
+        }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const bitmap = await (createImageBitmap as any)(blob, { imageOrientation: 'from-image' });
         const cvs    = document.createElement('canvas');
@@ -407,34 +409,42 @@ export async function normalizeExifOrientation(dataUrl: string): Promise<string>
         bitmap.close?.();
         return cvs.toDataURL('image/jpeg', 0.92);
       } catch {
-        /* imageOrientation not supported → fall through to manual parse */
+        /* imageOrientation not supported → fallback */
       }
     }
 
-    // ── Legacy fallback — manual EXIF byte parse + canvas rotate ──
-    const orientation = _readJpegExifOrientation(dataUrl);        // sync, no fetch
-    if (!orientation || orientation === 1) return dataUrl;        // already upright
+    // ── Legacy fallback — manual EXIF parse + canvas rotate ───
+    const orientation = await _readJpegExifOrientation(url);
+    if (!orientation || orientation === 1) return url;
 
     return new Promise<string>((resolve) => {
-      const img  = new Image();
-      img.onload = () => resolve(_applyExifRotation(img, orientation));
-      img.onerror = () => resolve(dataUrl);                       // fail-safe
-      img.src    = dataUrl;
+      const img   = new Image();
+      img.onload  = () => resolve(_applyExifRotation(img, orientation));
+      img.onerror = () => resolve(url);
+      img.src     = url;
     });
   } catch {
-    // Any unexpected error → return original (never crash handleFile)
-    return dataUrl;
+    return url;
   }
 }
 
 /**
- * Read the EXIF Orientation tag (1–8) from a JPEG data URL.
- * Fully synchronous — decodes only the first 64 KB via atob().
+ * Read the EXIF Orientation tag (1–8) from a JPEG data: URL or blob: URL.
+ * For data: URLs: synchronous via atob() (CSP-safe).
+ * For blob: URLs: fetches the first 64 KB (same-origin, no CSP issue).
  * Returns null if not a JPEG, no EXIF segment, or tag not found.
  */
-function _readJpegExifOrientation(dataUrl: string): number | null {
+async function _readJpegExifOrientation(url: string): Promise<number | null> {
   try {
-    const buf  = _dataUrlToPartialArrayBuffer(dataUrl, 65536);    // no fetch!
+    let buf: ArrayBuffer;
+    if (url.startsWith('data:')) {
+      buf = _dataUrlToPartialArrayBuffer(url, 65536);              // atob(), no fetch
+    } else {
+      // blob: URL — fetch the first 64 KB for EXIF parsing
+      const resp = await fetch(url);
+      const full = await resp.arrayBuffer();
+      buf = full.slice(0, 65536);
+    }
     const view = new DataView(buf);
     if (view.byteLength < 4) return null;
     if (view.getUint16(0) !== 0xFFD8) return null;               // not JPEG

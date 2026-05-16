@@ -103,15 +103,25 @@ const App: React.FC = () => {
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) { store.setAnalyzeError('Lütfen bir görüntü dosyası yükleyin (JPEG veya PNG).'); return; }
     store.setPreprocessing(true);
+
+    // Fix 2 — Base64 DOM bloat: use URL.createObjectURL() instead of FileReader.
+    //
+    // FileReader.readAsDataURL() converts a 5 MB JPEG to a ~7 MB base64 string
+    // that lives in the JS heap for the entire session. URL.createObjectURL()
+    // creates a tiny reference string (≈60 chars); the actual file bytes stay
+    // as a native Blob managed by the browser — no heap inflation.
+    //
+    // All downstream functions (normalizeExifOrientation, autoCropBlackBorders,
+    // preprocessXray) accept both data: URLs and blob: URLs because they
+    // ultimately call `new Image(); img.src = url` or createImageBitmap(blob).
+    //
+    // We revoke the blob URL in the finally block so the browser can release
+    // its internal Blob store reference once processing is complete.
+    const blobUrl = URL.createObjectURL(file);
+
     try {
-      const src = await new Promise<string>((res, rej) => {
-        const r = new FileReader(); r.onload = e => res(e.target!.result as string); r.onerror = rej; r.readAsDataURL(file);
-      });
-      // Fix 1 — Corrupted / misnamed files: add onerror so the Promise rejects
-      // instead of hanging forever. A PDF renamed to .jpg would cause img.onload
-      // to never fire, leaving the app stuck on "İşleniyor..." indefinitely.
       const img = new Image();
-      img.src = src;
+      img.src   = blobUrl;
       await new Promise<void>((resolve, reject) => {
         img.onload  = () => resolve();
         img.onerror = () => reject(
@@ -126,38 +136,36 @@ const App: React.FC = () => {
       });
       const quality = await analyseImageQuality(img);
 
-  // Fix 1 (EXIF): Bake EXIF orientation into pixels BEFORE any canvas op.
-      // iPhone/Android embed orientation in metadata; canvas ignores it and draws raw
-      // (rotated) pixels, causing AI to receive a sideways/upside-down image while the
-      // <img> element displays it correctly. normalizeExifOrientation() uses
-      // createImageBitmap({ imageOrientation:'from-image' }) on modern browsers and
-      // falls back to manual EXIF byte parsing + canvas transform on older ones.
-      const exifSrc = await normalizeExifOrientation(src);
+      // EXIF correction: normalizeExifOrientation now accepts blob: URLs (modern
+      // path uses createImageBitmap from a fetched same-origin Blob; legacy
+      // fallback fetches first 64 KB for EXIF byte parsing).
+      const exifSrc    = await normalizeExifOrientation(blobUrl);
 
-      // Auto-crop black borders (20-40% token savings)
-      const croppedSrc    = await autoCropBlackBorders(exifSrc, 15, 20);
-      const srcToProcess  = croppedSrc !== exifSrc ? croppedSrc : exifSrc;
+      // autoCrop and preprocessXray both accept any img-loadable URL
+      const croppedSrc = await autoCropBlackBorders(exifSrc, 15, 20);
 
       const { base64, mimeType, width, height } = await preprocessXray(
-        srcToProcess,
+        croppedSrc,
         { resize: true, histogramStretch: quality.score !== 'good' }
       );
 
-      // GPT patch: setLoadedImage first, THEN setQualityReport (prevents stale report)
-      store.setLoadedImage({ base64, originalBase64: src.split(',')[1]??src, mimeType, naturalWidth:width, naturalHeight:height, filename:file.name });
+      // originalBase64 no longer stored — it was the full 7 MB raw base64 that
+      // sat in the store for the entire session. The processed base64 (max 1200 px,
+      // typically 100–300 KB) is all that's needed for API calls and display.
+      store.setLoadedImage({ base64, originalBase64: '', mimeType, naturalWidth:width, naturalHeight:height, filename:file.name });
       store.setQualityReport(quality);
-      // HATA 3 FIX: Reset all UI panel states on new image — prevents stale panels
       setIsManualMode(false); setManualCobb(null);
       setSelectedCurveIdx(0);
       store.setShowCorrection(false);
       store.setShowComparison(false);
       store.setShowHistory(false);
     } catch (err) {
-      // HATA 4 FIX: Silent catch → friendly error message
       const msg = err instanceof Error ? err.message : String(err);
       store.setAnalyzeError('Görüntü işlenirken bir hata oluştu: ' + msg);
     } finally {
       store.setPreprocessing(false);
+      // Always revoke — releases the browser's Blob store reference
+      URL.revokeObjectURL(blobUrl);
     }
   }, [store]);
 

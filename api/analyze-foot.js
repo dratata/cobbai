@@ -115,15 +115,24 @@ Follow this exact JSON schema, write nothing else:`;
     }
   };
 
+  // Fix 1 + Fix 3: same abort controller pattern as analyze-spine.js
+  const geminiCtrl   = new AbortController();
+  let   clientClosed = false;
+  req.on('close', () => { clientClosed = true; geminiCtrl.abort(new Error('CLIENT_DISCONNECTED')); });
+  const timeoutId = setTimeout(() => geminiCtrl.abort(new Error('GEMINI_TIMEOUT')), 8_000);
+
   async function callGemini() {
-    return fetch(apiUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(reqBody) });
+    return fetch(apiUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(reqBody), signal: geminiCtrl.signal });
   }
 
   try {
     let r = await callGemini();
-    let d = await r.json();
+    clearTimeout(timeoutId);
 
-    // Fix #9: Same as analyze-spine — return 429 immediately, no sleep (Vercel timeout risk)
+    let d;
+    try { d = await r.json(); }
+    catch { return res.status(502).json({ error: 'Gemini returned non-JSON response. Try again.' }); }
+
     if (!r.ok) {
       const msg = d?.error?.message || '';
       const busy = r.status === 429 || r.status === 503
@@ -135,7 +144,6 @@ Follow this exact JSON schema, write nothing else:`;
     }
 
     const finishReason = d?.candidates?.[0]?.finishReason;
-    // Join all parts — plain JS, no TypeScript types in .js files
     const raw = ((d?.candidates?.[0]?.content?.parts || [])
       .map(p => p?.text || '')
       .join('') || '').trim();
@@ -145,7 +153,13 @@ Follow this exact JSON schema, write nothing else:`;
     if (parsed.error) return res.status(500).json({ error: parsed.error });
     return res.status(200).json(parsed.result);
   } catch (err) {
-    return res.status(500).json({ error: 'Server error: ' + err.message });
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      if (clientClosed) return; // Fix 1: client gone — exit silently
+      if (!res.headersSent) return res.status(504).json({ error: 'Google AI did not respond within 8 seconds. Please try again.' });
+      return;
+    }
+    if (!res.headersSent) return res.status(500).json({ error: 'Server error: ' + err.message });
   }
 }
 
