@@ -96,6 +96,9 @@ Follow this exact JSON schema, write nothing else:`;
   const fullPrompt = prompt + '\nOutput ONLY this JSON:\n' + JSON.stringify(schema) +
     '\n' + (isTR ? 'Geçerli ayak röntgeni değilse:' : 'If not a foot X-ray:') + '\n' + JSON.stringify(invalidSchema);
 
+  const model  = (process.env.GEMINI_MODEL || 'gemini-2.5-pro').trim();
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
   const reqBody = {
     contents: [{ parts: [
       { inline_data: { mime_type: mimeType, data: imageBase64 } },
@@ -108,7 +111,6 @@ Follow this exact JSON schema, write nothing else:`;
       thinkingConfig: { thinkingBudget: 0 }
     }
   };
-  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
 
   async function callGemini() {
     return fetch(apiUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(reqBody) });

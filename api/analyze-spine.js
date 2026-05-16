@@ -39,6 +39,13 @@ export default async function handler(req, res) {
     + '\nIf not a valid spine X-ray:\n'
     + JSON.stringify(invalidSchema);
 
+  // Model selection: GEMINI_MODEL env var → 'gemini-2.5-pro' default.
+  // Pro has significantly better spatial reasoning for landmark localisation;
+  // Flash is kept as fallback for high-traffic / rate-limited scenarios.
+  // Set GEMINI_MODEL=gemini-2.5-flash in Vercel env to revert if needed.
+  const model  = (process.env.GEMINI_MODEL || 'gemini-2.5-pro').trim();
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
   const reqBody = {
     contents: [{ parts: [
       { inline_data: { mime_type: mimeType, data: imageBase64 } },
@@ -51,7 +58,6 @@ export default async function handler(req, res) {
       thinkingConfig:   { thinkingBudget: 0 }
     }
   };
-  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
 
   async function callGemini() {
     return fetch(apiUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(reqBody) });
