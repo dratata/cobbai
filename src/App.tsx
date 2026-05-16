@@ -434,7 +434,9 @@ const App: React.FC = () => {
       />
 
       {/* Main layout */}
-      <div style={{ minHeight:'100vh', background:'var(--c-bg)' }}>
+      {/* minHeight fallback: 100vh for old browsers, 100dvh for iOS Safari
+          (dvh = Dynamic Viewport Height, accounts for collapsible URL bar) */}
+      <div style={{ minHeight:'100dvh', background:'var(--c-bg)' }}>
 
         {/* ── Nav ─────────────────────────────────────────────── */}
         <nav style={{ background:'#0a0f13', borderBottom:'1px solid rgba(255,255,255,.1)', padding:'0 1rem', height:60, display:'flex', alignItems:'center', gap:12, position:'sticky', top:0, zIndex:100, backdropFilter:'blur(8px)' }}>

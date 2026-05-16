@@ -48,7 +48,9 @@ body {
   background:      var(--c-bg);
   color:           var(--c-text);
   line-height:     1.65;
-  min-height:      100vh;
+  min-height:      100vh;    /* fallback: old browsers / desktops */
+  min-height:      100dvh;   /* dvh = Dynamic Viewport Height — excludes iOS Safari
+                                address/nav bars so bottom content is always reachable */
   -webkit-font-smoothing: antialiased;
   /* Subtle dot-grid background */
   background-image: radial-gradient(circle, rgba(255,255,255,.018) 1px, transparent 1px);

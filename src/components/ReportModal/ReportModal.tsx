@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import type { SpineAnalysisResult, FootAnalysisResult } from '@/types';
 import type { Translations } from '@/lib/i18n';
 
@@ -17,12 +17,14 @@ interface ReportModalProps {
 export const ReportModal: React.FC<ReportModalProps> = ({
   open, onClose, modality, spineResult, footResult, patientAge, patientGender, notes, t
 }) => {
-  const contentRef = useRef<HTMLDivElement>(null);
+  const contentRef    = useRef<HTMLDivElement>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   if (!open) return null;
 
   const date = new Date().toLocaleDateString('tr-TR', { year:'numeric', month:'long', day:'numeric' });
   const time = new Date().toLocaleTimeString('tr-TR');
 
+  // ── Browser print (quick path) ────────────────────────────────
   const handlePrint = () => {
     const content = contentRef.current?.innerHTML ?? '';
     const win = window.open('', '_blank', 'width=800,height=900');
@@ -39,6 +41,82 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     </style></head><body>${content}</body></html>`);
     win.document.close();
     setTimeout(() => win.print(), 500);
+  };
+
+  // ── PDF download: html2canvas → jsPDF ────────────────────────
+  // Fixes vs old approach:
+  //   1. scale = devicePixelRatio * 2  →  crisp text on Retina screens
+  //   2. height = el.scrollHeight      →  captures full content, not just viewport
+  //   3. Multi-page: splits canvas into A4 slices automatically
+  const handleDownloadPDF = async () => {
+    const el = contentRef.current;
+    if (!el || pdfLoading) return;
+    setPdfLoading(true);
+    try {
+      // Dynamic imports — avoid adding ~400 KB to the initial bundle
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+
+      const dpr    = window.devicePixelRatio || 1;
+      const scale  = Math.max(2, dpr * 2);  // 2× minimum for legibility
+
+      const canvas = await html2canvas(el, {
+        scale,
+        useCORS:       true,
+        logging:       false,
+        scrollX:       0,
+        scrollY:       0,
+        width:         el.scrollWidth,
+        height:        el.scrollHeight,   // ← full height (not just what's in viewport)
+        windowWidth:   el.scrollWidth,
+        windowHeight:  el.scrollHeight,
+        backgroundColor: '#0e1419',       // match modal background
+      });
+
+      // A4 dimensions in mm
+      const A4_W = 210, A4_H = 297;
+      const pdf  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      // Map canvas px → mm on A4 width
+      const imgW   = A4_W;
+      const imgH   = (canvas.height / canvas.width) * A4_W;
+      const pageH  = A4_H;
+
+      if (imgH <= pageH) {
+        // Single page — fits without splitting
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, imgW, imgH);
+      } else {
+        // Multi-page: draw one A4-height slice per page
+        const pxPerPage = Math.floor((pageH / imgH) * canvas.height);
+        let srcY = 0;
+
+        while (srcY < canvas.height) {
+          const srcH = Math.min(pxPerPage, canvas.height - srcY);
+
+          // Slice the canvas
+          const slice    = document.createElement('canvas');
+          slice.width    = canvas.width;
+          slice.height   = srcH;
+          slice.getContext('2d')!.drawImage(canvas, 0, -srcY);
+
+          const sliceH   = (srcH / canvas.height) * imgH;
+          if (srcY > 0) pdf.addPage();
+          pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, imgW, sliceH);
+
+          srcY += srcH;
+        }
+      }
+
+      pdf.save(`CobbAI-Rapor-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (err) {
+      console.error('[CobbAI] PDF export failed:', err);
+      // Fall back to browser print
+      handlePrint();
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   const buildSpineReport = () => {
@@ -127,8 +205,18 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         <div style={{ padding:'16px 20px', borderBottom:'1px solid rgba(255,255,255,.08)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <span style={{ fontSize:18, fontWeight:600 }}>{t.reportTitle}</span>
           <div style={{ display:'flex', gap:8 }}>
-            <button onClick={handlePrint} style={{ padding:'7px 14px', background:'#00c853', color:'#000', border:'none', borderRadius:7, fontSize:13, fontWeight:700, cursor:'pointer' }}>
-              {t.printBtn}
+            {/* PDF download — html2canvas full-page, crisp */}
+            <button
+              onClick={handleDownloadPDF}
+              disabled={pdfLoading}
+              style={{ padding:'7px 14px', background: pdfLoading ? '#065a2a' : '#00c853', color:'#000', border:'none', borderRadius:7, fontSize:13, fontWeight:700, cursor: pdfLoading ? 'wait' : 'pointer', minWidth:110, display:'flex', alignItems:'center', gap:6 }}>
+              {pdfLoading
+                ? <><span style={{ width:12, height:12, border:'2px solid rgba(0,0,0,.3)', borderTopColor:'#000', borderRadius:'50%', animation:'_spin .7s linear infinite', flexShrink:0 }}/>İndiriliyor…</>
+                : '⬇ PDF İndir'}
+            </button>
+            {/* Browser print */}
+            <button onClick={handlePrint} style={{ padding:'7px 14px', background:'transparent', color:'#7a8fa0', border:'1px solid rgba(255,255,255,.15)', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer' }}>
+              🖨 {t.printBtn}
             </button>
             <button onClick={onClose} style={{ width:32, height:32, border:'1px solid rgba(255,255,255,.15)', borderRadius:6, background:'transparent', color:'#7a8fa0', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Lang } from '@/lib/i18n';
 import { getT } from '@/lib/i18n';
 
@@ -51,29 +51,67 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
   const t = getT(lang);
   const isRTL = lang === 'ar';
 
-  // Initialize from controlled props; sync when store changes externally
+  // ── Local slider state — instant UI feedback without store re-renders ──────
   const [brightness, setBrightness] = useState<number>(brightnessValue ?? 0);
   const [contrast,   setContrast]   = useState<number>(contrastValue   ?? 100);
   const [opacity,    setOpacity]    = useState<number>(opacityValue    ?? 100);
 
+  // Sync when store changes externally (auto-enhance, reset, etc.)
   useEffect(() => { setBrightness(brightnessValue ?? 0);   }, [brightnessValue]);
   useEffect(() => { setContrast(contrastValue     ?? 100); }, [contrastValue]);
   useEffect(() => { setOpacity(opacityValue       ?? 100); }, [opacityValue]);
 
-  const handleBrightness = (v: number) => {
+  // ── rAF refs — throttle store commits to one per animation frame ──────────
+  // Problem: range onChange fires 60-120× per second while dragging.
+  // Each call to onBrightnessChange/etc. updates Zustand → full App.tsx
+  // re-render → canvas components re-render → browser hangs.
+  // Fix: local state updates instantly (smooth slider); store is updated
+  // at most once per frame during drag, and definitively on pointer release.
+  const bRaf = useRef<number | null>(null);
+  const cRaf = useRef<number | null>(null);
+  const oRaf = useRef<number | null>(null);
+
+  // Cancel any pending frames on unmount to prevent memory leaks
+  useEffect(() => () => {
+    if (bRaf.current) cancelAnimationFrame(bRaf.current);
+    if (cRaf.current) cancelAnimationFrame(cRaf.current);
+    if (oRaf.current) cancelAnimationFrame(oRaf.current);
+  }, []);
+
+  // Throttled handler: updates local state immediately, store at most 60 FPS
+  const handleBrightness = useCallback((v: number) => {
     setBrightness(v);
-    onBrightnessChange(v);
-  };
+    if (bRaf.current) cancelAnimationFrame(bRaf.current);
+    bRaf.current = requestAnimationFrame(() => { onBrightnessChange(v); bRaf.current = null; });
+  }, [onBrightnessChange]);
 
-  const handleContrast = (v: number) => {
+  const handleContrast = useCallback((v: number) => {
     setContrast(v);
-    onContrastChange(v);
-  };
+    if (cRaf.current) cancelAnimationFrame(cRaf.current);
+    cRaf.current = requestAnimationFrame(() => { onContrastChange(v); cRaf.current = null; });
+  }, [onContrastChange]);
 
-  const handleOpacity = (v: number) => {
+  const handleOpacity = useCallback((v: number) => {
     setOpacity(v);
+    if (oRaf.current) cancelAnimationFrame(oRaf.current);
+    oRaf.current = requestAnimationFrame(() => { onOpacityChange(v); oRaf.current = null; });
+  }, [onOpacityChange]);
+
+  // Commit final value when finger/mouse is released (ensures store is current)
+  const commitBrightness = useCallback((v: number) => {
+    if (bRaf.current) { cancelAnimationFrame(bRaf.current); bRaf.current = null; }
+    onBrightnessChange(v);
+  }, [onBrightnessChange]);
+
+  const commitContrast = useCallback((v: number) => {
+    if (cRaf.current) { cancelAnimationFrame(cRaf.current); cRaf.current = null; }
+    onContrastChange(v);
+  }, [onContrastChange]);
+
+  const commitOpacity = useCallback((v: number) => {
+    if (oRaf.current) { cancelAnimationFrame(oRaf.current); oRaf.current = null; }
     onOpacityChange(v);
-  };
+  }, [onOpacityChange]);
 
   const handleReset = () => {
     setBrightness(0);
@@ -176,7 +214,9 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           max={80}
           step={2}
           value={brightness}
-          onChange={(e) => handleBrightness(Number(e.target.value))}
+          onChange={e  => handleBrightness(Number(e.target.value))}
+          onPointerUp={e => commitBrightness(Number((e.target as HTMLInputElement).value))}
+          onTouchEnd={() => commitBrightness(brightness)}
           style={sliderStyle}
         />
         <span style={valueStyle}>{brightness > 0 ? `+${brightness}` : brightness}</span>
@@ -191,7 +231,9 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           max={200}
           step={5}
           value={contrast}
-          onChange={(e) => handleContrast(Number(e.target.value))}
+          onChange={e  => handleContrast(Number(e.target.value))}
+          onPointerUp={e => commitContrast(Number((e.target as HTMLInputElement).value))}
+          onTouchEnd={() => commitContrast(contrast)}
           style={sliderStyle}
         />
         <span style={valueStyle}>{contrast}%</span>
@@ -206,7 +248,9 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           max={100}
           step={5}
           value={opacity}
-          onChange={(e) => handleOpacity(Number(e.target.value))}
+          onChange={e  => handleOpacity(Number(e.target.value))}
+          onPointerUp={e => commitOpacity(Number((e.target as HTMLInputElement).value))}
+          onTouchEnd={() => commitOpacity(opacity)}
           style={sliderStyle}
         />
         <span style={valueStyle}>{opacity}%</span>
