@@ -29,6 +29,7 @@ import {
 } from '@/lib/lineGeometry';
 import type { ProcessedSpineResult } from '@/lib/cobbCalculation';
 import type { NormPoint } from '@/types';
+import { getSpineLevelLabels } from '@/lib/vertebraLabeling'; // Fix #5
 
 // ── Colour palette ────────────────────────────────────────────
 
@@ -84,6 +85,31 @@ function drawTick(ctx: CanvasRenderingContext2D, col: string, lw: number, from: 
   ctx.moveTo(from.x + nx * len / 2, from.y + ny * len / 2);
   ctx.lineTo(from.x - nx * len / 2, from.y - ny * len / 2);
   ctx.stroke();
+  ctx.restore();
+}
+
+// Fix #5: Small vertebra level label (T6, T7… inferred locally, no API)
+function drawSmallLevelLabel(
+  ctx: CanvasRenderingContext2D,
+  text: string, col: string,
+  x: number, y: number, fontSize: number
+) {
+  ctx.save();
+  ctx.font = `800 ${fontSize}px ui-monospace, Consolas, monospace`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const pad = Math.max(3, fontSize * 0.3);
+  const tm  = ctx.measureText(text);
+  const bx  = Math.max(4, Math.min(ctx.canvas.width  - tm.width - pad * 2 - 4, x));
+  const by  = Math.max(4, Math.min(ctx.canvas.height - fontSize - pad * 2 - 4, y - fontSize / 2 - pad));
+  ctx.fillStyle   = 'rgba(0,0,0,0.78)';
+  ctx.strokeStyle = col + '88'; ctx.lineWidth = 1;
+  if (ctx.roundRect) ctx.roundRect(bx, by, tm.width + pad * 2, fontSize + pad * 2, 4);
+  else               ctx.rect(bx, by, tm.width + pad * 2, fontSize + pad * 2);
+  ctx.fill(); ctx.stroke();
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,0.95)';
+  ctx.strokeText(text, bx + pad, by + pad + fontSize / 2);
+  ctx.fillStyle = col;
+  ctx.fillText(text, bx + pad, by + pad + fontSize / 2);
   ctx.restore();
 }
 
@@ -337,6 +363,24 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
           `⚠ Curve ${i + 1}: Δ${curve.validation.discrepancyDeg.toFixed(1)}° verify`,
           '#f0a045', warnX, warnY, 11, 'left'
         );
+      }
+
+      // ── 7. Fix #5: Sequential vertebra labels (T5→T6→T7… local, no API) ──
+      const upperY = (curve.upper_line.y1 + curve.upper_line.y2) / 2;
+      const lowerY = (curve.lower_line.y1 + curve.lower_line.y2) / 2;
+      const inferredLabels = getSpineLevelLabels(
+        curve.upper_vertebra_name, curve.lower_vertebra_name, upperY, lowerY
+      );
+      if (inferredLabels.length >= 2 && inferredLabels.length <= 16) {
+        const labelFont = Math.max(8, Math.round(cvs.width * 0.018));
+        const sideX = Math.max(8, Math.min(cvs.width - 42, normToCanvas(0.03, 0, reg).x));
+        inferredLabels.forEach(lv => {
+          const p = normToCanvas(0.04, lv.normY, reg);
+          const lvCol = lv.isMeasured
+            ? (lv.name === curve.upper_vertebra_name ? UPPER_END_COLOUR : LOWER_END_COLOUR)
+            : 'rgba(215,228,234,0.86)';
+          drawSmallLevelLabel(ctx, lv.name, lvCol, sideX, p.y, labelFont);
+        });
       }
     });
 

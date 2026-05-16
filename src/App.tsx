@@ -546,6 +546,11 @@ const App: React.FC = () => {
                     <ImageControls
                       lang={store.language}
                       showOverlay={store.controls.showOverlay}
+                      // Fix #2: Pass controlled values so sliders sync with store
+                      brightnessValue={store.controls.brightness}
+                      contrastValue={store.controls.contrast}
+                      opacityValue={store.controls.overlayOpacity}
+                      zoomValue={store.controls.zoom}
                       onBrightnessChange={v => store.setControls({ brightness:v })}
                       onContrastChange={v   => store.setControls({ contrast:v })}
                       onOpacityChange={v    => store.setControls({ overlayOpacity:v })}
@@ -553,7 +558,17 @@ const App: React.FC = () => {
                       onZoomOut={() => store.setControls({ zoom: Math.max(0.5, store.controls.zoom-0.2) })}
                       onResetZoom={() => store.setControls({ zoom:1 })}
                       onToggleOverlay={() => store.setControls({ showOverlay:!store.controls.showOverlay })}
-                      onAutoEnhance={() => { /* auto-enhance is applied on upload */ }}
+                      // Fix #1: Real auto-enhance based on qualityReport
+                      onAutoEnhance={() => {
+                        const q = store.qualityReport;
+                        const lowContrast = !q || q.contrastRatio < 0.18
+                          || q.issues.some(i => i.toLowerCase().includes('contrast'));
+                        const dark = q ? q.meanLuminance < 95 : false;
+                        store.setControls({
+                          brightness: dark ? 18 : 6,
+                          contrast:   lowContrast ? 145 : 125,
+                        });
+                      }}
                       onReset={store.resetControls}
                       onExportPNG={exportPNG}
                     />
@@ -562,10 +577,12 @@ const App: React.FC = () => {
                   {/* Analyze buttons */}
                   {store.loadedImage && !store.showCorrection && (
                     <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:'.85rem' }}>
-                      {/* Main analyze button */}
+                      {/* Main analyze button — Fix #8: aria-busy + microcopy + shimmer */}
                       <button
                         onClick={() => runAnalysis(false)}
                         disabled={!canAnalyze || store.isAnalyzing}
+                        aria-busy={store.isAnalyzing}
+                        aria-label={store.isAnalyzing ? 'Analiz ediliyor...' : undefined}
                         style={{
                           padding:'17px', fontSize:18, fontWeight:700, border:'none', borderRadius:10,
                           cursor: canAnalyze && !store.isAnalyzing ? 'pointer' : 'not-allowed',
@@ -573,16 +590,21 @@ const App: React.FC = () => {
                           background: store.isAnalyzing ? '#0a2a18' : canAnalyze ? '#00c853' : '#1a2e26',
                           color: store.isAnalyzing ? '#00c853' : canAnalyze ? '#000' : '#7a8fa0',
                           transition: 'all .15s',
-                          // GPT patch: visual pulse feedback during analysis
                           boxShadow: store.isAnalyzing
                             ? '0 0 0 4px rgba(0,200,83,.12), 0 0 24px rgba(0,200,83,.18)'
                             : canAnalyze ? '0 8px 22px rgba(0,200,83,.18)' : 'none',
+                          position: 'relative', overflow: 'hidden',
                         }}
                       >
+                        {/* Shimmer strip during analysis */}
+                        {store.isAnalyzing && (
+                          <div style={{ position:'absolute', inset:0, background:'linear-gradient(90deg,transparent,rgba(0,200,83,.12),transparent)', backgroundSize:'200% 100%', animation:'_shimmer 1.4s ease infinite' }} />
+                        )}
+                        <style>{`@keyframes _shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
                         {store.isAnalyzing ? (
                           <>
                             <div style={{ width:20, height:20, border:'3px solid rgba(0,200,83,.2)', borderTopColor:'#00c853', borderRadius:'50%', animation:'_spin .75s linear infinite', flexShrink:0 }}/>
-                            {t.loadTxt}
+                            {store.language==='tr'?'Görüntü AI ile analiz ediliyor…':store.language==='ar'?'جارٍ التحليل…':'Analyzing with AI…'}
                           </>
                         ) : (store.modality==='spine' ? t.abtnS : t.abtnF)}
                       </button>
@@ -639,6 +661,7 @@ const App: React.FC = () => {
                         curveIndex={selectedCurveIdx}
                         naturalW={store.loadedImage.naturalWidth}
                         naturalH={store.loadedImage.naturalHeight}
+                        imageSrc={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
                         lang={store.language}
                         onSave={({ upper, lower, cobb }) => {
                           if (!store.spineResult) return;

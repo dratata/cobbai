@@ -118,16 +118,15 @@ Follow this exact JSON schema, write nothing else:`;
     let r = await callGemini();
     let d = await r.json();
 
+    // Fix #9: Same as analyze-spine — return 429 immediately, no sleep (Vercel timeout risk)
     if (!r.ok) {
       const msg = d?.error?.message || '';
-      const busy = r.status === 429 || r.status === 503 || msg.includes('high demand') || msg.includes('overloaded');
+      const busy = r.status === 429 || r.status === 503
+        || msg.includes('high demand') || msg.includes('overloaded') || msg.includes('quota');
       if (busy) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        r = await callGemini(); d = await r.json();
-        if (!r.ok) return res.status(r.status).json({ error: d?.error?.message || 'Sunucu yoğun. Tekrar deneyin.' });
-      } else {
-        return res.status(r.status).json({ error: msg || 'Gemini error: ' + r.status });
+        return res.status(429).json({ error: 'Sunucu şu an çok yoğun, lütfen 5 saniye sonra tekrar deneyin.', retryAfter: 5 });
       }
+      return res.status(r.status).json({ error: msg || 'Gemini error: ' + r.status });
     }
 
     const finishReason = d?.candidates?.[0]?.finishReason;

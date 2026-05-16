@@ -35,6 +35,8 @@ interface ManualCorrectionPanelProps {
   curveIndex?:      number;
   naturalW:         number;
   naturalH:         number;
+  /** Fix #3: X-ray image source so the canvas shows the actual bones */
+  imageSrc?:        string;
   onSave:           (correctedLines: { upper: NormLine; lower: NormLine; cobb: number }) => void;
   onCancel:         () => void;
   lang?:            'en' | 'tr' | 'ar';
@@ -48,11 +50,26 @@ const HANDLE_RADIUS_RATIO = 0.032;
 export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
   processedResult, curveIndex = 0,
   naturalW, naturalH,
+  imageSrc,
   onSave, onCancel, lang = 'en',
 }) => {
   const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const xrayImgRef = useRef<HTMLImageElement | null>(null); // Fix #3: loaded X-ray
   const curve      = processedResult.processedCurves[curveIndex];
   const col        = CURVE_COLOURS[curveIndex % CURVE_COLOURS.length];
+
+  // Fix #3: Load X-ray image once so it can be drawn as canvas background
+  useEffect(() => {
+    if (!imageSrc) return;
+    const img = new Image();
+    img.onload = () => {
+      xrayImgRef.current = img;
+      // Trigger redraw with the loaded image
+      redraw(linesRef.current, activeHandle, hoveredHandle);
+    };
+    img.src = imageSrc;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageSrc]);
 
   const [lines, setLines]   = useState<EditLines>(() => ({
     upper: { ...curve.upper_line },
@@ -77,6 +94,15 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
     const reg  = computeLetterbox(naturalW, naturalH, cvs.width, cvs.height);
     const lw   = Math.max(2.5, cvs.width * 0.004);
     const hR   = Math.max(12, cvs.width * HANDLE_RADIUS_RATIO);
+
+    // Fix #3: Draw X-ray background so clinician can see the bones while correcting
+    if (xrayImgRef.current) {
+      ctx.drawImage(xrayImgRef.current, reg.ox, reg.oy, reg.rw, reg.rh);
+    } else {
+      // Fallback: dark background with grid hint
+      ctx.fillStyle = '#0a0e12';
+      ctx.fillRect(0, 0, cvs.width, cvs.height);
+    }
 
     // Draw original AI lines (faded dashed reference)
     const origCurve = processedResult.processedCurves[curveIndex];
@@ -190,6 +216,29 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
     setLiveCobb(cobb);
     redraw(lines, activeHandle, hoveredHandle);
   }, [lines, activeHandle, hoveredHandle, redraw]);
+
+  // Fix #4: ResizeObserver — canvas sized to container width, height preserves aspect ratio
+  useEffect(() => {
+    const cvs = canvasRef.current;
+    if (!cvs) return;
+    const parent = cvs.parentElement;
+    if (!parent) return;
+    const syncSize = () => {
+      const w = parent.clientWidth || 600;
+      const h = naturalW > 0 && naturalH > 0
+        ? Math.max(240, Math.round(w * naturalH / naturalW))
+        : Math.max(240, Math.round(w * 1.5));
+      if (cvs.width !== w || cvs.height !== h) {
+        cvs.width  = w;
+        cvs.height = h;
+        redraw(linesRef.current, activeHandle, hoveredHandle);
+      }
+    };
+    const obs = new ResizeObserver(syncSize);
+    obs.observe(parent);
+    requestAnimationFrame(syncSize);
+    return () => obs.disconnect();
+  }, [naturalW, naturalH, redraw, activeHandle, hoveredHandle]);
 
   // ── Mouse events ──────────────────────────────────────────
 

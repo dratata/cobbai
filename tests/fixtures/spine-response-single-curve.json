@@ -1,0 +1,47 @@
+{
+  "is_valid_xray": true,
+  "image_quality": "good",
+  "view_type": "PA",
+  "curve_type": "single",
+  "measurement_confidence": "high",
+  "measurement_method": "endplate",
+  "vertebrae_detected": 17,
+  "coronal_balance": "balanced",
+  "warnings": [],
+  "curves": [
+    {
+      "id": 1,
+      "cobb_angle": 28.0,
+      "curve_location": "thoracic",
+      "convexity_direction": "sag",
+      "upper_vertebra_name": "T5",
+      "lower_vertebra_name": "T12",
+      "apical_vertebra_name": "T8",
+      "rotation_grade": "I",
+      "upper_corners": {
+        "ul": [0.30, 0.240],
+        "ur": [0.52, 0.210]
+      },
+      "lower_corners": {
+        "ul": [0.28, 0.640],
+        "ur": [0.52, 0.718]
+      },
+      "upper_line": {
+        "x1": 0.30,
+        "y1": 0.240,
+        "x2": 0.52,
+        "y2": 0.210
+      },
+      "lower_line": {
+        "x1": 0.28,
+        "y1": 0.640,
+        "x2": 0.52,
+        "y2": 0.718
+      },
+      "upper_slope_deg": -9.0,
+      "lower_slope_deg": 19.0,
+      "apex_x": 0.62,
+      "apex_y": 0.44
+    }
+  ]
+}

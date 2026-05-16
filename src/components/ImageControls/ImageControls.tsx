@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Lang } from '@/lib/i18n';
 import { getT } from '@/lib/i18n';
 
@@ -15,6 +15,11 @@ interface ImageControlsProps {
   onReset: () => void;
   onExportPNG: () => void;
   showOverlay: boolean;
+  // Fix #1+#2: Controlled values from store so reset/auto-enhance sync sliders
+  brightnessValue?: number;
+  contrastValue?: number;
+  opacityValue?: number;
+  zoomValue?: number;
 }
 
 export const ImageControls: React.FC<ImageControlsProps> = ({
@@ -30,13 +35,22 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
   onReset,
   onExportPNG,
   showOverlay,
+  brightnessValue,
+  contrastValue,
+  opacityValue,
+  zoomValue,
 }) => {
   const t = getT(lang);
   const isRTL = lang === 'ar';
 
-  const [brightness, setBrightness] = useState<number>(0);
-  const [contrast, setContrast] = useState<number>(100);
-  const [opacity, setOpacity] = useState<number>(100);
+  // Initialize from controlled props; sync when store changes externally
+  const [brightness, setBrightness] = useState<number>(brightnessValue ?? 0);
+  const [contrast,   setContrast]   = useState<number>(contrastValue   ?? 100);
+  const [opacity,    setOpacity]    = useState<number>(opacityValue    ?? 100);
+
+  useEffect(() => { setBrightness(brightnessValue ?? 0);   }, [brightnessValue]);
+  useEffect(() => { setContrast(contrastValue     ?? 100); }, [contrastValue]);
+  useEffect(() => { setOpacity(opacityValue       ?? 100); }, [opacityValue]);
 
   const handleBrightness = (v: number) => {
     setBrightness(v);
@@ -220,6 +234,10 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
         >
           🔍+
         </button>
+        {/* Fix #2: zoom percentage indicator */}
+        <span style={{ fontSize: 11, color: 'var(--c-green, #4caf50)', fontWeight: 800, minWidth: 42, textAlign: 'center' }}>
+          {Math.round((zoomValue ?? 1) * 100)}%
+        </span>
 
         {/* Divider */}
         <div style={{ width: 1, height: 22, background: 'var(--c-border, rgba(76,175,80,0.2))', flexShrink: 0 }} />
