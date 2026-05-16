@@ -353,17 +353,22 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
   }, [draw]);
 
   // Canvas pixel size = CSS displayed size (prevents scaling artifacts)
+  // HATA 1 FIX: Robust resize handling for window resize + orientation change
+  // Problem: with object-fit/zoom wrappers the parent div may not resize even
+  //          when the *img* content area changes. We observe both.
   useEffect(() => {
     const cvs = canvasRef.current;
     if (!cvs) return;
+
     const syncSize = () => {
-      // Use the img element's rendered area, not the container
-      const img = cvs.parentElement?.querySelector('img');
+      // Walk up to find the nearest <img> sibling/descendant
+      const img = cvs.parentElement?.querySelector('img') as HTMLImageElement | null;
       if (img && img.offsetWidth > 0 && img.offsetHeight > 0) {
-        cvs.width  = img.offsetWidth;
-        cvs.height = img.offsetHeight;
+        if (cvs.width !== img.offsetWidth || cvs.height !== img.offsetHeight) {
+          cvs.width  = img.offsetWidth;
+          cvs.height = img.offsetHeight;
+        }
       } else {
-        // Fallback: canvas's own bounding rect
         const rect = cvs.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {
           cvs.width  = Math.round(rect.width);
@@ -372,11 +377,23 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
       }
       draw();
     };
+
+    // 1. ResizeObserver on parent container
     const obs = new ResizeObserver(syncSize);
     obs.observe(cvs.parentElement || cvs);
-    // Also sync on next frame to catch initial render
+
+    // 2. Also observe the <img> directly — catches object-fit layout changes
+    const img = cvs.parentElement?.querySelector('img');
+    if (img) obs.observe(img);
+
+    // 3. window resize — catches orientation flip, browser zoom, devtools toggle
+    window.addEventListener('resize', syncSize, { passive: true });
+
     requestAnimationFrame(syncSize);
-    return () => obs.disconnect();
+    return () => {
+      obs.disconnect();
+      window.removeEventListener('resize', syncSize);
+    };
   }, [draw]);
 
   return (

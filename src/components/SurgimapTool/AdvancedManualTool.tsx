@@ -271,8 +271,113 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     st.lastX = cp.x; st.lastY = cp.y;
     draw();
   };
-  const handleMouseUp   = ()  => { stateRef.current.isPanning = false; };
+  const handleMouseUp     = () => { stateRef.current.isPanning = false; };
   const handleContextMenu = (e: React.MouseEvent) => e.preventDefault();
+
+  // ── HATA 2 FIX: Mobile touch support ──────────────────────────
+  // touch-action:'none' on canvas (below) stops page scroll.
+  // Single touch → place point (like left-click).
+  // Two-finger pinch → zoom around midpoint.
+  // One-finger drag (after 4 pts placed) → pan.
+
+  const getTouchCanvasPos = (touch: React.Touch): Point => {
+    const cvs = canvasRef.current!;
+    const rect = cvs.getBoundingClientRect();
+    const sx = cvs.width / rect.width, sy = cvs.height / rect.height;
+    return { x: (touch.clientX - rect.left) * sx, y: (touch.clientY - rect.top) * sy };
+  };
+
+  // Ref to track the last distance between two fingers (for pinch)
+  const lastPinchDist = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    if (e.touches.length === 1) {
+      // Single touch — start potential pan if 4 points already placed
+      const st = stateRef.current;
+      st.isPanning = true;
+      const cp = getTouchCanvasPos(e.touches[0]);
+      st.lastX = cp.x; st.lastY = cp.y;
+      lastPinchDist.current = null;
+    } else if (e.touches.length === 2) {
+      // Two fingers — prepare for pinch
+      stateRef.current.isPanning = false;
+      lastPinchDist.current = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault();
+    const st = stateRef.current;
+    const cvs = canvasRef.current!;
+
+    if (e.touches.length === 2 && lastPinchDist.current !== null) {
+      // ── Pinch-to-zoom ──────────────────────────────────────
+      const newDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const scale = newDist / lastPinchDist.current;
+      lastPinchDist.current = newDist;
+
+      // Midpoint of the two fingers (in canvas px)
+      const midX = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - cvs.getBoundingClientRect().left)
+        * (cvs.width / cvs.getBoundingClientRect().width);
+      const midY = ((e.touches[0].clientY + e.touches[1].clientY) / 2 - cvs.getBoundingClientRect().top)
+        * (cvs.height / cvs.getBoundingClientRect().height);
+
+      const imgW = naturalW * st.zoom, imgH = naturalH * st.zoom;
+      const originX = (cvs.width - imgW) / 2 + st.panX;
+      const originY = (cvs.height - imgH) / 2 + st.panY;
+      const imgPtX = (midX - originX) / st.zoom;
+      const imgPtY = (midY - originY) / st.zoom;
+
+      const newZoom = Math.max(0.5, Math.min(10, st.zoom * scale));
+      st.panX = midX - (cvs.width - naturalW * newZoom) / 2 - imgPtX * newZoom;
+      st.panY = midY - (cvs.height - naturalH * newZoom) / 2 - imgPtY * newZoom;
+      st.zoom = newZoom;
+      draw();
+
+    } else if (e.touches.length === 1 && st.isPanning) {
+      // ── Single-finger pan ──────────────────────────────────
+      const cp = getTouchCanvasPos(e.touches[0]);
+      st.panX += cp.x - st.lastX;
+      st.panY += cp.y - st.lastY;
+      st.lastX = cp.x; st.lastY = cp.y;
+      draw();
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    const st = stateRef.current;
+
+    if (e.changedTouches.length === 1 && e.touches.length === 0) {
+      // Tap lifted — place a point ONLY if finger didn't move much (≤ 10px)
+      const touch = e.changedTouches[0];
+      const cp    = getTouchCanvasPos(touch);
+      const moved = Math.hypot(cp.x - st.lastX, cp.y - st.lastY);
+      if (moved < 10 && st.points.length < 4 && lastPinchDist.current === null) {
+        const ip = cvs2img(cp.x, cp.y);
+        ip.x = Math.max(0, Math.min(naturalW, ip.x));
+        ip.y = Math.max(0, Math.min(naturalH, ip.y));
+        st.points = [...st.points, ip];
+        setPtCount(st.points.length);
+        if (st.points.length === 4) {
+          const [p1, p2, p3, p4] = st.points;
+          const angle = calculateCobbAngle(p1, p2, p3, p4);
+          st.cobb = angle; setCobb(angle);
+          onCobbMeasured?.(angle, st.points);
+        }
+        draw();
+      }
+    }
+    if (e.touches.length < 2) lastPinchDist.current = null;
+    if (e.touches.length === 0) st.isPanning = false;
+  };
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'r' || e.key === 'R') {
@@ -356,7 +461,10 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       <div style={{ flex:1, position:'relative', background:'#000', overflow:'hidden', cursor: stateRef.current.isPanning ? 'grabbing' : ptCount < 4 ? 'crosshair' : 'default' }}>
         <canvas
           ref={canvasRef}
-          style={{ display:'block', width:'100%', height:'100%' }}
+          style={{
+            display: 'block', width: '100%', height: '100%',
+            touchAction: 'none', // HATA 2 FIX: prevents page scroll on touch
+          }}
           onClick={handleClick}
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
@@ -364,6 +472,9 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onContextMenu={handleContextMenu}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         />
         {!imgLoaded && (
           <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'#7a8fa0', fontSize:14 }}>

@@ -99,7 +99,12 @@ const App: React.FC = () => {
       // GPT patch: setLoadedImage first, THEN setQualityReport (prevents stale report)
       store.setLoadedImage({ base64, originalBase64: src.split(',')[1]??src, mimeType, naturalWidth:width, naturalHeight:height, filename:file.name });
       store.setQualityReport(quality);
+      // HATA 3 FIX: Reset all UI panel states on new image — prevents stale panels
       setIsManualMode(false); setManualCobb(null);
+      setSelectedCurveIdx(0);
+      store.setShowCorrection(false);
+      store.setShowComparison(false);
+      store.setShowHistory(false);
     } catch (err) {
       // HATA 4 FIX: Silent catch → friendly error message
       const msg = err instanceof Error ? err.message : String(err);
@@ -276,9 +281,21 @@ const App: React.FC = () => {
       0, natH - stripH / 2
     );
 
+    // HATA 4 FIX: toDataURL() throws SecurityError if canvas is tainted by
+    // cross-origin image (dragged from another browser tab).
+    let dataUrl: string;
+    try {
+      dataUrl = cvs.toDataURL('image/png');
+    } catch (e) {
+      store.setAnalyzeError(
+        '⚠️ Bu görüntü güvenlik politikaları nedeniyle dışa aktarılamıyor. ' +
+        'Görüntüyü önce bilgisayarınıza indirip yükleyin.'
+      );
+      return;
+    }
     const a = document.createElement('a');
     a.download = 'cobbai-' + new Date().toISOString().slice(0, 10) + '.png';
-    a.href = cvs.toDataURL('image/png');
+    a.href = dataUrl;
     a.click();
   }, [store]);
 

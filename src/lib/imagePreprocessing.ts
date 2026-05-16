@@ -27,7 +27,10 @@ const STRETCH_HI_PCT    = 0.98;   // upper percentile
 export async function loadImageElement(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
+    // HATA 4 FIX: crossOrigin='Anonymous' prevents canvas taint for external URLs
+    // Must be set BEFORE img.src — order matters for CORS preflight
+    img.crossOrigin = 'Anonymous';
+    img.onload  = () => resolve(img);
     img.onerror = () => reject(new Error('Failed to load image'));
     img.src = src;
   });
