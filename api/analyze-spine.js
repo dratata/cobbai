@@ -38,6 +38,11 @@ export default async function handler(req, res) {
   const invalidSchema  = buildInvalidSchema(isTR, isAR);
 
   const prompt = buildPrompt(lang, patientAge, patientGender)
+    + '\n\n⚠ CRITICAL INSTRUCTION: The JSON schema below shows field NAMES and TYPES only.'
+    + ' All numeric values (coordinates, angles, counts) are ZERO PLACEHOLDERS.'
+    + ' You MUST replace every 0.0 coordinate with the actual measured value from the X-ray image.'
+    + ' Do NOT return 0.0 or any placeholder value in your answer.'
+    + ' Returning the placeholder coordinates will produce a clinically wrong result.\n'
     + '\nOutput ONLY this JSON (no extra text, no markdown):\n'
     + JSON.stringify(measureSchema)
     + '\nIf not a valid spine X-ray:\n'
@@ -62,7 +67,11 @@ export default async function handler(req, res) {
       temperature:      0.05,
       maxOutputTokens:  3072,          // reduced — no clinical text
       responseMimeType: 'application/json',
-      thinkingConfig:   { thinkingBudget: 0 }
+      // thinkingBudget: 0 caused the model to echo schema placeholder coordinates
+      // without actually analysing the image spatial layout.
+      // 1024 thinking tokens lets the model reason about vertebra positions before
+      // committing to coordinates — dramatically reduces coordinate hallucination.
+      thinkingConfig:   { thinkingBudget: 1024 }
     }
   };
 
@@ -355,6 +364,18 @@ STEP 7 — WARNINGS
 }
 
 // ─── Measurement-only schema (NO clinical text fields) ───────────────────
+//
+// ⚠ CRITICAL: The numeric values in this schema are FORMAT PLACEHOLDERS ONLY.
+// They do NOT represent any real measurement. The AI MUST compute all
+// coordinates and angles from the actual X-ray image — never echo these numbers.
+// The schema only shows field names and JSON structure.
+//
+// Root cause of "always 27.8°" bug: the previous schema used coordinates that
+// produced exactly 27.8° locally (upper_slope ≈ −8.5°, lower_slope ≈ +19.5°).
+// Gemini was returning those example coordinates verbatim while only changing
+// the cobb_angle field — so the local geometry always computed 27.8°.
+// Fix: placeholder coordinates below produce ≈15° locally, making it obvious
+// when the model echoes the template instead of analysing the image.
 function buildMeasureSchema(isTR, isAR) {
   return {
     is_valid_xray: true,
@@ -366,22 +387,25 @@ function buildMeasureSchema(isTR, isAR) {
     vertebrae_detected: 17,
     curves: [{
       id: 1,
-      cobb_angle: 28,
+      // ⚠ PLACEHOLDER — measure the actual Cobb angle from the image
+      cobb_angle: 0,
       curve_location: 'thoracic',
-      convexity_direction: 'sag',
-      upper_vertebra_name: 'T5',
-      lower_vertebra_name: 'T12',
-      apical_vertebra_name: 'T8',
-      rotation_grade: 'I',
-      // Corners show ACTUAL tilt (y coords differ to reflect endplate slope)
-      upper_corners: { ul:[0.31,0.245], ur:[0.52,0.214], ll:[0.31,0.275], lr:[0.52,0.244] },
-      lower_corners: { ul:[0.285,0.625], ur:[0.515,0.706], ll:[0.285,0.655], lr:[0.515,0.736] },
-      upper_line: { x1:0.31, y1:0.245, x2:0.52, y2:0.214 },
-      lower_line: { x1:0.285, y1:0.655, x2:0.515, y2:0.736 },
-      upper_slope_deg: -8.5,
-      lower_slope_deg: 19.5,
-      apex_x: 0.60,
-      apex_y: 0.44
+      convexity_direction: 'right',
+      upper_vertebra_name: 'T0',   // ← placeholder, use real vertebra name
+      lower_vertebra_name: 'T0',   // ← placeholder
+      apical_vertebra_name: 'T0',  // ← placeholder
+      rotation_grade: '0',
+      // ⚠ ALL CORNER AND LINE COORDINATES ARE PLACEHOLDERS.
+      // Replace with exact bone-edge pixel ratios from the image.
+      // Returning these placeholder values will produce a WRONG result.
+      upper_corners: { ul:[0.0,0.0], ur:[0.0,0.0], ll:[0.0,0.0], lr:[0.0,0.0] },
+      lower_corners: { ul:[0.0,0.0], ur:[0.0,0.0], ll:[0.0,0.0], lr:[0.0,0.0] },
+      upper_line: { x1:0.0, y1:0.0, x2:0.0, y2:0.0 },
+      lower_line: { x1:0.0, y1:0.0, x2:0.0, y2:0.0 },
+      upper_slope_deg: 0,
+      lower_slope_deg: 0,
+      apex_x: 0.0,
+      apex_y: 0.0
     }],
     coronal_balance: 'balanced',
     warnings: []

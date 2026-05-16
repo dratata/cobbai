@@ -172,12 +172,26 @@ function drawVertebraHighlight(
 ) {
   if (pts.length < 4) return;
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 5;
   ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, fontSize * 0.18);
-  ctx.strokeStyle = stroke; ctx.fillStyle = fill; ctx.setLineDash([]);
+  ctx.strokeStyle = stroke; ctx.setLineDash([]);
   ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
   pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y)); ctx.closePath();
-  ctx.fill(); ctx.stroke(); ctx.restore();
+
+  // ── Fill WITHOUT shadow ─────────────────────────────────────────────────
+  // BUG FIX: previously ctx.shadowBlur=5 was active during ctx.fill().
+  // Canvas shadow uses shadowOffsetX/Y=0, so the 85%-opaque black shadow
+  // was drawn at the same position as the shape and bled THROUGH the
+  // transparent fill (only 10% opacity) → vertebra boxes appeared solid black.
+  // Fix: fill first with shadow disabled, then apply shadow only to the stroke.
+  ctx.shadowBlur  = 0;
+  ctx.shadowColor = 'transparent';
+  ctx.fillStyle   = fill;
+  ctx.fill();
+
+  // Stroke with shadow for visibility
+  ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 4;
+  ctx.stroke();
+  ctx.restore();
   const cx2 = pts.reduce((s, p) => s + p.x, 0) / pts.length;
   const cy2 = pts.reduce((s, p) => s + p.y, 0) / pts.length;
   drawLabelBox(ctx, label, stroke, cx2, cy2, fontSize, 'center');
@@ -430,15 +444,19 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         const sz   = Math.max(cssW * 0.018, 8);
         ctx.save();
         ctx.strokeStyle = APEX_COLOUR; ctx.lineWidth = 2;
-        ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 5;
-        ctx.fillStyle   = 'rgba(255,209,102,0.22)';
         ctx.beginPath();
         ctx.moveTo(ap.x, ap.y - sz);
         ctx.lineTo(ap.x + sz, ap.y);
         ctx.lineTo(ap.x, ap.y + sz);
         ctx.lineTo(ap.x - sz, ap.y);
         ctx.closePath();
-        ctx.fill(); ctx.stroke();
+        // Fill without shadow (same fix as drawVertebraHighlight)
+        ctx.shadowBlur  = 0; ctx.shadowColor = 'transparent';
+        ctx.fillStyle   = 'rgba(255,209,102,0.22)';
+        ctx.fill();
+        // Stroke with shadow
+        ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 5;
+        ctx.stroke();
         if (curve.apical_vertebra_name) {
           const afs = Math.max(9, Math.round(cssW * 0.022));
           const apText = `A:${curve.apical_vertebra_name}`;
