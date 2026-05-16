@@ -313,7 +313,9 @@ export async function autoCropBlackBorders(
 
       const cropCanvas = document.createElement('canvas');
       cropCanvas.width = w; cropCanvas.height = h;
-      cropCanvas.getContext('2d')?.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
+      const cropCtx = cropCanvas.getContext('2d');
+      if (!cropCtx) { resolve(imgSrc); return; } // guard: canvas limit exceeded → use original
+      cropCtx.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
       resolve(cropCanvas.toDataURL('image/jpeg', 0.87));
     };
     img.onerror = reject;

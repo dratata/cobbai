@@ -222,6 +222,10 @@ const App: React.FC = () => {
       }
 
       // ── Call API ───────────────────────────────────────────
+      // FIX: timer must stay active until the body is fully read, not just until
+      // headers arrive. A server can send headers immediately but delay the body
+      // (streaming / chunked response), leaving the app hung indefinitely.
+      // clearTimeout is now called AFTER resp.text() resolves.
       const timer = setTimeout(() => controller.abort(), 90_000);
       const payload: AnalyzeSpineRequest = {
         imageBase64: store.loadedImage.base64,
@@ -234,10 +238,10 @@ const App: React.FC = () => {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify(payload), signal: controller.signal,
       });
-      clearTimeout(timer);
       // Guard: sunucu bazen JSON değil düz metin döndürebilir (502, 504, cold-start hataları)
       let rawJson: unknown;
       const rawText = await resp.text();
+      clearTimeout(timer); // cleared AFTER body read — covers streaming body hangs
       try {
         rawJson = JSON.parse(rawText);
       } catch {
@@ -286,9 +290,13 @@ const App: React.FC = () => {
         store.addToHistory({ id: Date.now().toString(), timestamp: new Date().toISOString(), modality:'spine', result: parsed.result, patientAge: store.patientAge, patientGender: store.patientGender });
       } else {
         const foot = safeParseFootResult(rawJson);
+        if (!foot) {
+          store.setAnalyzeError('Ayak analizi sonucu geçersiz. Lütfen tekrar deneyin.');
+          return;
+        }
         try {
           const hash = await hashBase64(store.loadedImage.base64);
-          if (foot) setCachedResult(hash, store.modality, store.language, foot);
+          setCachedResult(hash, store.modality, store.language, foot);
         } catch (qe) {
           console.warn('[CobbAI] localStorage quota exceeded — foot result not cached', qe);
         }

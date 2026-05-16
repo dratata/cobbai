@@ -216,7 +216,7 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           value={brightness}
           onChange={e  => handleBrightness(Number(e.target.value))}
           onPointerUp={e => commitBrightness(Number((e.target as HTMLInputElement).value))}
-          onTouchEnd={() => commitBrightness(brightness)}
+          onTouchEnd={e => commitBrightness(Number((e.target as HTMLInputElement).value))}
           style={sliderStyle}
         />
         <span style={valueStyle}>{brightness > 0 ? `+${brightness}` : brightness}</span>
@@ -233,7 +233,7 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           value={contrast}
           onChange={e  => handleContrast(Number(e.target.value))}
           onPointerUp={e => commitContrast(Number((e.target as HTMLInputElement).value))}
-          onTouchEnd={() => commitContrast(contrast)}
+          onTouchEnd={e => commitContrast(Number((e.target as HTMLInputElement).value))}
           style={sliderStyle}
         />
         <span style={valueStyle}>{contrast}%</span>
@@ -250,7 +250,7 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           value={opacity}
           onChange={e  => handleOpacity(Number(e.target.value))}
           onPointerUp={e => commitOpacity(Number((e.target as HTMLInputElement).value))}
-          onTouchEnd={() => commitOpacity(opacity)}
+          onTouchEnd={e => commitOpacity(Number((e.target as HTMLInputElement).value))}
           style={sliderStyle}
         />
         <span style={valueStyle}>{opacity}%</span>

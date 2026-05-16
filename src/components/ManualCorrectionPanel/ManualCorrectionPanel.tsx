@@ -115,9 +115,9 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
     if (xrayImgRef.current) {
       ctx.drawImage(xrayImgRef.current, reg.ox, reg.oy, reg.rw, reg.rh);
     } else {
-      // Fallback: dark background with grid hint
+      // Fallback: dark background with grid hint (use CSS dims — we're in scaled ctx)
       ctx.fillStyle = '#0a0e12';
-      ctx.fillRect(0, 0, cvs.width, cvs.height);
+      ctx.fillRect(0, 0, cssW, cssH);
     }
 
     // Draw original AI lines (faded dashed reference)
@@ -157,8 +157,8 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
     ctx.beginPath(); ctx.moveTo(el1.x, el1.y); ctx.lineTo(el2.x, el2.y); ctx.stroke();
     ctx.restore();
 
-    // Perpendiculars
-    const halfLen = Math.max(cvs.height * 0.14, 36);
+    // Perpendiculars — use CSS dims (cssH), not physical cvs.height
+    const halfLen = Math.max(cssH * 0.14, 36);
     const pU = perpendicularBisector({ x1:u1.x, y1:u1.y, x2:u2.x, y2:u2.y }, halfLen);
     const pL = perpendicularBisector({ x1:l1.x, y1:l1.y, x2:l2.x, y2:l2.y }, halfLen);
     ctx.save();
@@ -178,7 +178,7 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
       let diff  = a2 - a1;
       while (diff >  Math.PI) diff -= 2 * Math.PI;
       while (diff < -Math.PI) diff += 2 * Math.PI;
-      const arcR = Math.max(cvs.height * 0.07, 20);
+      const arcR = Math.max(cssH * 0.07, 20);
       ctx.save();
       ctx.beginPath(); ctx.moveTo(inter.x, inter.y);
       ctx.arc(inter.x, inter.y, arcR, a1, a1 + diff, diff < 0);
@@ -191,7 +191,7 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
       labelY = inter.y + Math.sin(ma) * (arcR + 22);
     }
 
-    const fs = Math.max(14, Math.round(cvs.width * 0.038));
+    const fs = Math.max(14, Math.round(cssW * 0.038));
     const cobb = computeLiveCobb(upper, lower);
     ctx.save();
     ctx.font = `bold ${fs}px ui-monospace,monospace`;

@@ -19,6 +19,16 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 }) => {
   const contentRef    = useRef<HTMLDivElement>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+
+  // CRITICAL FIX: hooks MUST come before any conditional return.
+  // Previously useEffect was after `if (!open) return null` — Rules of Hooks violation.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
   if (!open) return null;
 
   const date = new Date().toLocaleDateString('tr-TR', { year:'numeric', month:'long', day:'numeric' });
@@ -88,20 +98,28 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         // Single page — fits without splitting
         pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, imgW, imgH);
       } else {
-        // Multi-page: draw one A4-height slice per page
+        // Multi-page: slice the canvas into A4-height strips.
+        // BUG FIX: previous code used drawImage(canvas, 0, -srcY) which shifts the
+        // whole canvas up without clipping — every page drew the same full image.
+        // Correct: use the 9-argument drawImage(src, sx,sy,sw,sh, dx,dy,dw,dh) form
+        // to clip exactly one page-height strip from the source canvas.
         const pxPerPage = Math.floor((pageH / imgH) * canvas.height);
         let srcY = 0;
 
         while (srcY < canvas.height) {
           const srcH = Math.min(pxPerPage, canvas.height - srcY);
 
-          // Slice the canvas
-          const slice    = document.createElement('canvas');
-          slice.width    = canvas.width;
-          slice.height   = srcH;
-          slice.getContext('2d')!.drawImage(canvas, 0, -srcY);
+          const slice = document.createElement('canvas');
+          slice.width  = canvas.width;
+          slice.height = srcH;
+          // Clip exactly [srcY, srcY+srcH] rows from the source canvas
+          slice.getContext('2d')!.drawImage(
+            canvas,
+            0, srcY, canvas.width, srcH,   // source rectangle
+            0, 0,    slice.width,  srcH    // destination rectangle
+          );
 
-          const sliceH   = (srcH / canvas.height) * imgH;
+          const sliceH = (srcH / canvas.height) * imgH;
           if (srcY > 0) pdf.addPage();
           pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, imgW, sliceH);
 
@@ -175,8 +193,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       </table>
       <h2>Ölçüm Sonuçları</h2>
       <table>
-        <tr><th>Meary Açısı</th><td><strong>${footResult.meary_angle}°</strong></td><th>Yön</th><td>${footResult.meary_direction}</td></tr>
-        <tr><th>Kalkaneal Pitch</th><td>${footResult.calcaneal_pitch}°</td><th>Talar Deklinasyon</th><td>${footResult.talar_declination}°</td></tr>
+        <tr><th>Meary Açısı</th><td><strong>${footResult.meary_angle != null ? footResult.meary_angle + '°' : '—'}</strong></td><th>Yön</th><td>${footResult.meary_direction}</td></tr>
+        <tr><th>Kalkaneal Pitch</th><td>${footResult.calcaneal_pitch != null ? footResult.calcaneal_pitch + '°' : '—'}</td><th>Talar Deklinasyon</th><td>${footResult.talar_declination != null ? footResult.talar_declination + '°' : '—'}</td></tr>
         <tr><th>Şiddet</th><td>${footResult.severity}</td><th>Esneklik</th><td>${footResult.flexibility}</td></tr>
       </table>
       <h2>Klinik Değerlendirme</h2>
@@ -190,13 +208,6 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   };
 
   const html = modality === 'spine' ? buildSpineReport() : buildFootReport();
-
-  // Hata 3 fix: lock body scroll + ensure z-index > sticky nav (100)
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, []);
 
   return (
     <div style={{ position:'fixed', inset:0, zIndex:10000, background:'rgba(0,0,0,.88)', display:'flex', alignItems:'flex-start', justifyContent:'center', padding:'1rem', overflowY:'auto' }}
