@@ -3,7 +3,7 @@
  * Full clinical workflow with all features from the legacy app.
  */
 
-import React, { lazy, useEffect, useRef, useCallback, useState } from 'react';
+import React, { lazy, useEffect, useRef, useCallback, useState, useSyncExternalStore } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useMeasurementStore, selectCanAnalyze } from '@/store/measurementStore';
 import { processSpineResult } from '@/lib/cobbCalculation';
@@ -96,6 +96,13 @@ const App: React.FC = () => {
   // GPT patch: KVKK React state (localStorage stays in sync)
   const [kvkkAccepted, setKvkkAccepted] = useState(() => localStorage.getItem('cobbai_kvkk') === '1');
 
+  // ── Mobile detection ──────────────────────────────────────────
+  const isMobile = useSyncExternalStore(
+    (cb) => { window.addEventListener('resize', cb); return () => window.removeEventListener('resize', cb); },
+    () => window.innerWidth <= 768,
+    () => false,
+  );
+
   // Cleanup cooldown interval on unmount
   useEffect(() => () => { if (cooldownRef.current) clearInterval(cooldownRef.current); }, []);
 
@@ -119,7 +126,15 @@ const App: React.FC = () => {
 
   // ── File upload ──────────────────────────────────────────────
   const handleFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) { store.setAnalyzeError('Lütfen bir görüntü dosyası yükleyin (JPEG veya PNG).'); return; }
+    if (!file.type.startsWith('image/')) {
+      const lang = useMeasurementStore.getState().language;
+      store.setAnalyzeError(
+        lang === 'tr' ? 'Lütfen bir görüntü dosyası yükleyin (JPEG veya PNG).' :
+        lang === 'ar' ? 'يرجى تحميل ملف صورة (JPEG أو PNG).' :
+        'Please upload an image file (JPEG or PNG).'
+      );
+      return;
+    }
     store.setPreprocessing(true);
 
     // Fix 2 — Base64 DOM bloat: use URL.createObjectURL() instead of FileReader.
@@ -179,7 +194,11 @@ const App: React.FC = () => {
       store.setShowHistory(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      store.setAnalyzeError('Görüntü işlenirken bir hata oluştu: ' + msg);
+      store.setAnalyzeError(
+        store.language === 'tr' ? 'Görüntü işlenirken bir hata oluştu: ' + msg :
+        store.language === 'ar' ? 'حدث خطأ أثناء معالجة الصورة: ' + msg :
+        'An error occurred while processing the image: ' + msg
+      );
     } finally {
       store.setPreprocessing(false);
       // Always revoke — releases the browser's Blob store reference
@@ -295,9 +314,11 @@ const App: React.FC = () => {
       } catch {
         const preview = rawText.slice(0, 120).replace(/\n/g, ' ');
         store.setAnalyzeError(
-          resp.ok
-            ? `Sunucu geçersiz yanıt döndürdü: ${preview}`
-            : `Sunucu hatası (${resp.status}): ${preview}`
+          store.language === 'tr'
+            ? (resp.ok ? `Sunucu geçersiz yanıt döndürdü: ${preview}` : `Sunucu hatası (${resp.status}): ${preview}`)
+            : store.language === 'ar'
+            ? (resp.ok ? `استجابة غير صالحة من الخادم: ${preview}` : `خطأ في الخادم (${resp.status}): ${preview}`)
+            : (resp.ok ? `Invalid server response: ${preview}` : `Server error (${resp.status}): ${preview}`)
         );
         return;
       }
@@ -325,7 +346,11 @@ const App: React.FC = () => {
           }, wait * 1000);
           return;
         }
-        store.setAnalyzeError(errData.error ?? `Sunucu hatası: ${resp.status}`);
+        store.setAnalyzeError(errData.error ?? (
+          store.language === 'tr' ? `Sunucu hatası: ${resp.status}` :
+          store.language === 'ar' ? `خطأ في الخادم: ${resp.status}` :
+          `Server error: ${resp.status}`
+        ));
         return;
       }
 
@@ -335,7 +360,14 @@ const App: React.FC = () => {
 
       if (store.modality === 'spine') {
         const parsed = safeParseSpineResult(rawJson);
-        if (!parsed) { store.setAnalyzeError('AI yanıtı geçersiz koordinatlar içeriyor. Lütfen tekrar deneyin.'); return; }
+        if (!parsed) {
+          store.setAnalyzeError(
+            store.language === 'tr' ? 'AI yanıtı geçersiz koordinatlar içeriyor. Lütfen tekrar deneyin.' :
+            store.language === 'ar' ? 'استجابة الذكاء الاصطناعي تحتوي على إحداثيات غير صالحة. يرجى المحاولة مرة أخرى.' :
+            'AI response contains invalid coordinates. Please try again.'
+          );
+          return;
+        }
         try {
           const hash = await hashBase64(store.loadedImage.base64);
           setCachedResult(hash, store.modality, store.language, parsed.result,
@@ -352,7 +384,11 @@ const App: React.FC = () => {
       } else {
         const foot = safeParseFootResult(rawJson);
         if (!foot) {
-          store.setAnalyzeError('Ayak analizi sonucu geçersiz. Lütfen tekrar deneyin.');
+          store.setAnalyzeError(
+          store.language === 'tr' ? 'Ayak analizi sonucu geçersiz. Lütfen tekrar deneyin.' :
+          store.language === 'ar' ? 'نتيجة تحليل القدم غير صالحة. يرجى المحاولة مرة أخرى.' :
+          'Foot analysis result is invalid. Please try again.'
+        );
           return;
         }
         try {
@@ -369,7 +405,11 @@ const App: React.FC = () => {
       // Fix 3 guard: skip if a newer analysis has taken over
       if (analysisIdRef.current !== analysisId) return;
       if (err.name !== 'AbortError') {
-        store.setAnalyzeError(err.message || 'Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin.');
+        store.setAnalyzeError(err.message || (
+        store.language === 'tr' ? 'Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin.' :
+        store.language === 'ar' ? 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.' :
+        'Connection timed out. Please try again.'
+      ));
       }
     } finally {
       // Fix 3 guard: only reset UI state if THIS run is still the active one
@@ -445,8 +485,11 @@ const App: React.FC = () => {
       dataUrl = cvs.toDataURL('image/png');
     } catch (e) {
       store.setAnalyzeError(
-        '⚠️ Bu görüntü güvenlik politikaları nedeniyle dışa aktarılamıyor. ' +
-        'Görüntüyü önce bilgisayarınıza indirip yükleyin.'
+        store.language === 'tr'
+          ? '⚠️ Bu görüntü güvenlik politikaları nedeniyle dışa aktarılamıyor. Görüntüyü önce bilgisayarınıza indirip yükleyin.'
+          : store.language === 'ar'
+          ? '⚠️ لا يمكن تصدير هذه الصورة لأسباب أمنية. يرجى تنزيل الصورة أولاً ثم تحميلها.'
+          : '⚠️ This image cannot be exported due to security policies. Please download the image first, then upload it.'
       );
       return;
     }
@@ -543,11 +586,31 @@ const App: React.FC = () => {
               labels={sidebarLabels}
               exLang={store.language}
               onSwitchModality={m => { store.setModality(m); }}
+              isMobile={isMobile}
             />
 
+            {/* ── Mobile modality tab bar (replaces sidebar on small screens) ── */}
+            {isMobile && (
+              <div style={{ display:'flex', gap:8, padding:'8px 12px', background:'#090e12', borderBottom:'1px solid rgba(255,255,255,.08)', position:'sticky', top:60, zIndex:49 }}>
+                {(['spine','foot'] as const).map(m => {
+                  const active = store.modality === m;
+                  const col = m === 'spine' ? '#00c853' : '#2196f3';
+                  return (
+                    <button key={m} onClick={() => store.setModality(m)} style={{
+                      flex:1, padding:'9px 8px', border:`1px solid ${active ? col : 'rgba(255,255,255,.12)'}`,
+                      borderRadius:8, background: active ? `${col}18` : 'transparent',
+                      color: active ? col : '#7a8fa0', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit',
+                    }}>
+                      {m === 'spine' ? `🦴 ${sidebarLabels.dn1}` : `🦶 ${sidebarLabels.dn2}`}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* ── Page content ──────────────────────────────────── */}
-            {/* Hata 2 fix: marginInlineStart adapts to RTL (Arabic) automatically */}
-            <div style={{ marginInlineStart: 210, minWidth:0 }}>
+            {/* marginInlineStart adapts to RTL (Arabic) automatically; 0 on mobile */}
+            <div style={{ marginInlineStart: isMobile ? 0 : 210, minWidth:0 }}>
 
               {/* Hero */}
               <section style={{ maxWidth:'100%', padding:'1.75rem 1rem 1rem', display:'flex', alignItems:'center', gap:'1.5rem' }}>
@@ -720,7 +783,9 @@ const App: React.FC = () => {
                       {/* Quality hint */}
                       {store.qualityReport && store.qualityReport.score !== 'good' && (
                         <div style={{ position:'absolute', bottom:8, left:8, fontSize:12, padding:'4px 8px', background:'rgba(0,0,0,.8)', borderRadius:4, color: store.qualityReport.score==='poor'?'#f0a045':'#e05555' }}>
-                          ⚠️ {store.qualityReport.score==='poor'?'Kalite yetersiz':'Kalite kabul edilemez'}
+                          ⚠️ {store.qualityReport.score==='poor'
+                            ? (store.language==='ar' ? 'جودة منخفضة' : store.language==='en' ? 'Poor quality' : 'Kalite yetersiz')
+                            : (store.language==='ar' ? 'جودة غير مقبولة' : store.language==='en' ? 'Unacceptable quality' : 'Kalite kabul edilemez')}
                         </div>
                       )}
                     </div>
@@ -773,6 +838,8 @@ const App: React.FC = () => {
                         });
                         const msg = store.language === 'tr'
                           ? `✨ Oto geliştirme uygulandı (parlaklık ${dark?18:6}, kontrast ${lowContrast?145:125}%)`
+                          : store.language === 'ar'
+                          ? `✨ تم تطبيق التحسين التلقائي (سطوع ${dark?18:6}, تباين ${lowContrast?145:125}%)`
                           : `✨ Auto enhancement applied (brightness ${dark?18:6}, contrast ${lowContrast?145:125}%)`;
                         setUiToast(msg);
                         setTimeout(() => setUiToast(null), 2000);
@@ -796,7 +863,7 @@ const App: React.FC = () => {
                         onClick={() => handleAnalyzeClick(false)}
                         disabled={!canAnalyze || isAnalyzing || !kvkkAccepted || cooldownSec > 0}
                         aria-busy={isAnalyzing}
-                        aria-label={isAnalyzing ? 'Analiz ediliyor...' : undefined}
+                        aria-label={isAnalyzing ? t.loadTxt : undefined}
                         style={{
                           padding:'17px', fontSize:18, fontWeight:700, border:'none', borderRadius:10,
                           cursor: canAnalyze && !isAnalyzing && kvkkAccepted && cooldownSec === 0 ? 'pointer' : 'not-allowed',
@@ -859,7 +926,7 @@ const App: React.FC = () => {
                   {store.analyzeError && (
                     <div style={{ padding:'1rem', background:'rgba(224,85,85,.08)', border:'1px solid rgba(224,85,85,.3)', borderRadius:8, color:'#e05555', fontSize:14, lineHeight:1.6, marginBottom:8 }}>
                       ⚠ {store.analyzeError}
-                      <br/><button onClick={() => runAnalysis(true)} style={{ marginTop:12, padding:'8px 20px', background:'#00c853', color:'#000', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>🔄 {store.language==='tr'?'Tekrar Dene':'Try Again'}</button>
+                      <br/><button onClick={() => runAnalysis(true)} style={{ marginTop:12, padding:'8px 20px', background:'#00c853', color:'#000', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>🔄 {store.language==='tr'?'Tekrar Dene':store.language==='ar'?'حاول مجدداً':'Try Again'}</button>
                     </div>
                   )}
 
@@ -1017,11 +1084,11 @@ const App: React.FC = () => {
                   <button onClick={() => { clearAllCache(); alert(store.language==='tr'?'AI önbelleği temizlendi.':'AI cache cleared.'); }} style={{ padding:'4px 10px', background:'transparent', border:'1px solid rgba(255,255,255,.1)', borderRadius:20, color:'#4a5a6a', fontSize:11, cursor:'pointer' }}>
                     🗑 {store.language==='tr'?'AI Önbelleğini Temizle':'Clear AI Cache'}
                   </button>
-                  <button onClick={() => { clearTrackingHistory(); alert(store.language==='tr'?'Takip geçmişi silindi.':'History cleared.'); }} style={{ padding:'4px 10px', background:'transparent', border:'1px solid rgba(255,255,255,.1)', borderRadius:20, color:'#4a5a6a', fontSize:11, cursor:'pointer' }}>
-                    🗑 {store.language==='tr'?'Geçmişi Sil':'Clear History'}
+                  <button onClick={() => { clearTrackingHistory(); alert(store.language==='tr'?'Takip geçmişi silindi.':store.language==='ar'?'تم مسح سجل التتبع.':'History cleared.'); }} style={{ padding:'4px 10px', background:'transparent', border:'1px solid rgba(255,255,255,.1)', borderRadius:20, color:'#4a5a6a', fontSize:11, cursor:'pointer' }}>
+                    🗑 {store.language==='tr'?'Geçmişi Sil':store.language==='ar'?'مسح السجل':'Clear History'}
                   </button>
-                  <button onClick={() => { if(window.confirm(store.language==='tr'?'Tüm yerel veriler silinecek. Emin misiniz?':'Delete all local data?')){ clearAllLocalData(); window.location.reload(); }}} style={{ padding:'4px 10px', background:'transparent', border:'1px solid rgba(224,85,85,.3)', borderRadius:20, color:'#e05555', fontSize:11, cursor:'pointer' }}>
-                    ⚠ {store.language==='tr'?'Tüm Verileri Sil':'Delete All Data'}
+                  <button onClick={() => { if(window.confirm(store.language==='tr'?'Tüm yerel veriler silinecek. Emin misiniz?':store.language==='ar'?'سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟':'Delete all local data?')){ clearAllLocalData(); window.location.reload(); }}} style={{ padding:'4px 10px', background:'transparent', border:'1px solid rgba(224,85,85,.3)', borderRadius:20, color:'#e05555', fontSize:11, cursor:'pointer' }}>
+                    ⚠ {store.language==='tr'?'Tüm Verileri Sil':store.language==='ar'?'حذف جميع البيانات':'Delete All Data'}
                   </button>
                 </div>
                 {showPrivacy && (

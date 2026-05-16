@@ -13,21 +13,27 @@ interface SidebarProps {
     dn7:string;ds7:string;dn8:string;ds8:string;
     dnVal:string;dsVal:string;
   };
-  exLang: string; // lang param for exercise pages
+  exLang: string;
+  isMobile: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ modality, lang, onSwitchModality, labels, exLang }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ modality, lang, onSwitchModality, labels, exLang, isMobile }) => {
   const isSpine = modality === 'spine';
   const isFoot  = modality === 'foot';
+
+  if (isMobile) return null;
 
   return (
     <div style={{
       width: 210, minWidth: 210,
       background: '#090e12',
-      borderRight: '1px solid rgba(255,255,255,.08)',
+      // Use logical property: in RTL (Arabic) this becomes border-left
+      borderInlineEnd: '1px solid rgba(255,255,255,.08)',
       padding: '12px 0',
       position: 'fixed',
-      top: 60, left: 0,
+      top: 60,
+      // insetInlineStart: 0 = left:0 in LTR, right:0 in RTL
+      insetInlineStart: 0,
       height: 'calc(100vh - 60px)',
       overflowY: 'auto',
       zIndex: 50,
@@ -72,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ modality, lang, onSwitchModali
       <Section>
         <Label>{labels.dl5}</Label>
         <NavLink href="/validation.html" icon="📊" name={labels.dnVal} sub={labels.dsVal} />
-        <NavLink href="/tests.html"      icon="🧪" name={lang==='tr'?'Unit Testler':lang==='ar'?'اختبارات':'Unit Tests'} sub="Cobb · geometry" />
+        <NavLink href="/tests.html"      icon="🧪" name={lang==='tr'?'Unit Testler':lang==='ar'?'اختبارات الوحدة':'Unit Tests'} sub="Cobb · geometry" />
       </Section>
     </div>
   );
@@ -102,8 +108,9 @@ const NavBtn: React.FC<NavBtnProps> = ({ active, activeClass, onClick, icon, nam
   return (
     <button onClick={onClick} style={{
       display:'flex', alignItems:'center', gap:10, padding:'11px 16px',
-      fontSize:14, width:'100%', textAlign:'left', border:'none',
-      borderLeft: active ? `3px solid ${col}` : '3px solid transparent',
+      fontSize:14, width:'100%', textAlign:'start', border:'none',
+      // Use logical border: left in LTR, right in RTL
+      borderInlineStart: active ? `3px solid ${col}` : '3px solid transparent',
       background: active ? (activeClass==='spine'?'rgba(0,200,83,.1)':'rgba(33,150,243,.1)') : 'none',
       color: active ? col : '#7a8fa0',
       cursor:'pointer', fontFamily:'inherit',
@@ -126,7 +133,7 @@ const NavLink: React.FC<NavLinkProps> = ({ href, icon, name, sub }) => (
   <a href={href} target="_blank" rel="noreferrer" style={{
     display:'flex', alignItems:'center', gap:10, padding:'11px 16px',
     fontSize:14, color:'#7a8fa0', textDecoration:'none',
-    borderLeft:'3px solid transparent', transition:'background .12s, color .12s',
+    borderInlineStart:'3px solid transparent', transition:'background .12s, color .12s',
   }}
   onMouseEnter={e=>{e.currentTarget.style.background='#111820';e.currentTarget.style.color='#eef2f7';}}
   onMouseLeave={e=>{e.currentTarget.style.background='none';e.currentTarget.style.color='#7a8fa0';}}
