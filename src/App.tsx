@@ -70,6 +70,7 @@ const App: React.FC = () => {
   const [manualCobb, setManualCobb]               = useState<number | null>(null);
   const [showValidation, setShowValidation]       = useState(false);
   const [analyzeBtnPressed, setAnalyzeBtnPressed] = useState(false);
+  const [uiToast, setUiToast]                     = useState<string | null>(null);
   // GPT patch: KVKK React state (localStorage stays in sync)
   const [kvkkAccepted, setKvkkAccepted] = useState(() => localStorage.getItem('cobbai_kvkk') === '1');
 
@@ -264,6 +265,17 @@ const App: React.FC = () => {
     }
   }, [canAnalyze, store]);
 
+  // ── Analyze button wrapper — shows immediate press feedback ──
+  const handleAnalyzeClick = useCallback(async (force = false) => {
+    if (store.isAnalyzing) return;
+    setAnalyzeBtnPressed(true);
+    // Auto-clear press state after 800 ms (even if network is slow)
+    const t = setTimeout(() => setAnalyzeBtnPressed(false), 800);
+    await runAnalysis(force);
+    clearTimeout(t);
+    setAnalyzeBtnPressed(false);
+  }, [store.isAnalyzing, runAnalysis]);
+
   // ── Canvas overlay export — HATA 2 FIX ────────────────────────
   // Problem: overlay canvas uses CSS object-fit:contain scaling.
   // Drawing it at naturalWidth×naturalHeight causes misaligned lines.
@@ -348,6 +360,21 @@ const App: React.FC = () => {
           onPatient={() => { window.location.href = '/patients.html'; }}
         />
       )}
+
+      {/* Toast notification — auto-dismiss after 2 s */}
+      {uiToast && (
+        <div style={{
+          position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)',
+          zIndex:99999, background:'#0f2518', border:'1px solid #00c853',
+          borderRadius:10, padding:'10px 22px', fontSize:14, fontWeight:600,
+          color:'#00c853', boxShadow:'0 8px 32px rgba(0,0,0,.5)',
+          animation:'_fadeIn .2s ease', whiteSpace:'nowrap',
+          pointerEvents:'none',
+        }}>
+          {uiToast}
+        </div>
+      )}
+      <style>{`@keyframes _fadeIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%)}}`}</style>
 
       {/* KVKK consent modal — opens when user clicks the privacy link */}
       <ConsentModal
@@ -608,7 +635,7 @@ const App: React.FC = () => {
                       onToggleApexLabel={() => store.setControls({ showApexLabel:!store.controls.showApexLabel })}
                       showVertebraLabels={store.controls.showVertebraLabels}
                       showApexLabel={store.controls.showApexLabel}
-                      // Fix #1: Real auto-enhance based on qualityReport
+                      // Fix #1: Real auto-enhance based on qualityReport + toast notification
                       onAutoEnhance={() => {
                         const q = store.qualityReport;
                         const lowContrast = !q || q.contrastRatio < 0.18
@@ -618,6 +645,11 @@ const App: React.FC = () => {
                           brightness: dark ? 18 : 6,
                           contrast:   lowContrast ? 145 : 125,
                         });
+                        const msg = store.language === 'tr'
+                          ? `✨ Oto geliştirme uygulandı (parlaklık ${dark?18:6}, kontrast ${lowContrast?145:125}%)`
+                          : `✨ Auto enhancement applied (brightness ${dark?18:6}, contrast ${lowContrast?145:125}%)`;
+                        setUiToast(msg);
+                        setTimeout(() => setUiToast(null), 2000);
                       }}
                       onReset={store.resetControls}
                       onExportPNG={exportPNG}
@@ -635,13 +667,10 @@ const App: React.FC = () => {
                         </div>
                       )}
                       <button
-                        onClick={() => runAnalysis(false)}
+                        onClick={() => handleAnalyzeClick(false)}
                         disabled={!canAnalyze || store.isAnalyzing || !kvkkAccepted}
                         aria-busy={store.isAnalyzing}
                         aria-label={store.isAnalyzing ? 'Analiz ediliyor...' : undefined}
-                        onMouseDown={() => setAnalyzeBtnPressed(true)}
-                        onMouseUp={() => setAnalyzeBtnPressed(false)}
-                        onMouseLeave={() => setAnalyzeBtnPressed(false)}
                         style={{
                           padding:'17px', fontSize:18, fontWeight:700, border:'none', borderRadius:10,
                           cursor: canAnalyze && !store.isAnalyzing && kvkkAccepted ? 'pointer' : 'not-allowed',
@@ -670,7 +699,7 @@ const App: React.FC = () => {
                       </button>
                       {/* Re-analyze button (bypasses cache) — only shown when result exists */}
                       {(store.spineResult || store.footResult) && !store.isAnalyzing && (
-                        <button onClick={() => runAnalysis(true)}
+                        <button onClick={() => handleAnalyzeClick(true)}
                           style={{ padding:'8px', background:'transparent', border:'1px solid rgba(255,255,255,.12)', borderRadius:8, color:'#7a8fa0', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>
                           🔄 {store.language==='tr'?'AI ile Yeniden Analiz Et':store.language==='ar'?'إعادة التحليل':'Re-analyze with AI'}
                         </button>

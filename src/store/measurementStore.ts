@@ -20,7 +20,9 @@ export interface ImageControls {
 
 export const DEFAULT_CONTROLS: ImageControls = {
   brightness: 0, contrast: 100, overlayOpacity: 100, zoom: 1.0,
-  showOverlay: true, showVertebraLabels: false, showApexLabel: true,
+  showOverlay: true,
+  showVertebraLabels: true,  // ON by default — T6/T7/T8 labels appear without API calls
+  showApexLabel: true,
 };
 
 export interface AppState {
