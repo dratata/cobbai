@@ -165,10 +165,10 @@ export interface FootAnalysisResult {
   is_valid_xray: boolean;
   foot_side: 'left' | 'right' | 'unknown';
   measurement_confidence: Confidence;
-  meary_angle: number;
+  meary_angle: number | null;
   meary_direction: 'plantar' | 'dorsal' | 'neutral';
-  calcaneal_pitch: number;
-  talar_declination: number;
+  calcaneal_pitch: number | null;
+  talar_declination: number | null;
   severity: SeverityLevel;
   flexibility: 'flexible' | 'rigid' | 'unknown';
   talus_line: NormLine;

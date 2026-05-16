@@ -238,10 +238,10 @@ export function safeParseFootResult(raw: unknown): FootAnalysisResult | null {
     measurement_confidence:  r.measurement_confidence ?? 'low',
     // Use null (not -1) for missing measurements — prevents "-1°" being shown as a
     // valid reading in the report. UI components must guard with ?? 'N/A'.
-    meary_angle:             typeof r.meary_angle === 'number' && r.meary_angle >= 0 ? r.meary_angle : null as unknown as number,
+    meary_angle:             typeof r.meary_angle === 'number' && r.meary_angle >= 0 ? r.meary_angle : null,
     meary_direction:         r.meary_direction ?? 'neutral',
-    calcaneal_pitch:         typeof r.calcaneal_pitch === 'number' && r.calcaneal_pitch >= 0 ? r.calcaneal_pitch : null as unknown as number,
-    talar_declination:       typeof r.talar_declination === 'number' && r.talar_declination >= 0 ? r.talar_declination : null as unknown as number,
+    calcaneal_pitch:         typeof r.calcaneal_pitch === 'number' && r.calcaneal_pitch >= 0 ? r.calcaneal_pitch : null,
+    talar_declination:       typeof r.talar_declination === 'number' && r.talar_declination >= 0 ? r.talar_declination : null,
     severity:                r.severity ?? 'normal',
     flexibility:             r.flexibility ?? 'unknown',
     talus_line:              (r.talus_line && isValidNormLine(r.talus_line)) ? r.talus_line : { x1:0.3,y1:0.4,x2:0.6,y2:0.5 },

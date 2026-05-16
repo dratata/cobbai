@@ -138,7 +138,12 @@ Follow this exact JSON schema, write nothing else:`;
       const busy = r.status === 429 || r.status === 503
         || msg.includes('high demand') || msg.includes('overloaded') || msg.includes('quota');
       if (busy) {
-        return res.status(429).json({ error: 'Sunucu şu an çok yoğun, lütfen 5 saniye sonra tekrar deneyin.', retryAfter: 5 });
+        const busyMsg = lang === 'tr'
+          ? 'Sunucu şu an çok yoğun, lütfen 5 saniye sonra tekrar deneyin.'
+          : lang === 'ar'
+          ? 'الخادم مشغول جداً، يرجى المحاولة مرة أخرى بعد 5 ثوانٍ.'
+          : 'Server is busy, please try again in 5 seconds.';
+        return res.status(429).json({ error: busyMsg, retryAfter: 5 });
       }
       return res.status(r.status).json({ error: msg || 'Gemini error: ' + r.status });
     }

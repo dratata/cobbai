@@ -152,7 +152,7 @@ export const FootResults: React.FC<FootResultsProps> = ({ result, lang }) => {
             {t.flM}°
           </div>
           <div style={{ fontSize: 22, fontWeight: 800, color, lineHeight: 1 }}>
-            {result.meary_angle.toFixed(1)}
+            {result.meary_angle != null ? result.meary_angle.toFixed(1) : 'N/A'}
           </div>
           <div style={{ fontSize: 10, color: 'var(--c-muted, rgba(200,220,200,0.45))', marginTop: 2 }}>
             {result.meary_direction}
@@ -165,7 +165,7 @@ export const FootResults: React.FC<FootResultsProps> = ({ result, lang }) => {
             {t.flC}°
           </div>
           <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--c-text, #e8f5e9)', lineHeight: 1 }}>
-            {result.calcaneal_pitch.toFixed(1)}
+            {result.calcaneal_pitch != null ? result.calcaneal_pitch.toFixed(1) : 'N/A'}
           </div>
         </div>
 
@@ -175,7 +175,7 @@ export const FootResults: React.FC<FootResultsProps> = ({ result, lang }) => {
             {t.flT}°
           </div>
           <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--c-text, #e8f5e9)', lineHeight: 1 }}>
-            {result.talar_declination.toFixed(1)}
+            {result.talar_declination != null ? result.talar_declination.toFixed(1) : 'N/A'}
           </div>
         </div>
       </div>
