@@ -303,14 +303,26 @@ const App: React.FC = () => {
       }
       if (!resp.ok) {
         const errData = rawJson as { error?: string; retryAfter?: number };
-        // HATA 1 FIX: Server returns 429 (busy) instead of sleeping → show countdown
         if (resp.status === 429) {
           const wait = errData.retryAfter ?? 5;
+          // Auto-retry: show countdown, release debounce, then automatically re-trigger.
+          // User doesn't need to manually click the button again.
           store.setAnalyzeError(
-            `⏳ ${errData.error ?? 'Sunucu yoğun.'} ${wait} saniye sonra butona tekrar basın.`
+            store.language === 'tr'
+              ? `⏳ Sunucu yoğun. ${wait} saniye içinde otomatik tekrar deneniyor…`
+              : store.language === 'ar'
+              ? `⏳ الخادم مشغول. إعادة المحاولة تلقائياً خلال ${wait} ثوانٍ…`
+              : `⏳ Server busy. Auto-retrying in ${wait} seconds…`
           );
-          // Release debounce lock after wait so user can retry
-          setTimeout(() => { analyzingRef.current = false; }, wait * 1000);
+          setTimeout(() => {
+            if (analysisIdRef.current === analysisId) {
+              // Only retry if this analysis is still the active one
+              analyzingRef.current = false;
+              store.setAnalyzeError(null);
+              // Trigger a fresh analysis without force-refresh (use cache if available)
+              runAnalysis(forceRefresh);
+            }
+          }, wait * 1000);
           return;
         }
         store.setAnalyzeError(errData.error ?? `Sunucu hatası: ${resp.status}`);

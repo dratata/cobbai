@@ -71,7 +71,10 @@ export default async function handler(req, res) {
       // without actually analysing the image spatial layout.
       // 1024 thinking tokens lets the model reason about vertebra positions before
       // committing to coordinates — dramatically reduces coordinate hallucination.
-      thinkingConfig:   { thinkingBudget: 1024 }
+      // thinkingBudget: 1024 caused 429 rate-limit errors on the free tier —
+      // thinking tokens count against the same quota as output tokens and
+      // exhaust the RPM limit much faster. Back to 0 (standard Flash speed).
+      thinkingConfig:   { thinkingBudget: 0 }
     }
   };
 
