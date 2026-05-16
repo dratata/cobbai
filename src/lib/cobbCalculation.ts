@@ -154,6 +154,9 @@ export interface ProcessedSpineResult {
  * the superior corners (upper) and inferior corners (lower) instead of using
  * the AI-supplied slope metadata. This reduces endplate drift.
  */
+/** Tilt of a line in image Y-pixels (larger = more tilted) */
+function lineTilt(l: NormLine): number { return Math.abs(l.y2 - l.y1); }
+
 export function normaliseCurveEndplates(curve: CurveResult): CurveResult {
   const upperFromCorners: NormLine | null = curve.upper_corners
     ? { x1: curve.upper_corners.ul[0], y1: curve.upper_corners.ul[1],
@@ -163,12 +166,20 @@ export function normaliseCurveEndplates(curve: CurveResult): CurveResult {
     ? { x1: curve.lower_corners.ll[0], y1: curve.lower_corners.ll[1],
         x2: curve.lower_corners.lr[0], y2: curve.lower_corners.lr[1] }
     : null;
+
+  // Prefer corners when they are valid AND more tilted than the direct line
+  // (nearly-horizontal direct lines are a common AI error).
+  const pickBest = (direct: NormLine, fromCorners: NormLine | null): NormLine => {
+    if (!fromCorners || !isValidNormLine(fromCorners)) return direct;
+    if (!isValidNormLine(direct)) return fromCorners;
+    // If corners give at least 0.008 more tilt, prefer them
+    return lineTilt(fromCorners) >= lineTilt(direct) - 0.005 ? fromCorners : direct;
+  };
+
   return {
     ...curve,
-    upper_line: (upperFromCorners && isValidNormLine(upperFromCorners))
-      ? upperFromCorners : curve.upper_line,
-    lower_line: (lowerFromCorners && isValidNormLine(lowerFromCorners))
-      ? lowerFromCorners : curve.lower_line,
+    upper_line: pickBest(curve.upper_line, upperFromCorners),
+    lower_line: pickBest(curve.lower_line, lowerFromCorners),
   };
 }
 

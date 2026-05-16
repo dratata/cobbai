@@ -126,11 +126,64 @@ export function validateSpineResult(raw: unknown): ValidationOutcome {
   return { isValid: errors.length === 0, errors, warnings };
 }
 
+// ── Coordinate repair helpers ─────────────────────────────────
+
+/** Clamp a single coord to [0, 1] */
+function c01(v: unknown): number {
+  const n = typeof v === 'number' ? v : 0;
+  return Math.max(0, Math.min(1, n));
+}
+
+/** Clamp all four coordinates of a line into [0,1] range */
+function clampLine(line: unknown): { x1:number; y1:number; x2:number; y2:number } {
+  const l = (line || {}) as Record<string, unknown>;
+  return { x1: c01(l.x1), y1: c01(l.y1), x2: c01(l.x2), y2: c01(l.y2) };
+}
+
+/**
+ * Repair a single curve in-place:
+ *   1. Clamp all line coords to [0,1]
+ *   2. Auto-swap upper/lower when the AI returned them backwards
+ *   3. Warn when lines are nearly horizontal (tilt < 1% of image height)
+ */
+function repairCurve(curve: CurveResult): { curve: CurveResult; warnings: string[] } {
+  const warnings: string[] = [];
+  let c = { ...curve };
+
+  // 1. Clamp coordinates
+  c.upper_line = clampLine(c.upper_line) as typeof c.upper_line;
+  c.lower_line = clampLine(c.lower_line) as typeof c.lower_line;
+
+  // 2. Auto-swap if upper line is geometrically below the lower line
+  //    (image y-axis: 0 = top of image, 1 = bottom)
+  const upperMidY = (c.upper_line.y1 + c.upper_line.y2) / 2;
+  const lowerMidY = (c.lower_line.y1 + c.lower_line.y2) / 2;
+  if (upperMidY > lowerMidY + 0.04) {
+    warnings.push(
+      `Upper endplate (y≈${upperMidY.toFixed(2)}) is below lower (y≈${lowerMidY.toFixed(2)}) — auto-swapping lines and vertebra names.`
+    );
+    [c.upper_line, c.lower_line] = [c.lower_line, c.upper_line];
+    [c.upper_vertebra_name, c.lower_vertebra_name] = [c.lower_vertebra_name, c.upper_vertebra_name];
+    if (c.upper_corners || c.lower_corners) {
+      [c.upper_corners, c.lower_corners] = [c.lower_corners, c.upper_corners];
+    }
+  }
+
+  // 3. Warn if lines are nearly horizontal (|y2 - y1| < 0.01 = 1% of image height)
+  const upperTilt = Math.abs(c.upper_line.y2 - c.upper_line.y1);
+  const lowerTilt = Math.abs(c.lower_line.y2 - c.lower_line.y1);
+  if (upperTilt < 0.01) warnings.push('Upper endplate line is nearly horizontal — verify manually.');
+  if (lowerTilt < 0.01) warnings.push('Lower endplate line is nearly horizontal — verify manually.');
+
+  return { curve: c, warnings };
+}
+
 // ── Safe cast ─────────────────────────────────────────────────
 
 /**
  * Validates and casts a raw API response to SpineAnalysisResult.
  * Returns null if hard errors are found (prevents bad data from reaching the UI).
+ * Applies automatic repairs for common AI output errors.
  */
 export function safeParseSpineResult(
   raw: unknown
@@ -141,6 +194,18 @@ export function safeParseSpineResult(
 
   // Apply safe defaults to missing optional fields
   const r = raw as Partial<SpineAnalysisResult>;
+
+  // Repair curves: clamp, auto-swap, tilt-check
+  const rawCurves = Array.isArray(r.curves) ? (r.curves as CurveResult[]) : [];
+  const repairedCurves: CurveResult[] = [];
+  rawCurves.forEach((curve, idx) => {
+    const { curve: fixed, warnings: repairWarnings } = repairCurve(curve);
+    repairedCurves.push(fixed);
+    if (repairWarnings.length) {
+      repairWarnings.forEach(w => outcome.warnings.push(`Curve ${idx + 1}: ${w}`));
+    }
+  });
+
   const result: SpineAnalysisResult = {
     is_valid_xray:           r.is_valid_xray ?? false,
     image_quality:           r.image_quality ?? 'poor',
@@ -149,7 +214,7 @@ export function safeParseSpineResult(
     measurement_confidence:  r.measurement_confidence ?? 'low',
     measurement_method:      r.measurement_method ?? 'endplate',
     vertebrae_detected:      typeof r.vertebrae_detected === 'number' ? r.vertebrae_detected : 0,
-    curves:                  Array.isArray(r.curves) ? (r.curves as CurveResult[]) : [],
+    curves:                  repairedCurves,
     coronal_balance:         r.coronal_balance ?? 'balanced',
     overall_description:     r.overall_description ?? '',
     age_based_recommendation: r.age_based_recommendation ?? '',

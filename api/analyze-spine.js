@@ -185,32 +185,36 @@ function buildPrompt(lang, age, gender) {
 
   if (lang === 'tr') return `Sen SRS/SOSORT 2024 omurga radyologusun. ${pa}${pg}
 
-PROTOKOL (Caesarendra 2022 ICC=0.995 + Maeda 2023 ICC=0.973 + Cobb 1948):
+COBB 1948 ÖLÇÜM PROTOKOLÜ (Caesarendra 2022 ICC=0.995 + Maeda 2023):
 
-1. Ayakta PA/AP tam omurga röntgeni mi? image_quality: good/poor/unacceptable
+1. GÖRÜNTÜ KALİTESİ: Ayakta PA/AP tam omurga? image_quality: good/poor/unacceptable
 
-2. 17 VERTEBRA (T1-L5), 4 KÖŞE: ul=üst-sol, ur=üst-sağ, ll=alt-sol, lr=alt-sağ
-   Koordinatlar: sol-üst=(0,0) sağ-alt=(1,1). Gerçek kemik yüzeyleri.
+2. KOORDİNAT SİSTEMİ: Sol-üst=(0.0, 0.0) | Sağ-alt=(1.0, 1.0)
+   17 VERTEBRA (T1-L5), her biri için 4 köşe:
+   ul=üst-sol, ur=üst-sağ, ll=alt-sol, lr=alt-sağ (GERÇEK KEMIK YÜZEYLERİ)
 
-3. APEKS: Orta hattan en fazla lateral sapan vertebra.
+3. APEKS VERTEBRA: Vertebral colonun orta çizgisinden en fazla yatay sapan vertebra.
 
-4. UÇ VERTEBRALAR:
-   Apeks üstü → üst kenar eğimi → MAX = superior uç
-   Apeks altı → alt kenar eğimi → MAX = inferior uç
-   <5° komşu fark → eleme
+4. UÇ VERTEBRALARı BELİRLE (kritik adım):
+   ÜST UÇ = Apeksin üstündeki eğrinin en üst vertebrası: üst kenar eğimi komşulardan >= 5° fazla olan.
+   ALT UÇ = Apeksin altındaki eğrinin en alt vertebrası: alt kenar eğimi komşulardan >= 5° fazla olan.
 
-5. ENDPLATE HATLARI:
-   upper_line: superior uç SUPERIOR endplate (x1,y1=ul | x2,y2=ur)
-   lower_line: inferior uç INFERIOR endplate (x1,y1=ll | x2,y2=lr)
-   upper_slope_deg / lower_slope_deg: eğim açıları
-   cobb_angle = |upper_slope_deg - lower_slope_deg|
+5. ENDPLATE ÇİZGİLERİ (Cobb standardı):
+   upper_line = ÜST UÇ vertebranın SUPERIOR (ÜST) ENDPLATE'i
+     → x1=ul[0], y1=ul[1] (üst-sol köşe), x2=ur[0], y2=ur[1] (üst-sağ köşe)
+   lower_line = ALT UÇ vertebranın INFERIOR (ALT) ENDPLATE'i
+     → x1=ll[0], y1=ll[1] (alt-sol köşe), x2=lr[0], y2=lr[1] (alt-sağ köşe)
 
-   KRİTİK: Çizgiler mutlaka EĞİK olmalı (|y2-y1| >= 0.02). cobb_angle ile slope farkı 3° içinde olmalı.
+   ZORUNLU KURALLAR:
+   ✓ upper_line Y koordinatları < lower_line Y koordinatları (üst çizgi görüntünün üstünde)
+   ✓ Çizgiler EĞİK olmalı: |y2 - y1| >= 0.02 (yatay çizgi = YANLIŞ)
+   ✓ İki çizgi birbirinden UZAKLAŞMALI (Cobb açısını oluşturan açık taraf konveks tarafa bakmalı)
+   ✓ cobb_angle = |upper_slope_deg - lower_slope_deg|, 3° hata payı içinde olmalı
 
-6. SINIF: thoracic/thoracolumbar/lumbar | normal<10|mild 10-24|moderate 25-44|severe>=45
-   Nash-Moe: 0/I/II/III/IV | coronal_balance: balanced/left_shift/right_shift
+6. SINIFLANDIRMA: thoracic/thoracolumbar/lumbar | normal<10/mild 10-24/moderate 25-44/severe>=45
+   Nash-Moe rotasyon: 0/I/II/III/IV | coronal_balance: balanced/left_shift/right_shift
 
-7. warnings: kısa string listesi (max 5 kelime her biri). UZUN METİN YAZMA.`;
+7. warnings: KISA string listesi (maksimum 5 kelime her biri). UZUN METİN YAZMA.`;
 
   if (lang === 'ar') return `أنت طبيب أشعة متخصص (SRS/SOSORT 2024). ${pa}${pg}
 
@@ -224,33 +228,53 @@ PROTOKOL (Caesarendra 2022 ICC=0.995 + Maeda 2023 ICC=0.973 + Cobb 1948):
 6. التصنيف والتوازن.
 7. warnings: قائمة قصيرة.`;
 
-  return `You are a spinal deformity radiologist (SRS/SOSORT 2024). ${pa}${pg}
+  return `You are a spinal deformity radiologist following SRS/SOSORT 2024 standards. ${pa}${pg}
 
-MEASUREMENT-ONLY PROTOCOL (Caesarendra 2022 ICC=0.995 + Maeda 2023 ICC=0.973 + Cobb 1948):
+COBB 1948 MEASUREMENT PROTOCOL (Caesarendra 2022 ICC=0.995 + Maeda 2023 ICC=0.973):
 
-1. Standing PA/AP full-spine X-ray? image_quality: good/poor/unacceptable
+STEP 1 — IMAGE QUALITY
+  Standing PA/AP full-spine X-ray? Set image_quality: good / poor / unacceptable
 
-2. 17 VERTEBRAE (T1-L5), 4 CORNERS: ul=upper-left, ur=upper-right, ll=lower-left, lr=lower-right
-   Coordinates: top-left=(0,0) bottom-right=(1,1). Actual bone surface positions.
+STEP 2 — COORDINATE SYSTEM
+  Origin (0,0) = TOP-LEFT corner of image. (1,1) = BOTTOM-RIGHT.
+  Identify 17 vertebrae (T1-L5). For each vertebra, mark 4 corners on actual bone surfaces:
+    ul = upper-left (superior-left)   ur = upper-right (superior-right)
+    ll = lower-left (inferior-left)   lr = lower-right (inferior-right)
 
-3. APEX: Most laterally deviated vertebra.
+STEP 3 — APEX VERTEBRA
+  The vertebra with the GREATEST lateral displacement from the mid-sagittal line.
 
-4. END VERTEBRAE: above apex → max top-edge slope; below apex → max bottom-edge slope; filter <5°.
+STEP 4 — END VERTEBRAE (critical — follow exactly)
+  SUPERIOR END VERTEBRA = The most cranial vertebra in the curve whose SUPERIOR (TOP) endplate
+    tilts MORE than any vertebra above it in the curve. Tilt difference must be ≥5°.
+  INFERIOR END VERTEBRA = The most caudal vertebra in the curve whose INFERIOR (BOTTOM) endplate
+    tilts MORE than any vertebra below it in the curve. Tilt difference must be ≥5°.
 
-5. ENDPLATE LINES:
-   upper_line: SUPERIOR endplate of superior end vertebra (x1,y1=ul | x2,y2=ur)
-   lower_line: INFERIOR endplate of inferior end vertebra (x1,y1=ll | x2,y2=lr)
-   upper_slope_deg / lower_slope_deg: inclination (right-down=+)
-   cobb_angle = |upper_slope_deg - lower_slope_deg|
+STEP 5 — ENDPLATE LINES (Cobb standard)
+  upper_line = SUPERIOR endplate of the SUPERIOR END VERTEBRA
+    x1 = ul[0],  y1 = ul[1]  (upper-left corner of that vertebra)
+    x2 = ur[0],  y2 = ur[1]  (upper-right corner of that vertebra)
 
-   CRITICAL: Lines MUST be tilted (|y2-y1| >= 0.02). cobb_angle MUST match slope delta within 3°.
-   If endplates unclear → pedicle lines, set measurement_method="pedicle".
+  lower_line = INFERIOR endplate of the INFERIOR END VERTEBRA
+    x1 = ll[0],  y1 = ll[1]  (lower-left corner of that vertebra)
+    x2 = lr[0],  y2 = lr[1]  (lower-right corner of that vertebra)
 
-6. CLASSIFY: location thoracic/thoracolumbar/lumbar | severity normal<10/mild 10-24/moderate 25-44/severe>=45
-   Nash-Moe rotation: 0/I/II/III/IV | coronal_balance: balanced/left_shift/right_shift
+  MANDATORY CHECKS before outputting:
+  ✓ upper_line Y-values < lower_line Y-values (upper line is HIGHER in the image)
+  ✓ Both lines MUST be tilted: |y2 - y1| ≥ 0.02 (horizontal lines are WRONG)
+  ✓ The two lines DIVERGE toward the convex side of the curve
+  ✓ cobb_angle = |upper_slope_deg − lower_slope_deg|, within 3° of geometric calculation
+  ✓ If endplates obscured → use pedicle method, set measurement_method="pedicle"
 
-7. warnings: array of SHORT strings (max 5 words each). NO LONG TEXT. NO RECOMMENDATIONS.
-   Example: ["image slightly rotated", "endplates partially obscured"]`;
+STEP 6 — CLASSIFY
+  curve_location: thoracic / thoracolumbar / lumbar
+  severity: normal (<10°) / mild (10-24°) / moderate (25-44°) / severe (≥45°)
+  Nash-Moe rotation: 0 / I / II / III / IV
+  coronal_balance: balanced / left_shift / right_shift
+
+STEP 7 — WARNINGS
+  Short string array only (max 5 words each). NO long text. NO clinical advice.
+  Example: ["image slightly rotated", "L4 endplate unclear"]`;
 }
 
 // ─── Measurement-only schema (NO clinical text fields) ───────────────────
