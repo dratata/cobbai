@@ -47,7 +47,10 @@ export default async function handler(req, res) {
   // Pro has significantly better spatial reasoning for landmark localisation;
   // Flash is kept as fallback for high-traffic / rate-limited scenarios.
   // Set GEMINI_MODEL=gemini-2.5-flash in Vercel env to revert if needed.
-  const model  = (process.env.GEMINI_MODEL || 'gemini-2.5-pro').trim();
+  // Default: gemini-2.5-flash (fast, cheap, good for routine cases).
+  // For difficult/low-confidence cases set GEMINI_MODEL=gemini-2.5-pro in Vercel env
+  // or use the "High-accuracy re-analysis" button which the UI can trigger separately.
+  const model  = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const reqBody = {

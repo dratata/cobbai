@@ -18,6 +18,14 @@ export interface LabeledVertebra {
   normY: number;
   isMeasured: boolean;
   isInferred: boolean;
+  /**
+   * Labeling confidence (audit fix):
+   *   'high'   — anchor vertebra name came from AI, directly measured
+   *   'medium' — interpolated between two high-confidence anchors
+   *   'low'    — sequence gap > 12 vertebrae or anchor names are inconsistent
+   *              (e.g. lower vertebra appears above upper in the sequence)
+   */
+  confidence: 'high' | 'medium' | 'low';
 }
 
 // Canonical spine sequence (C1-C7, T1-T12, L1-L5, S1-S2)
@@ -65,22 +73,33 @@ export function inferIntermediateVertebrae(
 ): LabeledVertebra[] {
   const ui = seqIndex(upperName);
   const li = seqIndex(lowerName);
-  if (ui < 0 || li < 0 || ui >= li) {
-    // Cannot infer — return just the anchors
+
+  // Confidence rules (audit fix):
+  // • Low if anchors are unparseable or out-of-order
+  // • Low if the span is > 12 vertebrae (labeling unreliable at that distance)
+  // • Medium for interpolated vertebrae
+  // • High for anchors
+  const badSequence = ui < 0 || li < 0 || ui >= li;
+  const tooLong     = !badSequence && (li - ui) > 12;
+
+  if (badSequence) {
     return [
-      { name: upperName, normY: upperNormY, isMeasured: true, isInferred: false },
-      { name: lowerName, normY: lowerNormY, isMeasured: true, isInferred: false },
+      { name: upperName, normY: upperNormY, isMeasured: true, isInferred: false, confidence: 'low' },
+      { name: lowerName, normY: lowerNormY, isMeasured: true, isInferred: false, confidence: 'low' },
     ];
   }
-  const count = li - ui; // number of steps
+
+  const count = li - ui;
   const result: LabeledVertebra[] = [];
   for (let i = 0; i <= count; i++) {
     const t = count === 0 ? 0 : i / count;
+    const isAnchor = i === 0 || i === count;
     result.push({
-      name: SPINE_SEQUENCE[ui + i].name,
-      normY: upperNormY + t * (lowerNormY - upperNormY),
-      isMeasured: i === 0 || i === count,
-      isInferred: i !== 0 && i !== count,
+      name:       SPINE_SEQUENCE[ui + i].name,
+      normY:      upperNormY + t * (lowerNormY - upperNormY),
+      isMeasured: isAnchor,
+      isInferred: !isAnchor,
+      confidence: tooLong ? 'low' : isAnchor ? 'high' : 'medium',
     });
   }
   return result;

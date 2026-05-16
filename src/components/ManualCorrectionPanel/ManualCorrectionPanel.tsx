@@ -212,13 +212,21 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
       const isActive  = key === active;
       const isHovered = key === hovered;
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 6;
+      // Outer glow — much more visible for active/hovered state
+      if (isActive) {
+        ctx.shadowColor = col; ctx.shadowBlur = 18;
+      } else if (isHovered) {
+        ctx.shadowColor = col; ctx.shadowBlur = 10;
+      } else {
+        ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 6;
+      }
       ctx.beginPath(); ctx.arc(pt.x, pt.y, hR, 0, Math.PI * 2);
-      ctx.fillStyle = isActive ? col : isHovered ? col + '55' : 'rgba(0,0,0,0.8)';
+      ctx.fillStyle = isActive ? col : isHovered ? col + '66' : 'rgba(0,0,0,0.75)';
       ctx.fill();
-      ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+      ctx.strokeStyle = col; ctx.lineWidth = isActive ? 3.5 : 2.5;
       ctx.stroke();
       // Crosshair inside handle
+      ctx.shadowBlur = 0;
       const s = hR * 0.42;
       ctx.strokeStyle = isActive ? '#000' : col; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(pt.x - s, pt.y); ctx.lineTo(pt.x + s, pt.y); ctx.stroke();
@@ -267,20 +275,42 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
     return () => obs.disconnect();
   }, [naturalW, naturalH, redraw]);
 
-  // ── Mouse events ──────────────────────────────────────────
+  // ── Mouse / touch coordinate helpers ─────────────────────────
+  //
+  // Coordinate system UNIFICATION (audit fix):
+  //   • redraw() draws in CSS logical pixel space (via ctx.scale(dpr,dpr))
+  //   • getPos() must return CSS logical pixels — NOT physical pixels.
+  //     Previously it multiplied by (cvs.width / rect.width) = dpr, giving
+  //     physical pixels, while redraw worked in CSS pixels → mismatch on HiDPI.
+  //   • findHandle() and updateHandle() must also use the CSS letterbox region.
+  //
+  // With this fix all three functions share the same coordinate system and
+  // handle hit-testing works correctly on Retina/HiDPI screens.
 
-  const getPos = (e: React.MouseEvent | React.TouchEvent): { cx: number; cy: number } => {
-    const cvs = canvasRef.current!;
+  /** CSS (logical) pixel dimensions of the canvas at current layout. */
+  const getCanvasCssDims = () => {
+    const cvs  = canvasRef.current!;
     const rect = cvs.getBoundingClientRect();
-    const sx = cvs.width / rect.width, sy = cvs.height / rect.height;
-    const cl = 'touches' in e ? e.touches[0] : e;
-    return { cx: (cl.clientX - rect.left) * sx, cy: (cl.clientY - rect.top) * sy };
+    const dpr  = window.devicePixelRatio || 1;
+    return {
+      cssW: rect.width  || cvs.width  / dpr,
+      cssH: rect.height || cvs.height / dpr,
+    };
+  };
+
+  /** Returns pointer position in CSS (logical) pixels — no DPR scaling. */
+  const getPos = (e: React.MouseEvent | React.TouchEvent): { cx: number; cy: number } => {
+    const cvs  = canvasRef.current!;
+    const rect = cvs.getBoundingClientRect();
+    const cl   = 'touches' in e ? e.touches[0] : e;
+    return { cx: cl.clientX - rect.left, cy: cl.clientY - rect.top };
   };
 
   const findHandle = (cx: number, cy: number): HandleKey | null => {
-    const cvs = canvasRef.current!;
-    const reg = computeLetterbox(naturalW, naturalH, cvs.width, cvs.height);
-    const hR  = Math.max(12, cvs.width * HANDLE_RADIUS_RATIO) * 1.5; // larger hit area
+    const { cssW, cssH } = getCanvasCssDims();
+    const reg = computeLetterbox(naturalW, naturalH, cssW, cssH);
+    // Hit radius uses CSS dimensions to match the drawn handle size in redraw()
+    const hR  = Math.max(12, cssW * HANDLE_RADIUS_RATIO) * 1.5;
     const { upper, lower } = linesRef.current;
     const handles: Record<HandleKey, NormPoint> = {
       upper_p1: normToCanvas(upper.x1, upper.y1, reg),
@@ -297,8 +327,8 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
   };
 
   const updateHandle = (key: HandleKey, cx: number, cy: number) => {
-    const cvs = canvasRef.current!;
-    const reg = computeLetterbox(naturalW, naturalH, cvs.width, cvs.height);
+    const { cssW, cssH } = getCanvasCssDims();
+    const reg = computeLetterbox(naturalW, naturalH, cssW, cssH);
     const n   = canvasToNorm(cx, cy, reg);
     setLines(prev => {
       const next = { upper: { ...prev.upper }, lower: { ...prev.lower } };
@@ -341,13 +371,32 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
   };
 
   const t = {
-    en: { title:'Edit Endplate Lines', sub:'Drag ○ handles to correct', aiRef:'AI original (dashed)', liveCobb:'Live Cobb', save:'💾 Save Corrected', reset:'↺ Reset to AI', cancel:'✕ Cancel' },
-    tr: { title:'Endplate Çizgilerini Düzenle', sub:'○ işaretlerini sürükleyin', aiRef:'AI orijinal (kesik)', liveCobb:'Canlı Cobb', save:'💾 Kaydet', reset:'↺ AI\'ya Dön', cancel:'✕ İptal' },
-    ar: { title:'تحرير خطوط الصفيحة', sub:'اسحب ○ للتصحيح', aiRef:'AI الأصلي (متقطع)', liveCobb:'كوب مباشر', save:'💾 حفظ', reset:'↺ إعادة', cancel:'✕ إلغاء' },
+    en: {
+      title:'Edit Endplate Lines', sub:'Drag ○ handles to correct endplate position',
+      aiRef:'AI original (dashed)', liveCobb:'Live Cobb',
+      save:'💾 Save Corrected', reset:'↺ Reset to AI', cancel:'✕ Cancel',
+      guide:'1) Drag cyan ○ handles on upper endplate  2) Drag magenta ○ handles on lower endplate  3) Verify live Cobb  4) Save',
+    },
+    tr: {
+      title:'Endplate Çizgilerini Düzenle', sub:'○ noktalarını sürükleyerek endplate konumunu düzeltin',
+      aiRef:'AI orijinal (kesik)', liveCobb:'Canlı Cobb',
+      save:'💾 Kaydet', reset:'↺ AI\'ya Dön', cancel:'✕ İptal',
+      guide:'1) Siyan ○ üst endplate uçlarını sürükle  2) Magenta ○ alt endplate uçlarını sürükle  3) Canlı Cobb\'u kontrol et  4) Kaydet',
+    },
+    ar: {
+      title:'تحرير خطوط الصفيحة', sub:'اسحب ○ لتصحيح الموضع',
+      aiRef:'AI الأصلي (متقطع)', liveCobb:'كوب مباشر',
+      save:'💾 حفظ', reset:'↺ إعادة', cancel:'✕ إلغاء',
+      guide:'١) اسحب ○ السماوية للصفيحة العلوية  ٢) اسحب ○ الوردية للصفيحة السفلية  ٣) تحقق من قيمة كوب  ٤) احفظ',
+    },
   }[lang];
 
   return (
     <div style={{ background:'#0a1a0f', border:'1px solid rgba(0,200,83,.3)', borderRadius:12, padding:14 }}>
+      {/* Step-by-step instruction microcopy */}
+      <div style={{ fontSize:11, color:'#7a8fa0', background:'rgba(0,0,0,.35)', borderRadius:6, padding:'6px 10px', marginBottom:10, lineHeight:1.5 }}>
+        {t.guide}
+      </div>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
         <div>
           <div style={{ fontSize:11, letterSpacing:'1px', color:'#00c853', fontWeight:700 }}>{t.title}</div>

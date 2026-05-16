@@ -463,26 +463,38 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
       }
 
       // ── 7. Sequential vertebra labels (T5→T6→T7… local, no API) ──
-      // Only rendered when showVertebraLabels is toggled ON (default: off)
+      // Shown when showVertebraLabels is toggled ON.
+      // Auto-suppression: if > 8 intermediate labels AND canvas is short (< 650 CSS px),
+      // the labels would be illegibly crowded — skip them.
       if (showVertebraLabels) {
         const upperY = (curve.upper_line.y1 + curve.upper_line.y2) / 2;
         const lowerY = (curve.lower_line.y1 + curve.lower_line.y2) / 2;
         const inferredLabels = getSpineLevelLabels(
           curve.upper_vertebra_name, curve.lower_vertebra_name, upperY, lowerY
         );
-        if (inferredLabels.length >= 2 && inferredLabels.length <= 16) {
+        // Audit fix: suppress if too dense for the available height
+        const tooDense = inferredLabels.length > 8 && cssH < 650;
+        const hasLowConfidence = inferredLabels.some(lv => lv.confidence === 'low');
+
+        if (!tooDense && inferredLabels.length >= 2 && inferredLabels.length <= 16) {
           const labelFont = Math.max(8, Math.round(cssW * 0.018));
           const sideX = Math.max(8, Math.min(cssW - 42, normToCanvas(0.03, 0, reg).x));
           inferredLabels.forEach(lv => {
             const p = normToCanvas(0.04, lv.normY, reg);
-            // Skip intermediate if its box overlaps an already-placed label
             const lvW = estW(lv.name, labelFont), lvH = estH(labelFont);
             const lvBox = placeLabel(sideX, p.y - lvH / 2, lvW, lvH, occupiedLabels, cssW, cssH);
+            // Confidence-aware color: low-confidence labels appear more muted
             const lvCol = lv.isMeasured
               ? (lv.name === curve.upper_vertebra_name ? UPPER_END_COLOUR : LOWER_END_COLOUR)
-              : 'rgba(215,228,234,0.86)';
+              : lv.confidence === 'low'
+                ? 'rgba(215,228,234,0.40)'
+                : 'rgba(215,228,234,0.86)';
             drawSmallLevelLabel(ctx, lv.name, lvCol, lvBox.x, lvBox.y + lvH / 2, labelFont);
           });
+          // Audit fix: show "Inferred labels — verify numbering" warning when confidence is low
+          if (hasLowConfidence) {
+            drawLabelBox(ctx, '⚠ Verify label numbering', '#f0a045', cssW / 2, cssH - 18, 10, 'center', cssW, cssH);
+          }
         }
       }
     });
