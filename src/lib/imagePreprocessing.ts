@@ -316,90 +316,138 @@ export async function autoCropBlackBorders(
 }
 
 // ── EXIF Orientation Normalisation ────────────────────────────
+
+/**
+ * Convert a data URL to a Blob WITHOUT using fetch().
+ *
+ * fetch(dataUrl) is blocked by strict CSP headers (e.g. Vercel defaults)
+ * and can also throw opaque React internal errors in concurrent-mode builds.
+ * atob() is always available, CSP-safe, and synchronous.
+ */
+function _dataUrlToBlob(dataUrl: string): Blob {
+  const comma = dataUrl.indexOf(',');
+  const mime  = dataUrl.slice(5, comma).replace(';base64', '') || 'image/jpeg';
+  const bin   = atob(dataUrl.slice(comma + 1));
+  const buf   = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return new Blob([buf], { type: mime });
+}
+
+/**
+ * Convert a data URL to an ArrayBuffer WITHOUT using fetch() — CSP-safe.
+ * Only decodes the first 64 KB (EXIF data lives in the first few KB of a JPEG).
+ */
+function _dataUrlToPartialArrayBuffer(dataUrl: string, maxBytes = 65536): ArrayBuffer {
+  const comma  = dataUrl.indexOf(',');
+  const b64    = dataUrl.slice(comma + 1);
+  // Decode only as many base64 chars as needed (4 chars → 3 bytes)
+  const maxB64 = Math.ceil(maxBytes / 3) * 4;
+  const slice  = b64.slice(0, maxB64);
+  const bin    = atob(slice);
+  const buf    = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+
 /**
  * normalizeExifOrientation
  *
  * Phones (iPhone, Android) embed an EXIF Orientation tag so the OS/browser
- * can rotate the image on display.  The <img> element honours this tag and
- * shows the photo correctly.  Canvas.drawImage() does NOT — it always draws
+ * can rotate the image on display. The <img> element honours this tag and
+ * shows the photo correctly. Canvas.drawImage() does NOT — it always draws
  * raw pixels, so AI receives a rotated image while the UI looks fine.
  *
  * Strategy (modern-first):
- *   1. `createImageBitmap(blob, { imageOrientation:'from-image' })` — Chrome 87+,
- *      Firefox 86+, Safari 15+.  Bakes the EXIF transform into the bitmap.
- *   2. Fallback: read EXIF orientation byte from the JPEG binary and apply
- *      the matching canvas transform manually.
+ *   1. createImageBitmap(blob, { imageOrientation:'from-image' }) — Chrome 87+,
+ *      Firefox 86+, Safari 15+. Bakes the EXIF transform into the bitmap.
+ *   2. Fallback: read EXIF orientation byte from the JPEG binary (via atob —
+ *      CSP-safe) and apply the matching canvas transform manually.
  *
- * Returns a new data URL with the rotation baked in (orientation = 1).
+ * IMPORTANT: Does NOT use fetch(). All binary access goes through atob() so
+ * CSP 'connect-src' restrictions cannot block it.
+ * Returns a new JPEG data URL with rotation baked in (EXIF orientation = 1).
+ * On any error, returns the original dataUrl unchanged (fail-safe).
  */
 export async function normalizeExifOrientation(dataUrl: string): Promise<string> {
-  // ── Modern path ────────────────────────────────────────────
-  if (typeof createImageBitmap !== 'undefined') {
-    try {
-      const res    = await fetch(dataUrl);
-      const blob   = await res.blob();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const bitmap = await (createImageBitmap as any)(blob, { imageOrientation: 'from-image' });
-      const cvs    = document.createElement('canvas');
-      cvs.width    = bitmap.width;
-      cvs.height   = bitmap.height;
-      cvs.getContext('2d')!.drawImage(bitmap, 0, 0);
-      bitmap.close?.();
-      return cvs.toDataURL('image/jpeg', 0.92);
-    } catch {
-      /* fall through to manual EXIF parse */
+  try {
+    // ── Modern path — createImageBitmap with imageOrientation ──
+    if (typeof createImageBitmap !== 'undefined') {
+      try {
+        const blob   = _dataUrlToBlob(dataUrl);                    // no fetch!
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const bitmap = await (createImageBitmap as any)(blob, { imageOrientation: 'from-image' });
+        const cvs    = document.createElement('canvas');
+        cvs.width    = bitmap.width;
+        cvs.height   = bitmap.height;
+        cvs.getContext('2d')!.drawImage(bitmap, 0, 0);
+        bitmap.close?.();
+        return cvs.toDataURL('image/jpeg', 0.92);
+      } catch {
+        /* imageOrientation not supported → fall through to manual parse */
+      }
     }
+
+    // ── Legacy fallback — manual EXIF byte parse + canvas rotate ──
+    const orientation = _readJpegExifOrientation(dataUrl);        // sync, no fetch
+    if (!orientation || orientation === 1) return dataUrl;        // already upright
+
+    return new Promise<string>((resolve) => {
+      const img  = new Image();
+      img.onload = () => resolve(_applyExifRotation(img, orientation));
+      img.onerror = () => resolve(dataUrl);                       // fail-safe
+      img.src    = dataUrl;
+    });
+  } catch {
+    // Any unexpected error → return original (never crash handleFile)
+    return dataUrl;
   }
-
-  // ── Legacy fallback: manual EXIF parse + canvas rotate ────
-  const orientation = await _readJpegExifOrientation(dataUrl);
-  if (!orientation || orientation === 1) return dataUrl; // already upright
-
-  return new Promise<string>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      resolve(_applyExifRotation(img, orientation));
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
 }
 
-/** Read the EXIF Orientation tag value (1–8) from a JPEG data URL. */
-async function _readJpegExifOrientation(dataUrl: string): Promise<number | null> {
+/**
+ * Read the EXIF Orientation tag (1–8) from a JPEG data URL.
+ * Fully synchronous — decodes only the first 64 KB via atob().
+ * Returns null if not a JPEG, no EXIF segment, or tag not found.
+ */
+function _readJpegExifOrientation(dataUrl: string): number | null {
   try {
-    const res  = await fetch(dataUrl);
-    const buf  = await res.arrayBuffer();
+    const buf  = _dataUrlToPartialArrayBuffer(dataUrl, 65536);    // no fetch!
     const view = new DataView(buf);
-    if (view.getUint16(0) !== 0xFFD8) return null;  // not JPEG
+    if (view.byteLength < 4) return null;
+    if (view.getUint16(0) !== 0xFFD8) return null;               // not JPEG
     let offset = 2;
-    const limit = Math.min(view.byteLength, 131072);  // search first 128 KB
-    while (offset + 4 <= limit) {
+    while (offset + 4 <= view.byteLength) {
       const marker = view.getUint16(offset);   offset += 2;
-      const segLen = view.getUint16(offset);               // length including itself
-      if (marker === 0xFFE1) {                             // APP1 segment
-        const exifMark = view.getUint32(offset + 2);
-        if (exifMark === 0x45786966) {                     // 'Exif'
-          const tiffBase = offset + 8;                     // start of TIFF header
-          const le       = view.getUint16(tiffBase) === 0x4949; // little-endian?
-          const ifd0     = tiffBase + (le ? view.getUint32(tiffBase + 4, true)
-                                          : view.getUint32(tiffBase + 4, false));
-          const numTags  = le ? view.getUint16(ifd0, true)
-                              : view.getUint16(ifd0, false);
-          for (let i = 0; i < numTags; i++) {
-            const tagOff = ifd0 + 2 + i * 12;
-            const tag    = le ? view.getUint16(tagOff, true) : view.getUint16(tagOff, false);
-            if (tag === 0x0112) {                          // Orientation tag
-              return le ? view.getUint16(tagOff + 8, true)
-                        : view.getUint16(tagOff + 8, false);
+      if (offset + 2 > view.byteLength) break;
+      const segLen = view.getUint16(offset);
+      if (marker === 0xFFE1) {                                    // APP1 — may have EXIF
+        if (offset + 6 <= view.byteLength) {
+          const exifMark = view.getUint32(offset + 2);
+          if (exifMark === 0x45786966) {                          // 'Exif'
+            const tiffBase = offset + 8;
+            if (tiffBase + 8 > view.byteLength) break;
+            const le      = view.getUint16(tiffBase) === 0x4949; // little-endian?
+            const ifd0Off = le ? view.getUint32(tiffBase + 4, true)
+                               : view.getUint32(tiffBase + 4, false);
+            const ifd0    = tiffBase + ifd0Off;
+            if (ifd0 + 2 > view.byteLength) break;
+            const numTags = le ? view.getUint16(ifd0, true)
+                               : view.getUint16(ifd0, false);
+            for (let i = 0; i < numTags; i++) {
+              const tagOff = ifd0 + 2 + i * 12;
+              if (tagOff + 12 > view.byteLength) break;
+              const tag = le ? view.getUint16(tagOff, true) : view.getUint16(tagOff, false);
+              if (tag === 0x0112) {                               // Orientation tag
+                return le ? view.getUint16(tagOff + 8, true)
+                           : view.getUint16(tagOff + 8, false);
+              }
             }
           }
         }
       }
-      if (marker === 0xFFDA) break;                        // SOS — stop parsing
+      if (marker === 0xFFDA) break;                              // SOS — stop
       offset += segLen;
     }
-  } catch { /* ignore */ }
+  } catch { /* corrupt JPEG or unexpected format — treat as no EXIF */ }
   return null;
 }
 
