@@ -76,24 +76,6 @@ const App: React.FC = () => {
     document.documentElement.dir  = language === 'ar' ? 'rtl' : 'ltr';
   }, [lightMode, language]);
 
-  // HATA 3 FIX: Global drag-drop prevention
-  // Without this, dropping a file OUTSIDE the upload area makes the browser
-  // navigate away (opens the image full-screen), destroying all app state.
-  useEffect(() => {
-    const stop = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); };
-    const onDrop = (e: DragEvent) => {
-      e.preventDefault(); e.stopPropagation();
-      const file = e.dataTransfer?.files?.[0];
-      if (file && file.type.startsWith('image/')) handleFile(file);
-    };
-    window.addEventListener('dragover', stop);
-    window.addEventListener('drop',     onDrop);
-    return () => {
-      window.removeEventListener('dragover', stop);
-      window.removeEventListener('drop',     onDrop);
-    };
-  }, [handleFile]);
-
   // ── File upload ──────────────────────────────────────────────
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) { store.setAnalyzeError('Lütfen bir görüntü dosyası yükleyin (JPEG veya PNG).'); return; }
@@ -126,6 +108,22 @@ const App: React.FC = () => {
       store.setPreprocessing(false);
     }
   }, [store]);
+
+  // HATA 3 FIX: Global drag-drop prevention (AFTER handleFile declaration)
+  useEffect(() => {
+    const stop = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); };
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault(); e.stopPropagation();
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type.startsWith('image/')) handleFile(file);
+    };
+    window.addEventListener('dragover', stop);
+    window.addEventListener('drop',     onDrop);
+    return () => {
+      window.removeEventListener('dragover', stop);
+      window.removeEventListener('drop',     onDrop);
+    };
+  }, [handleFile]);
 
   // ── Analysis with caching + debounce ─────────────────────────
   const runAnalysis = useCallback(async (forceRefresh = false) => {
