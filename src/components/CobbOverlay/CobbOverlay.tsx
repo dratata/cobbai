@@ -106,7 +106,7 @@ function drawSmallLevelLabel(
   const tm  = ctx.measureText(text);
   const bx  = Math.max(4, Math.min(cW - tm.width - pad * 2 - 4, x));
   const by  = Math.max(4, Math.min(cH - fontSize - pad * 2 - 4, y - fontSize / 2 - pad));
-  ctx.fillStyle   = 'rgba(4,12,20,0.65)';
+  ctx.fillStyle   = 'rgba(4,12,20,0.55)';
   ctx.strokeStyle = col + '88'; ctx.lineWidth = 1;
   if (ctx.roundRect) ctx.roundRect(bx, by, tm.width + pad * 2, fontSize + pad * 2, 4);
   else               ctx.rect(bx, by, tm.width + pad * 2, fontSize + pad * 2);
@@ -145,9 +145,9 @@ function drawLabelBox(
   const by  = Math.max(4, Math.min(cH - bh - 4, y - bh / 2));
   const cx  = align === 'right' ? cbx + bw - pad : align === 'center' ? cbx + bw / 2 : cbx + pad;
   const cy  = by + bh / 2;
-  // Background box — reduced opacity so the X-ray anatomy shows through labels
-  ctx.fillStyle   = 'rgba(4,12,20,0.72)';
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  // Background box — semi-transparent so X-ray anatomy shows through
+  ctx.fillStyle   = 'rgba(4,12,20,0.62)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.20)';
   ctx.lineWidth   = 1;
   if (ctx.roundRect) ctx.roundRect(cbx, by, bw, bh, 5);
   else ctx.rect(cbx, by, bw, bh);
@@ -167,29 +167,24 @@ function drawLabelBox(
 // ── Vertebra highlight box ────────────────────────────────────
 function drawVertebraHighlight(
   ctx: CanvasRenderingContext2D,
-  pts: NormPoint[], stroke: string, fill: string,
+  pts: NormPoint[], stroke: string, _fill: string,
   label: string, fontSize: number
 ) {
   if (pts.length < 4) return;
   ctx.save();
-  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, fontSize * 0.18);
-  ctx.strokeStyle = stroke; ctx.setLineDash([]);
+  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, fontSize * 0.16);
+  ctx.strokeStyle = stroke; ctx.setLineDash([3, 3]); // dashed outline — less intrusive
   ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
   pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y)); ctx.closePath();
 
-  // ── Fill WITHOUT shadow ─────────────────────────────────────────────────
-  // BUG FIX: previously ctx.shadowBlur=5 was active during ctx.fill().
-  // Canvas shadow uses shadowOffsetX/Y=0, so the 85%-opaque black shadow
-  // was drawn at the same position as the shape and bled THROUGH the
-  // transparent fill (only 10% opacity) → vertebra boxes appeared solid black.
-  // Fix: fill first with shadow disabled, then apply shadow only to the stroke.
+  // Outline only — NO fill.
+  // Filled polygon (even at 10-12% opacity) covers the vertebral anatomy
+  // and together with shadow creates a dark rectangle over the X-ray.
+  // A dashed outline is enough to indicate the selected vertebral body
+  // without hiding the bone structure underneath.
   ctx.shadowBlur  = 0;
   ctx.shadowColor = 'transparent';
-  ctx.fillStyle   = fill;
-  ctx.fill();
-
-  // Stroke with shadow for visibility
-  ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 4;
+  ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 3;
   ctx.stroke();
   ctx.restore();
   const cx2 = pts.reduce((s, p) => s + p.x, 0) / pts.length;
@@ -379,18 +374,12 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         let diff  = a2 - a1;
         while (diff >  Math.PI) diff -= 2 * Math.PI;
         while (diff < -Math.PI) diff += 2 * Math.PI;
-        const arcR = Math.max(cssH * 0.07, 22);
+        const arcR = Math.max(cssH * 0.06, 18);
 
-        // Filled arc wedge (semi-transparent)
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(inter.x, inter.y);
-        ctx.arc(inter.x, inter.y, arcR, a1, a1 + diff, diff < 0);
-        ctx.closePath();
-        ctx.fillStyle = col + '22'; ctx.fill();
-        ctx.restore();
-
-        // Arc stroke
+        // Arc stroke only — NO filled wedge.
+        // The filled wedge (`moveTo(inter) + arc + closePath + fill`) creates a large
+        // dark triangle/pie shape that obscures the X-ray anatomy, especially when the
+        // angle subtended is > 90° or the intersection is near the image center.
         ctx.save();
         ctx.strokeStyle = col; ctx.lineWidth = 2.5;
         ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 4; ctx.setLineDash([]);
@@ -471,8 +460,8 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         ctx.restore();
       }
 
-      // ── 6. Validation warning badge ───────────────────────
-      if (!curve.validation.isConsistent) {
+      // ── 6. Validation warning badge (only for large discrepancy AND valid local geometry) ──
+      if (!curve.validation.isConsistent && curve.validation.discrepancyDeg > 10 && curve.validation.geometryCobb > 1) {
         const warnX = 10, warnY = 10 + i * 28;
         drawLabelBox(ctx,
           `⚠ Curve ${i + 1}: Δ${curve.validation.discrepancyDeg.toFixed(1)}° verify`,

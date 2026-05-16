@@ -137,21 +137,25 @@ export function validateAndFinaliseCobb(curve: CurveResult): CobbValidationResul
   }
 
   // ── Step 5: Choose display value ───────────────────────────
-  // Priority:
-  //   1. Local geometry — only when lines are valid AND angle is non-trivial
-  //   2. AI-reported   — when geometry fails (invalid coords / zero placeholders)
+  // ALWAYS display AI-reported Cobb as the primary value.
   //
-  // This prevents the "always 0°" bug where schema placeholder coordinates
-  // (all zeros) produce geometryCobb = 0° via slope fallback, overriding the
-  // AI's correct non-zero measurement.
-  const displayCobb = geometryIsReliable ? geometryCobb : aiReportedCobb;
+  // Rationale: The AI analysed the full X-ray image and reported an angle
+  // based on visual landmark detection. Local geometry cross-checks the
+  // coordinates the AI also returned — but those coordinates can be
+  // imprecise (especially with the zero-placeholder schema fix) and may
+  // not reflect the true clinical angle the radiologist would measure.
+  //
+  // The local geometry value is shown in the audit row ("AI: X° · Lokal: Y°")
+  // so the physician can compare. If the discrepancy > 5°, a warning prompts
+  // manual verification. But the displayed Cobb is the AI reading.
+  const displayCobb = aiReportedCobb;
 
   return {
     displayCobb,
     aiReportedCobb,
     geometryCobb:   isNaN(geometryCobb) ? aiReportedCobb : geometryCobb,
-    discrepancyDeg: discrepancy,
-    isConsistent:   geometryIsReliable ? isConsistent : true, // suppress false warning when falling back to AI
+    discrepancyDeg: geometryIsReliable ? discrepancy : 0,
+    isConsistent:   geometryIsReliable ? isConsistent : true,
     warnings,
   };
 }
