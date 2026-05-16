@@ -14,17 +14,14 @@ interface SidebarProps {
     dnVal:string;dsVal:string;
   };
   exLang: string;
-  isMobile: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ modality, lang, onSwitchModality, labels, exLang, isMobile }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ modality, lang, onSwitchModality, labels, exLang }) => {
   const isSpine = modality === 'spine';
   const isFoot  = modality === 'foot';
 
-  if (isMobile) return null;
-
   return (
-    <div style={{
+    <div className="cobb-sidebar" style={{
       width: 210, minWidth: 210,
       background: '#090e12',
       // Use logical property: in RTL (Arabic) this becomes border-left

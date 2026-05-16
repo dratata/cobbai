@@ -97,3 +97,14 @@ body.light-mode select, body.light-mode input {
   color: #1a2a3a !important;
   border-color: #c0ccd6 !important;
 }
+
+/* ── Responsive sidebar ──────────────────────────────────────── */
+.cobb-sidebar       { display: block; }
+.cobb-mobile-tabs   { display: none; }
+.cobb-content       { margin-inline-start: 210px; }
+
+@media (max-width: 768px) {
+  .cobb-sidebar     { display: none !important; }
+  .cobb-mobile-tabs { display: flex !important; }
+  .cobb-content     { margin-inline-start: 0 !important; }
+}

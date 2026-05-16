@@ -3,7 +3,7 @@
  * Full clinical workflow with all features from the legacy app.
  */
 
-import React, { lazy, useEffect, useRef, useCallback, useState, useSyncExternalStore } from 'react';
+import React, { lazy, useEffect, useRef, useCallback, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useMeasurementStore, selectCanAnalyze } from '@/store/measurementStore';
 import { processSpineResult } from '@/lib/cobbCalculation';
@@ -95,13 +95,6 @@ const App: React.FC = () => {
   const cooldownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   // GPT patch: KVKK React state (localStorage stays in sync)
   const [kvkkAccepted, setKvkkAccepted] = useState(() => localStorage.getItem('cobbai_kvkk') === '1');
-
-  // ── Mobile detection ──────────────────────────────────────────
-  const isMobile = useSyncExternalStore(
-    (cb) => { window.addEventListener('resize', cb); return () => window.removeEventListener('resize', cb); },
-    () => window.innerWidth <= 768,
-    () => false,
-  );
 
   // Cleanup cooldown interval on unmount
   useEffect(() => () => { if (cooldownRef.current) clearInterval(cooldownRef.current); }, []);
@@ -586,31 +579,28 @@ const App: React.FC = () => {
               labels={sidebarLabels}
               exLang={store.language}
               onSwitchModality={m => { store.setModality(m); }}
-              isMobile={isMobile}
             />
 
-            {/* ── Mobile modality tab bar (replaces sidebar on small screens) ── */}
-            {isMobile && (
-              <div style={{ display:'flex', gap:8, padding:'8px 12px', background:'#090e12', borderBottom:'1px solid rgba(255,255,255,.08)', position:'sticky', top:60, zIndex:49 }}>
-                {(['spine','foot'] as const).map(m => {
-                  const active = store.modality === m;
-                  const col = m === 'spine' ? '#00c853' : '#2196f3';
-                  return (
-                    <button key={m} onClick={() => store.setModality(m)} style={{
-                      flex:1, padding:'9px 8px', border:`1px solid ${active ? col : 'rgba(255,255,255,.12)'}`,
-                      borderRadius:8, background: active ? `${col}18` : 'transparent',
-                      color: active ? col : '#7a8fa0', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit',
-                    }}>
-                      {m === 'spine' ? `🦴 ${sidebarLabels.dn1}` : `🦶 ${sidebarLabels.dn2}`}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {/* ── Mobile modality tab bar — hidden on desktop via CSS ── */}
+            <div className="cobb-mobile-tabs" style={{ gap:8, padding:'8px 12px', background:'#090e12', borderBottom:'1px solid rgba(255,255,255,.08)', position:'sticky', top:60, zIndex:49 }}>
+              {(['spine','foot'] as const).map(m => {
+                const active = store.modality === m;
+                const col = m === 'spine' ? '#00c853' : '#2196f3';
+                return (
+                  <button key={m} onClick={() => store.setModality(m)} style={{
+                    flex:1, padding:'9px 8px', border:`1px solid ${active ? col : 'rgba(255,255,255,.12)'}`,
+                    borderRadius:8, background: active ? `${col}18` : 'transparent',
+                    color: active ? col : '#7a8fa0', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit',
+                  }}>
+                    {m === 'spine' ? `🦴 ${sidebarLabels.dn1}` : `🦶 ${sidebarLabels.dn2}`}
+                  </button>
+                );
+              })}
+            </div>
 
             {/* ── Page content ──────────────────────────────────── */}
-            {/* marginInlineStart adapts to RTL (Arabic) automatically; 0 on mobile */}
-            <div style={{ marginInlineStart: isMobile ? 0 : 210, minWidth:0 }}>
+            {/* cobb-content class: margin-inline-start 210px desktop, 0 mobile via CSS */}
+            <div className="cobb-content" style={{ minWidth:0 }}>
 
               {/* Hero */}
               <section style={{ maxWidth:'100%', padding:'1.75rem 1rem 1rem', display:'flex', alignItems:'center', gap:'1.5rem' }}>
