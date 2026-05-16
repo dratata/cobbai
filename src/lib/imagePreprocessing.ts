@@ -218,7 +218,9 @@ export async function preprocessXray(
       const scale = 255 / (hi - lo);
       for (let i = 0; i < data.length; i += 4) {
         for (let c = 0; c < 3; c++) {
-          data[i + c] = Math.max(0, Math.min(255, Math.round((data[i + c] - lo) * scale)));
+          // Floor at 8 instead of 0: lifts jet-black areas to dark-gray
+          // so anatomical detail in shadows remains visible on screen
+          data[i + c] = Math.max(8, Math.min(255, Math.round((data[i + c] - lo) * scale)));
         }
       }
       ctx.putImageData(id, 0, 0);

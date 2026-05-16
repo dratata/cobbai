@@ -31,7 +31,7 @@ const ValidationDashboard   = lazy(() => import('@/components/ValidationDashboar
 // ── Eagerly-loaded small components ──────────────────────────
 import { Sidebar }       from '@/components/Sidebar/Sidebar';
 import { LandingScreen } from '@/components/LandingScreen/LandingScreen';
-// ConsentModal available if needed: import { ConsentModal } from '@/components/ConsentModal/ConsentModal';
+import { ConsentModal }  from '@/components/ConsentModal/ConsentModal';
 import { PatientBar }    from '@/components/PatientBar/PatientBar';
 import { ImageControls } from '@/components/ImageControls/ImageControls';
 
@@ -64,11 +64,12 @@ const App: React.FC = () => {
   const abortRef        = useRef<AbortController | null>(null);
   const analyzingRef    = useRef(false);
 
-  const [selectedCurveIdx, setSelectedCurveIdx] = useState(0);
-  const [showPrivacy, setShowPrivacy]           = useState(false);
-  const [isManualMode, setIsManualMode]         = useState(false);
-  const [manualCobb, setManualCobb]             = useState<number | null>(null);
-  const [showValidation, setShowValidation]     = useState(false);
+  const [selectedCurveIdx, setSelectedCurveIdx]   = useState(0);
+  const [showPrivacy, setShowPrivacy]             = useState(false);
+  const [isManualMode, setIsManualMode]           = useState(false);
+  const [manualCobb, setManualCobb]               = useState<number | null>(null);
+  const [showValidation, setShowValidation]       = useState(false);
+  const [analyzeBtnPressed, setAnalyzeBtnPressed] = useState(false);
   // GPT patch: KVKK React state (localStorage stays in sync)
   const [kvkkAccepted, setKvkkAccepted] = useState(() => localStorage.getItem('cobbai_kvkk') === '1');
 
@@ -330,8 +331,17 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* KVKK consent modal */}
-      {/* ConsentModal opened via kvkk-link click — wired via state if needed */}
+      {/* KVKK consent modal — opens when user clicks the privacy link */}
+      <ConsentModal
+        open={showPrivacy}
+        lang={store.language}
+        onAccept={() => {
+          setKvkkAccepted(true);
+          localStorage.setItem('cobbai_kvkk', '1');
+          setShowPrivacy(false);
+        }}
+        onClose={() => setShowPrivacy(false)}
+      />
 
       {/* Main layout */}
       <div style={{ minHeight:'100vh', background:'var(--c-bg)' }}>
@@ -448,8 +458,8 @@ const App: React.FC = () => {
                       <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); }}/>
                     </div>
                   ) : (
-                    /* GPT patch: overflow:auto + width-based zoom keeps CobbOverlay aligned */
-                    <div style={{ position:'relative', background:'#000', borderRadius:10, overflow:'auto', lineHeight:0 }}>
+                    /* Image viewer — constrained height so tall portrait X-rays don't dominate */
+                    <div style={{ position:'relative', background:'#0a0e12', borderRadius:10, overflow:'auto', lineHeight:0, maxHeight:'min(540px,62vh)' }}>
                       {/* AI Loading overlay — shown while analyzing */}
                       {store.isAnalyzing && <AILoadingScreen lang={store.language} />}
 
@@ -485,11 +495,10 @@ const App: React.FC = () => {
                           </SafeSuspense>
                         </div>
                       ) : (
-                        /* GPT patch: zoom via width-based inner wrapper (CobbOverlay stays aligned) */
+                        /* Zoom wrapper — width% changes zoom level; no minWidth so zoom-out works */
                         <div style={{
                           position:'relative',
                           width: `${store.controls.zoom * 100}%`,
-                          minWidth:'100%',
                           margin:'0 auto',
                           transition:'width .18s ease',
                           lineHeight:0,
@@ -603,16 +612,20 @@ const App: React.FC = () => {
                         disabled={!canAnalyze || store.isAnalyzing || !kvkkAccepted}
                         aria-busy={store.isAnalyzing}
                         aria-label={store.isAnalyzing ? 'Analiz ediliyor...' : undefined}
+                        onMouseDown={() => setAnalyzeBtnPressed(true)}
+                        onMouseUp={() => setAnalyzeBtnPressed(false)}
+                        onMouseLeave={() => setAnalyzeBtnPressed(false)}
                         style={{
                           padding:'17px', fontSize:18, fontWeight:700, border:'none', borderRadius:10,
-                          cursor: canAnalyze && !store.isAnalyzing ? 'pointer' : 'not-allowed',
+                          cursor: canAnalyze && !store.isAnalyzing && kvkkAccepted ? 'pointer' : 'not-allowed',
                           fontFamily:'inherit', minHeight:54, display:'flex', alignItems:'center', justifyContent:'center', gap:10,
-                          background: store.isAnalyzing ? '#0a2a18' : canAnalyze ? '#00c853' : '#1a2e26',
-                          color: store.isAnalyzing ? '#00c853' : canAnalyze ? '#000' : '#7a8fa0',
-                          transition: 'all .15s',
+                          background: store.isAnalyzing ? '#0a2a18' : (canAnalyze && kvkkAccepted) ? '#00c853' : '#1a2e26',
+                          color: store.isAnalyzing ? '#00c853' : (canAnalyze && kvkkAccepted) ? '#000' : '#7a8fa0',
+                          transition: 'all .12s',
+                          transform: analyzeBtnPressed && !store.isAnalyzing ? 'scale(0.96) translateY(2px)' : 'none',
                           boxShadow: store.isAnalyzing
                             ? '0 0 0 4px rgba(0,200,83,.12), 0 0 24px rgba(0,200,83,.18)'
-                            : canAnalyze ? '0 8px 22px rgba(0,200,83,.18)' : 'none',
+                            : analyzeBtnPressed ? '0 2px 8px rgba(0,200,83,.12)' : (canAnalyze && kvkkAccepted) ? '0 8px 22px rgba(0,200,83,.18)' : 'none',
                           position: 'relative', overflow: 'hidden',
                         }}
                       >

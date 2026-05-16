@@ -89,18 +89,23 @@ function drawTick(ctx: CanvasRenderingContext2D, col: string, lw: number, from: 
 }
 
 // Fix #5: Small vertebra level label (T6, T7… inferred locally, no API)
+// cssW/cssH are in logical pixels (canvas.width / dpr) — already in scaled context
 function drawSmallLevelLabel(
   ctx: CanvasRenderingContext2D,
   text: string, col: string,
-  x: number, y: number, fontSize: number
+  x: number, y: number, fontSize: number,
+  cssW?: number, cssH?: number
 ) {
+  const dpr = window.devicePixelRatio || 1;
+  const cW  = cssW ?? ctx.canvas.width  / dpr;
+  const cH  = cssH ?? ctx.canvas.height / dpr;
   ctx.save();
   ctx.font = `800 ${fontSize}px ui-monospace, Consolas, monospace`;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   const pad = Math.max(3, fontSize * 0.3);
   const tm  = ctx.measureText(text);
-  const bx  = Math.max(4, Math.min(ctx.canvas.width  - tm.width - pad * 2 - 4, x));
-  const by  = Math.max(4, Math.min(ctx.canvas.height - fontSize - pad * 2 - 4, y - fontSize / 2 - pad));
+  const bx  = Math.max(4, Math.min(cW - tm.width - pad * 2 - 4, x));
+  const by  = Math.max(4, Math.min(cH - fontSize - pad * 2 - 4, y - fontSize / 2 - pad));
   ctx.fillStyle   = 'rgba(0,0,0,0.78)';
   ctx.strokeStyle = col + '88'; ctx.lineWidth = 1;
   if (ctx.roundRect) ctx.roundRect(bx, by, tm.width + pad * 2, fontSize + pad * 2, 4);
@@ -116,8 +121,12 @@ function drawSmallLevelLabel(
 function drawLabelBox(
   ctx: CanvasRenderingContext2D,
   text: string, col: string, x: number, y: number,
-  fontSize: number, align: 'left' | 'right' | 'center' = 'center'
+  fontSize: number, align: 'left' | 'right' | 'center' = 'center',
+  cssW?: number, cssH?: number
 ) {
+  const dpr = window.devicePixelRatio || 1;
+  const cW  = cssW ?? ctx.canvas.width  / dpr;
+  const cH  = cssH ?? ctx.canvas.height / dpr;
   ctx.save();
   ctx.font = `bold ${fontSize}px ui-monospace, Consolas, monospace`;
   ctx.textAlign    = align;
@@ -130,9 +139,9 @@ function drawLabelBox(
   const bh  = fontSize + pad * 1.4;
   const bx  = align === 'right'  ? x - tm.width - pad * 2 :
                align === 'center' ? x - tm.width / 2 - pad : x - pad;
-  // Clamp to canvas bounds for better readability
-  const cbx = Math.max(4, Math.min(ctx.canvas.width  - bw - 4, bx));
-  const by  = Math.max(4, Math.min(ctx.canvas.height - bh - 4, y - bh / 2));
+  // Clamp to canvas logical-pixel bounds
+  const cbx = Math.max(4, Math.min(cW - bw - 4, bx));
+  const by  = Math.max(4, Math.min(cH - bh - 4, y - bh / 2));
   const cx  = align === 'right' ? cbx + bw - pad : align === 'center' ? cbx + bw / 2 : cbx + pad;
   const cy  = by + bh / 2;
   // Background box with border
@@ -242,21 +251,28 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
     const ctx = cvs.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, cvs.width, cvs.height);
-    const reg = computeLetterbox(naturalW, naturalH, cvs.width, cvs.height);
+    // ── DPR scaling: draw in CSS (logical) pixels ──
+    const dpr  = window.devicePixelRatio || 1;
+    const cssW = cvs.width  / dpr;
+    const cssH = cvs.height / dpr;
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    const reg = computeLetterbox(naturalW, naturalH, cssW, cssH);
 
     // Label collision avoidance — accumulated across all curves in this draw pass
     const occupiedLabels: LabelBox[] = [];
 
     const curves = result.processedCurves;
-    const lw     = Math.max(2.5, cvs.width * 0.004);
-    const dotR   = Math.max(4, cvs.width * 0.008);
+    const lw     = Math.max(2.5, cssW * 0.004);
+    const dotR   = Math.max(4, cssW * 0.008);
 
     curves.forEach((curve, i) => {
       const col = CURVE_COLOURS[i % CURVE_COLOURS.length];
 
       // ── 1. Vertebral body 4-corner outlines (Maeda 2023) ──
-      const nameFontSize = Math.max(10, Math.round(cvs.width * 0.022));
+      const nameFontSize = Math.max(10, Math.round(cssW * 0.022));
       const upperName = curve.upper_vertebra_name || '';
       const lowerName = curve.lower_vertebra_name || '';
       const upperLabel = lang==='tr' ? `${upperName}·ÜST` : lang==='ar' ? `${upperName}·علوي` : `${upperName}·UPPER`;
@@ -303,7 +319,7 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
       drawLine(ctx, UPPER_END_COLOUR, lw, eu1, eu2);
       drawLine(ctx, LOWER_END_COLOUR, lw, el1, el2);
 
-      const tickLen = Math.max(cvs.height * 0.014, 9);
+      const tickLen = Math.max(cssH * 0.014, 9);
       drawTick(ctx, UPPER_END_COLOUR, lw, u1, u2, tickLen);
       drawTick(ctx, UPPER_END_COLOUR, lw, u2, u1, tickLen);
       drawTick(ctx, LOWER_END_COLOUR, lw, l1, l2, tickLen);
@@ -313,7 +329,7 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
       drawDot(ctx, LOWER_END_COLOUR, l1, dotR); drawDot(ctx, LOWER_END_COLOUR, l2, dotR);
 
       // ── 3. Perpendicular bisectors + angle arc ────────────
-      const halfLen = Math.max(cvs.height * 0.15, 40);
+      const halfLen = Math.max(cssH * 0.15, 40);
       const pU = perpendicularBisector(
         { x1: u1.x, y1: u1.y, x2: u2.x, y2: u2.y }, halfLen
       );
@@ -330,8 +346,8 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
 
       // Only use intersection if it's within 3x canvas bounds (avoids extreme off-canvas)
       const onCanvas = (pt: { x: number; y: number }) =>
-        pt.x > -cvs.width * 2 && pt.x < cvs.width * 3 &&
-        pt.y > -cvs.height * 2 && pt.y < cvs.height * 3;
+        pt.x > -cssW * 2 && pt.x < cssW * 3 &&
+        pt.y > -cssH * 2 && pt.y < cssH * 3;
 
       if (inter && onCanvas(inter)) {
         drawDot(ctx, col, inter, dotR + 2);
@@ -341,7 +357,7 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         let diff  = a2 - a1;
         while (diff >  Math.PI) diff -= 2 * Math.PI;
         while (diff < -Math.PI) diff += 2 * Math.PI;
-        const arcR = Math.max(cvs.height * 0.07, 22);
+        const arcR = Math.max(cssH * 0.07, 22);
 
         // Filled arc wedge (semi-transparent)
         ctx.save();
@@ -362,7 +378,7 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         ctx.restore();
 
         const ma = a1 + diff / 2;
-        const labelDist = arcR + Math.max(cvs.width * 0.045, 24);
+        const labelDist = arcR + Math.max(cssW * 0.045, 24);
         labelX = inter.x + Math.cos(ma) * labelDist;
         labelY = inter.y + Math.sin(ma) * labelDist;
       } else {
@@ -372,8 +388,8 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
       }
 
       // Cobb angle label
-      const fs  = Math.max(15, Math.round(cvs.width * 0.038));
-      drawLabelBox(ctx, `${curve.cobb_angle}°`, col, labelX, labelY, fs);
+      const fs  = Math.max(15, Math.round(cssW * 0.038));
+      drawLabelBox(ctx, `${curve.cobb_angle}°`, col, labelX, labelY, fs, 'center', cssW, cssH);
 
       // ── 4. Side labels with collision avoidance ────────────
       // Estimate box dimensions (monospace ~0.65× font width per char)
@@ -385,7 +401,7 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
       const upperBox = placeLabel(
         ulx - estW(upperLabel, nameFontSize), uly - estH(nameFontSize) / 2,
         estW(upperLabel, nameFontSize), estH(nameFontSize),
-        occupiedLabels, cvs.width, cvs.height
+        occupiedLabels, cssW, cssH
       );
       drawLabelBox(ctx, upperLabel, UPPER_END_COLOUR,
         upperBox.x + upperBox.w, upperBox.y + upperBox.h / 2, nameFontSize, 'right');
@@ -395,7 +411,7 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
       const lowerBox = placeLabel(
         llx - estW(lowerLabel, nameFontSize), lly - estH(nameFontSize) / 2,
         estW(lowerLabel, nameFontSize), estH(nameFontSize),
-        occupiedLabels, cvs.width, cvs.height
+        occupiedLabels, cssW, cssH
       );
       drawLabelBox(ctx, lowerLabel, LOWER_END_COLOUR,
         lowerBox.x + lowerBox.w, lowerBox.y + lowerBox.h / 2, nameFontSize, 'right');
@@ -403,7 +419,7 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
       // ── 5. Apical vertebra diamond ◇ (gated by showApexLabel) ──
       if (showApexLabel && curve.apex_x != null && curve.apex_y != null) {
         const ap   = normToCanvas(curve.apex_x, curve.apex_y, reg);
-        const sz   = Math.max(cvs.width * 0.018, 8);
+        const sz   = Math.max(cssW * 0.018, 8);
         ctx.save();
         ctx.strokeStyle = APEX_COLOUR; ctx.lineWidth = 2;
         ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 5;
@@ -416,15 +432,15 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         ctx.closePath();
         ctx.fill(); ctx.stroke();
         if (curve.apical_vertebra_name) {
-          const afs = Math.max(9, Math.round(cvs.width * 0.022));
+          const afs = Math.max(9, Math.round(cssW * 0.022));
           const apText = `A:${curve.apical_vertebra_name}`;
           const apBox = placeLabel(
             ap.x - estW(apText, afs) / 2, ap.y - sz - afs * 1.4,
             estW(apText, afs), estH(afs),
-            occupiedLabels, cvs.width, cvs.height
+            occupiedLabels, cssW, cssH
           );
           drawLabelBox(ctx, apText, APEX_COLOUR,
-            apBox.x + apBox.w / 2, apBox.y + apBox.h / 2, afs, 'center');
+            apBox.x + apBox.w / 2, apBox.y + apBox.h / 2, afs, 'center', cssW, cssH);
         }
         ctx.restore();
       }
@@ -434,7 +450,7 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         const warnX = 10, warnY = 10 + i * 28;
         drawLabelBox(ctx,
           `⚠ Curve ${i + 1}: Δ${curve.validation.discrepancyDeg.toFixed(1)}° verify`,
-          '#f0a045', warnX, warnY, 11, 'left'
+          '#f0a045', warnX, warnY, 11, 'left', cssW, cssH
         );
       }
 
@@ -447,13 +463,13 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
           curve.upper_vertebra_name, curve.lower_vertebra_name, upperY, lowerY
         );
         if (inferredLabels.length >= 2 && inferredLabels.length <= 16) {
-          const labelFont = Math.max(8, Math.round(cvs.width * 0.018));
-          const sideX = Math.max(8, Math.min(cvs.width - 42, normToCanvas(0.03, 0, reg).x));
+          const labelFont = Math.max(8, Math.round(cssW * 0.018));
+          const sideX = Math.max(8, Math.min(cssW - 42, normToCanvas(0.03, 0, reg).x));
           inferredLabels.forEach(lv => {
             const p = normToCanvas(0.04, lv.normY, reg);
             // Skip intermediate if its box overlaps an already-placed label
             const lvW = estW(lv.name, labelFont), lvH = estH(labelFont);
-            const lvBox = placeLabel(sideX, p.y - lvH / 2, lvW, lvH, occupiedLabels, cvs.width, cvs.height);
+            const lvBox = placeLabel(sideX, p.y - lvH / 2, lvW, lvH, occupiedLabels, cssW, cssH);
             const lvCol = lv.isMeasured
               ? (lv.name === curve.upper_vertebra_name ? UPPER_END_COLOUR : LOWER_END_COLOUR)
               : 'rgba(215,228,234,0.86)';
@@ -465,9 +481,11 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
 
     // ── 8. Coronal balance ────────────────────────────────────
     if (result.raw.coronal_balance !== 'balanced') {
-      const bx = cvs.width - 14, by = 14;
-      drawLabelBox(ctx, '⚖ Coronal imbalance', '#f0a045', bx, by, 11, 'right');
+      drawLabelBox(ctx, '⚖ Coronal imbalance', '#f0a045', cssW - 14, 14, 11, 'right');
     }
+
+    // Restore DPR transform
+    ctx.restore();
   }, [result, naturalW, naturalH, lang, showVertebraLabels, showApexLabel]);
 
   // Redraw whenever result changes
@@ -484,18 +502,26 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
     if (!cvs) return;
 
     const syncSize = () => {
+      const dpr = window.devicePixelRatio || 1;
       // Walk up to find the nearest <img> sibling/descendant
       const img = cvs.parentElement?.querySelector('img') as HTMLImageElement | null;
+      let cssW = 0, cssH = 0;
       if (img && img.offsetWidth > 0 && img.offsetHeight > 0) {
-        if (cvs.width !== img.offsetWidth || cvs.height !== img.offsetHeight) {
-          cvs.width  = img.offsetWidth;
-          cvs.height = img.offsetHeight;
-        }
+        cssW = img.offsetWidth;
+        cssH = img.offsetHeight;
       } else {
         const rect = cvs.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
-          cvs.width  = Math.round(rect.width);
-          cvs.height = Math.round(rect.height);
+        cssW = Math.round(rect.width);
+        cssH = Math.round(rect.height);
+      }
+      if (cssW > 0 && cssH > 0) {
+        const physW = Math.round(cssW * dpr);
+        const physH = Math.round(cssH * dpr);
+        if (cvs.width !== physW || cvs.height !== physH) {
+          cvs.width  = physW;
+          cvs.height = physH;
+          cvs.style.width  = cssW + 'px';
+          cvs.style.height = cssH + 'px';
         }
       }
       draw();
