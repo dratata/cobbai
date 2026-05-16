@@ -124,7 +124,7 @@ export const useMeasurementStore = create<AppState>((set) => ({
   setModality: (m) => set({ modality:m, spineResult:null, processedSpine:null, footResult:null, correction:null, showCorrection:false }),
   setLanguage: (l) => { localStorage.setItem('cobbai_lang', l); set({ language:l }); },
   setConsent:  (v) => set({ consentGiven:v }),
-  setOnboardingDone: (v) => { if(v) localStorage.setItem('cobbai_onboard','1'); set({ onboardingDone:v }); },
+  setOnboardingDone: (v) => { if(v) { try { localStorage.setItem('cobbai_onboard','1'); } catch { /* quota */ } } set({ onboardingDone:v }); },
 
   setLoadedImage: (img) => set({
     loadedImage:img, spineResult:null, processedSpine:null, footResult:null,

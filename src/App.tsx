@@ -434,7 +434,7 @@ const App: React.FC = () => {
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     const cobb = store.spineResult?.curves?.[0]?.cobb_angle;
     ctx.fillText(
-      `  ⚕ CobbAI${cobb != null ? ' | Cobb: ' + cobb + '°' : ''} | ${new Date().toLocaleDateString('tr-TR')} | cobbai.vercel.app`,
+      `  ⚕ CobbAI${cobb != null && isFinite(cobb) ? ' | Cobb: ' + cobb + '°' : ''} | ${new Date().toLocaleDateString('tr-TR')} | cobbai.vercel.app`,
       0, natH - stripH / 2
     );
 
