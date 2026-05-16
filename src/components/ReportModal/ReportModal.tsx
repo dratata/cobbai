@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import type { SpineAnalysisResult, FootAnalysisResult } from '@/types';
 import type { Translations } from '@/lib/i18n';
 
@@ -113,8 +113,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   const html = modality === 'spine' ? buildSpineReport() : buildFootReport();
 
+  // Hata 3 fix: lock body scroll + ensure z-index > sticky nav (100)
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   return (
-    <div style={{ position:'fixed', inset:0, zIndex:99999, background:'rgba(0,0,0,.85)', display:'flex', alignItems:'flex-start', justifyContent:'center', padding:'1rem', overflowY:'auto' }}
+    <div style={{ position:'fixed', inset:0, zIndex:10000, background:'rgba(0,0,0,.88)', display:'flex', alignItems:'flex-start', justifyContent:'center', padding:'1rem', overflowY:'auto' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ background:'#0e1419', border:'1px solid rgba(255,255,255,.15)', borderRadius:14, maxWidth:700, width:'100%', margin:'2rem auto' }}>
         <div style={{ padding:'16px 20px', borderBottom:'1px solid rgba(255,255,255,.08)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>

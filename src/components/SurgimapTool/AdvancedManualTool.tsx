@@ -21,10 +21,13 @@ import { calculateCobbAngle } from '@/lib/spineMath';
 import type { Point } from '@/lib/spineMath';
 
 interface AdvancedManualToolProps {
-  imageSrc: string;           // base64 or URL of X-ray
+  imageSrc: string;
   naturalW: number;
   naturalH: number;
   lang?: string;
+  /** Hata 1 fix: pass image filter values from store so canvas matches the viewer */
+  brightness?: number;  // CSS brightness offset e.g. 18 → brightness(118%)
+  contrast?: number;    // CSS contrast percent e.g. 145 → contrast(145%)
   onCobbMeasured?: (cobb: number, points: Point[]) => void;
   onClose?: () => void;
 }
@@ -33,7 +36,9 @@ const POINT_COLOURS = ['#00e5ff', '#00e5ff', '#ff4fd8', '#ff4fd8'] as const;
 // POINT_LABELS removed (unused)
 
 export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
-  imageSrc, naturalW, naturalH, lang = 'en', onCobbMeasured, onClose
+  imageSrc, naturalW, naturalH, lang = 'en',
+  brightness = 0, contrast = 100,
+  onCobbMeasured, onClose
 }) => {
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const imgRef     = useRef<HTMLImageElement | null>(null);
@@ -93,12 +98,16 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
 
     ctx.clearRect(0, 0, cvs.width, cvs.height);
 
-    // Draw image
+    // Draw image — Hata 1 fix: apply brightness/contrast so canvas matches the viewer
     ctx.save();
     const imgW = naturalW * zoom, imgH = naturalH * zoom;
     const originX = (cvs.width  - imgW) / 2 + panX;
     const originY = (cvs.height - imgH) / 2 + panY;
+    const bVal = 100 + brightness;  // e.g. brightness offset 18 → brightness(118%)
+    const cVal = contrast;          // e.g. 145 → contrast(145%)
+    ctx.filter = `brightness(${bVal}%) contrast(${cVal}%)`;
     ctx.drawImage(img, originX, originY, imgW, imgH);
+    ctx.filter = 'none';  // reset so overlays are not affected
     ctx.restore();
 
     // Draw endplate lines

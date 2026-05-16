@@ -12,6 +12,8 @@ import { analyseImageQuality, preprocessXray, autoCropBlackBorders } from '@/lib
 import { hashBase64, getCachedResult, setCachedResult, clearAllCache, clearTrackingHistory, clearAllLocalData } from '@/lib/imageCache';
 import { getT } from '@/lib/i18n';
 import { SafeSuspense } from '@/components/ErrorBoundary/ErrorBoundary';
+import CobbAILogo    from '@/components/CobbAILogo';
+import AILoadingScreen from '@/components/AILoadingScreen';
 import type { AnalyzeSpineRequest, SpineAnalysisResult } from '@/types';
 
 // ── Lazy-loaded heavy components ──────────────────────────────
@@ -336,7 +338,7 @@ const App: React.FC = () => {
 
         {/* ── Nav ─────────────────────────────────────────────── */}
         <nav style={{ background:'#0a0f13', borderBottom:'1px solid rgba(255,255,255,.1)', padding:'0 1rem', height:60, display:'flex', alignItems:'center', gap:12, position:'sticky', top:0, zIndex:100, backdropFilter:'blur(8px)' }}>
-          <div style={{ width:32, height:32, border:'2px solid #00c853', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>🦴</div>
+          <CobbAILogo width={34} height={34} />
           <span style={{ fontSize:18, fontWeight:800 }}>CobbAI</span>
           <span style={{ fontSize:11, padding:'2px 8px', background:'rgba(0,200,83,.1)', border:'1px solid rgba(0,200,83,.25)', borderRadius:20, color:'#00c853' }}>{t.aiChip}</span>
           <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:6 }}>
@@ -363,7 +365,8 @@ const App: React.FC = () => {
             />
 
             {/* ── Page content ──────────────────────────────────── */}
-            <div style={{ marginLeft: 210, minWidth:0 }}>
+            {/* Hata 2 fix: marginInlineStart adapts to RTL (Arabic) automatically */}
+            <div style={{ marginInlineStart: 210, minWidth:0 }}>
 
               {/* Hero */}
               <section style={{ maxWidth:'100%', padding:'1.75rem 1rem 1rem', display:'flex', alignItems:'center', gap:'1.5rem' }}>
@@ -447,6 +450,9 @@ const App: React.FC = () => {
                   ) : (
                     /* GPT patch: overflow:auto + width-based zoom keeps CobbOverlay aligned */
                     <div style={{ position:'relative', background:'#000', borderRadius:10, overflow:'auto', lineHeight:0 }}>
+                      {/* AI Loading overlay — shown while analyzing */}
+                      {store.isAnalyzing && <AILoadingScreen lang={store.language} />}
+
                       {/* ── Manual mode toggle button ── */}
                       <button
                         onClick={() => { setIsManualMode(m => !m); setManualCobb(null); }}
@@ -471,6 +477,8 @@ const App: React.FC = () => {
                               naturalW={store.loadedImage.naturalWidth}
                               naturalH={store.loadedImage.naturalHeight}
                               lang={store.language}
+                              brightness={store.controls.brightness}
+                              contrast={store.controls.contrast}
                               onCobbMeasured={(cobb) => setManualCobb(cobb)}
                               onClose={() => setIsManualMode(false)}
                             />
@@ -490,7 +498,7 @@ const App: React.FC = () => {
                             ref={imgRef}
                             src={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
                             alt="X-ray" id="main-xray-img"
-                            style={{ width:'100%', display:'block', background:'#000', filter: imgFilter }}
+                            style={{ width:'100%', display:'block', background:'#000', filter: imgFilter, opacity: store.isAnalyzing ? 0.3 : 1, transition: 'opacity .2s' }}
                           />
                           {/* Canvas overlay — always same size as img wrapper → always aligned */}
                           {store.processedSpine && store.controls.showOverlay && (

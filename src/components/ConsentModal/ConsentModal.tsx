@@ -13,14 +13,17 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({ open, lang, onAccept
   const t = getT(lang);
   const isRTL = lang === 'ar';
 
-  // Close on Escape
+  // Hata 3 fix: lock body scroll when open + Escape key close
   React.useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', handler);
+    };
   }, [open, onClose]);
 
   if (!open) return null;
