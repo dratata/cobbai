@@ -106,7 +106,7 @@ function drawSmallLevelLabel(
   const tm  = ctx.measureText(text);
   const bx  = Math.max(4, Math.min(cW - tm.width - pad * 2 - 4, x));
   const by  = Math.max(4, Math.min(cH - fontSize - pad * 2 - 4, y - fontSize / 2 - pad));
-  ctx.fillStyle   = 'rgba(0,0,0,0.78)';
+  ctx.fillStyle   = 'rgba(4,12,20,0.65)';
   ctx.strokeStyle = col + '88'; ctx.lineWidth = 1;
   if (ctx.roundRect) ctx.roundRect(bx, by, tm.width + pad * 2, fontSize + pad * 2, 4);
   else               ctx.rect(bx, by, tm.width + pad * 2, fontSize + pad * 2);
@@ -145,9 +145,9 @@ function drawLabelBox(
   const by  = Math.max(4, Math.min(cH - bh - 4, y - bh / 2));
   const cx  = align === 'right' ? cbx + bw - pad : align === 'center' ? cbx + bw / 2 : cbx + pad;
   const cy  = by + bh / 2;
-  // Background box with border
-  ctx.fillStyle   = 'rgba(2,6,10,0.92)';
-  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  // Background box — reduced opacity so the X-ray anatomy shows through labels
+  ctx.fillStyle   = 'rgba(4,12,20,0.72)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
   ctx.lineWidth   = 1;
   if (ctx.roundRect) ctx.roundRect(cbx, by, bw, bh, 5);
   else ctx.rect(cbx, by, bw, bh);
@@ -314,7 +314,7 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         drawVertebraHighlight(
           ctx, pts,
           isUpper ? UPPER_END_COLOUR : LOWER_END_COLOUR,
-          isUpper ? 'rgba(0,229,255,0.10)' : 'rgba(255,79,216,0.10)',
+          isUpper ? 'rgba(0,229,255,0.12)' : 'rgba(255,79,216,0.12)',
           isUpper ? upperLabel : lowerLabel,
           nameFontSize
         );

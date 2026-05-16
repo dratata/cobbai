@@ -76,29 +76,42 @@ export function validateAndFinaliseCobb(curve: CurveResult): CobbValidationResul
   if (!upperValid) warnings.push('Upper endplate line coordinates are invalid or out of range.');
   if (!lowerValid) warnings.push('Lower endplate line coordinates are invalid or out of range.');
 
+  const aiReportedCobb = curve.cobb_angle;
+
   // ── Step 2: Compute Cobb from geometry ─────────────────────
   let geometryCobb: number;
+  let geometryIsReliable = false;  // true only when valid lines produce a plausible angle
+
   if (upperValid && lowerValid) {
-    geometryCobb = cobbAngleFromLines(curve.upper_line, curve.lower_line);
+    geometryCobb       = cobbAngleFromLines(curve.upper_line, curve.lower_line);
+    // Only treat geometry as reliable if it gives a clinically non-trivial angle
+    // OR the AI also reports a small angle (both agree the spine is near-straight)
+    geometryIsReliable = geometryCobb > 0.5 || aiReportedCobb < 3;
   } else if (
     typeof curve.upper_slope_deg === 'number' &&
-    typeof curve.lower_slope_deg === 'number'
+    typeof curve.lower_slope_deg === 'number' &&
+    // Skip slope fallback when both slopes are 0 — these are schema placeholder
+    // values echoed back by the AI without actual measurement. Using them gives
+    // geometryCobb = 0° which is wrong when the AI separately reports a real angle.
+    !(curve.upper_slope_deg === 0 && curve.lower_slope_deg === 0)
   ) {
-    // Fallback: use slope values if lines are bad
     geometryCobb = cobbAngleFromSlopes(curve.upper_slope_deg, curve.lower_slope_deg);
+    geometryIsReliable = geometryCobb > 0.5;
     warnings.push('Cobb computed from slope values (endplate lines invalid).');
   } else {
-    // Last resort: trust AI value
-    geometryCobb = curve.cobb_angle;
-    warnings.push('Unable to independently verify Cobb angle — using AI-reported value.');
+    // Last resort OR echoed placeholder zeros: trust AI value
+    geometryCobb       = aiReportedCobb;
+    geometryIsReliable = false;
+    if (!upperValid || !lowerValid) {
+      warnings.push('Endplate coordinates unavailable — AI-reported Cobb used directly. Manual verification recommended.');
+    }
   }
 
   // ── Step 3: Cross-check AI reported vs geometry ─────────────
-  const aiReportedCobb = curve.cobb_angle;
-  const discrepancy    = Math.abs(aiReportedCobb - geometryCobb);
-  const isConsistent   = discrepancy <= CONSISTENCY_THRESHOLD_DEG;
+  const discrepancy = Math.abs(aiReportedCobb - geometryCobb);
+  const isConsistent = discrepancy <= CONSISTENCY_THRESHOLD_DEG;
 
-  if (!isConsistent) {
+  if (geometryIsReliable && !isConsistent) {
     warnings.push(
       `AI-reported Cobb (${aiReportedCobb}°) differs from geometry-computed Cobb ` +
       `(${geometryCobb}°) by ${discrepancy.toFixed(1)}° — exceeds ${CONSISTENCY_THRESHOLD_DEG}° threshold. ` +
@@ -106,10 +119,12 @@ export function validateAndFinaliseCobb(curve: CurveResult): CobbValidationResul
     );
   }
 
-  // ── Step 4: Cross-check slope delta ──────────────────────────
+  // ── Step 4: Cross-check slope delta (only when geometry is from valid lines) ──
   if (
+    geometryIsReliable && upperValid && lowerValid &&
     typeof curve.upper_slope_deg === 'number' &&
-    typeof curve.lower_slope_deg === 'number'
+    typeof curve.lower_slope_deg === 'number' &&
+    !(curve.upper_slope_deg === 0 && curve.lower_slope_deg === 0)
   ) {
     const slopeDelta = cobbAngleFromSlopes(curve.upper_slope_deg, curve.lower_slope_deg);
     const slopeDisc  = Math.abs(geometryCobb - slopeDelta);
@@ -121,14 +136,22 @@ export function validateAndFinaliseCobb(curve: CurveResult): CobbValidationResul
     }
   }
 
-  // ── Step 5: Return ─────────────────────────────────────────
-  // Always prefer geometry-computed value for display
+  // ── Step 5: Choose display value ───────────────────────────
+  // Priority:
+  //   1. Local geometry — only when lines are valid AND angle is non-trivial
+  //   2. AI-reported   — when geometry fails (invalid coords / zero placeholders)
+  //
+  // This prevents the "always 0°" bug where schema placeholder coordinates
+  // (all zeros) produce geometryCobb = 0° via slope fallback, overriding the
+  // AI's correct non-zero measurement.
+  const displayCobb = geometryIsReliable ? geometryCobb : aiReportedCobb;
+
   return {
-    displayCobb:    isNaN(geometryCobb) ? aiReportedCobb : geometryCobb,
+    displayCobb,
     aiReportedCobb,
     geometryCobb:   isNaN(geometryCobb) ? aiReportedCobb : geometryCobb,
     discrepancyDeg: discrepancy,
-    isConsistent,
+    isConsistent:   geometryIsReliable ? isConsistent : true, // suppress false warning when falling back to AI
     warnings,
   };
 }
