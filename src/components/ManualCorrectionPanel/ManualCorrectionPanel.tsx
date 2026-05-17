@@ -419,6 +419,7 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onMouseUp}
+          onTouchCancel={onMouseUp}
         />
       </div>
 

@@ -101,6 +101,11 @@ export const PatientBar: React.FC<PatientBarProps> = ({
           onBlur={(e) => {
             (e.target as HTMLInputElement).style.borderColor =
               'var(--c-border, rgba(76,175,80,0.25))';
+            const n = parseFloat(e.target.value);
+            if (!isNaN(n)) {
+              const clamped = Math.max(1, Math.min(120, n));
+              if (clamped !== n) onAgeChange(String(clamped));
+            }
           }}
         />
       </div>

@@ -70,7 +70,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       ]);
 
       const dpr    = window.devicePixelRatio || 1;
-      const scale  = Math.max(2, dpr * 2);  // 2× minimum for legibility
+      const scale  = Math.min(2, Math.max(1, dpr));  // cap at 2× — 4× causes OOM on iPad
 
       const canvas = await html2canvas(el, {
         scale,

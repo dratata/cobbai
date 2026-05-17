@@ -295,7 +295,15 @@ export async function autoCropBlackBorders(
       canvas.height = safeH;
       ctx.drawImage(img, 0, 0, safeW, safeH); // downscaled draw — safe on all devices
 
-      const { data, width, height } = ctx.getImageData(0, 0, safeW, safeH);
+      let imageData: ImageData;
+      try {
+        imageData = ctx.getImageData(0, 0, safeW, safeH);
+      } catch {
+        // iOS Safari throws SecurityError on cross-origin or oversized canvases
+        resolve(imgSrc);
+        return;
+      }
+      const { data, width, height } = imageData;
 
       let minX = width, minY = height, maxX = 0, maxY = 0;
       for (let y = 0; y < height; y++) {

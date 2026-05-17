@@ -121,7 +121,7 @@ export const useMeasurementStore = create<AppState>((set) => ({
   history: [],
   lightMode: localStorage.getItem('cobbai_theme') === 'light',
 
-  setModality: (m) => set({ modality:m, spineResult:null, processedSpine:null, footResult:null, correction:null, showCorrection:false }),
+  setModality: (m) => set({ modality:m, spineResult:null, processedSpine:null, footResult:null, correction:null, showCorrection:false, isAnalyzing:false, analyzeError:null }),
   setLanguage: (l) => { localStorage.setItem('cobbai_lang', l); set({ language:l }); },
   setConsent:  (v) => set({ consentGiven:v }),
   setOnboardingDone: (v) => { if(v) { try { localStorage.setItem('cobbai_onboard','1'); } catch { /* quota */ } } set({ onboardingDone:v }); },
@@ -135,7 +135,7 @@ export const useMeasurementStore = create<AppState>((set) => ({
   setPreprocessing:  (v) => set({ isPreprocessing:v }),
   setAnalyzing:      (v) => set({ isAnalyzing:v }),
 
-  setSpineResult: (r, p, o) => set({ spineResult:r, processedSpine:p, validationOutcome:o, analyzeError:null, correction:null, showCorrection:false }),
+  setSpineResult: (r, p, o) => set({ spineResult:r, processedSpine:p, validationOutcome:o, analyzeError:null, correction:null, showCorrection:false, footResult:null }),
   setFootResult:  (r) => set({ footResult:r, analyzeError:null }),
   setAnalyzeError:(e) => set({ analyzeError:e, isAnalyzing:false }),
   setPatient:     (age, gender, risser) => set({ patientAge:age, patientGender:gender, risserStage:risser??'' }),
