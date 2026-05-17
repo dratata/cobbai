@@ -95,6 +95,7 @@ const App: React.FC = () => {
   const cooldownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   // GPT patch: KVKK React state (localStorage stays in sync)
   const [kvkkAccepted, setKvkkAccepted] = useState(() => localStorage.getItem('cobbai_kvkk') === '1');
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
 
   // Cleanup cooldown interval on unmount
   useEffect(() => () => { if (cooldownRef.current) clearInterval(cooldownRef.current); }, []);
@@ -554,17 +555,26 @@ const App: React.FC = () => {
       <div style={{ minHeight:'100dvh', background:'var(--c-bg)' }}>
 
         {/* ── Nav ─────────────────────────────────────────────── */}
-        <nav style={{ background:'#0a0f13', borderBottom:'1px solid rgba(255,255,255,.1)', padding:'0 1rem', height:60, display:'flex', alignItems:'center', gap:12, position:'sticky', top:0, zIndex:100, backdropFilter:'blur(8px)' }}>
-          <CobbAILogo width={34} height={34} />
-          <span style={{ fontSize:18, fontWeight:800 }}>CobbAI</span>
-          <span style={{ fontSize:11, padding:'2px 8px', background:'rgba(0,200,83,.1)', border:'1px solid rgba(0,200,83,.25)', borderRadius:20, color:'#00c853' }}>{t.aiChip}</span>
-          <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:6 }}>
+        <nav style={{ background:'#0a0f13', borderBottom:'1px solid rgba(255,255,255,.1)', padding:'0 .75rem', height:60, display:'flex', alignItems:'center', gap:8, position:'sticky', top:0, zIndex:100, backdropFilter:'blur(8px)' }}>
+          {/* Hamburger — only visible on mobile via CSS */}
+          {store.consentGiven && (
+            <button
+              className="cobb-hamburger"
+              onClick={() => setSidebarOpen(o => !o)}
+              aria-label="Menü"
+              style={{ width:36, height:36, border:'1px solid rgba(255,255,255,.15)', borderRadius:8, background:'transparent', color:'#7a8fa0', fontSize:20, cursor:'pointer', flexShrink:0, alignItems:'center', justifyContent:'center' }}
+            >☰</button>
+          )}
+          <CobbAILogo width={30} height={30} />
+          <span style={{ fontSize:17, fontWeight:800 }}>CobbAI</span>
+          <span className="cobb-aichip" style={{ fontSize:11, padding:'2px 8px', background:'rgba(0,200,83,.1)', border:'1px solid rgba(0,200,83,.25)', borderRadius:20, color:'#00c853' }}>{t.aiChip}</span>
+          <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4 }}>
             {(['tr','en','ar'] as const).map(l => (
-              <button key={l} onClick={() => store.setLanguage(l)} style={{ padding:'5px 12px', border: store.language===l ? '2px solid #00c853' : '2px solid rgba(255,255,255,.15)', borderRadius:20, background:'transparent', color: store.language===l ? '#00c853' : '#7a8fa0', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+              <button key={l} onClick={() => store.setLanguage(l)} style={{ padding:'4px 9px', border: store.language===l ? '2px solid #00c853' : '2px solid rgba(255,255,255,.15)', borderRadius:20, background:'transparent', color: store.language===l ? '#00c853' : '#7a8fa0', fontSize:12, fontWeight:700, cursor:'pointer' }}>
                 {l.toUpperCase()}
               </button>
             ))}
-            <button onClick={store.toggleTheme} style={{ width:34, height:34, border:'1px solid rgba(255,255,255,.15)', borderRadius:8, background:'transparent', color:'#7a8fa0', fontSize:16, cursor:'pointer' }}>
+            <button onClick={store.toggleTheme} style={{ width:32, height:32, border:'1px solid rgba(255,255,255,.15)', borderRadius:8, background:'transparent', color:'#7a8fa0', fontSize:15, cursor:'pointer' }}>
               {store.lightMode ? '☀️' : '🌙'}
             </button>
           </div>
@@ -572,13 +582,15 @@ const App: React.FC = () => {
 
         {store.consentGiven && (
           <>
-            {/* ── Sidebar ───────────────────────────────────────── */}
+            {/* ── Sidebar (desktop: always visible · mobile: hamburger drawer) ── */}
             <Sidebar
               modality={store.modality}
               lang={store.language}
               labels={sidebarLabels}
               exLang={store.language}
               onSwitchModality={m => { store.setModality(m); }}
+              open={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
             />
 
             {/* ── Mobile modality tab bar — hidden on desktop via CSS ── */}

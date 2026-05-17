@@ -14,70 +14,92 @@ interface SidebarProps {
     dnVal:string;dsVal:string;
   };
   exLang: string;
+  open: boolean;
+  onClose: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ modality, lang, onSwitchModality, labels, exLang }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  modality, lang, onSwitchModality, labels, exLang, open, onClose,
+}) => {
   const isSpine = modality === 'spine';
   const isFoot  = modality === 'foot';
 
+  const handleModality = (m: 'spine' | 'foot') => {
+    onSwitchModality(m);
+    onClose(); // close drawer on mobile after selection
+  };
+
   return (
-    <div className="cobb-sidebar" style={{
-      width: 210, minWidth: 210,
-      background: '#090e12',
-      // Use logical property: in RTL (Arabic) this becomes border-left
-      borderInlineEnd: '1px solid rgba(255,255,255,.08)',
-      padding: '12px 0',
-      position: 'fixed',
-      top: 60,
-      // insetInlineStart: 0 = left:0 in LTR, right:0 in RTL
-      insetInlineStart: 0,
-      height: 'calc(100vh - 60px)',
-      overflowY: 'auto',
-      zIndex: 50,
-    }}>
-      {/* X-RAY ANALYSIS */}
-      <Section>
-        <Label>{labels.dl1}</Label>
-        <NavBtn
-          active={isSpine} activeClass="spine"
-          onClick={() => onSwitchModality('spine')}
-          icon="🦴" name={labels.dn1} sub={labels.ds1}
-        />
-        <NavBtn
-          active={isFoot} activeClass="foot"
-          onClick={() => onSwitchModality('foot')}
-          icon="🦶" name={labels.dn2} sub={labels.ds2}
-        />
-      </Section>
+    <>
+      {/* Dim overlay — only visible on mobile when drawer is open */}
+      <div
+        className={`cobb-sidebar-overlay${open ? ' cobb-open' : ''}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-      {/* EXERCISES */}
-      <Section>
-        <Label>{labels.dl2}</Label>
-        <NavLink href={`/exercises/scoliosis-exercises.html?lang=${exLang}`} icon="🧘" name={labels.dn3} sub={labels.ds3} />
-        <NavLink href={`/exercises/flatfoot-exercises.html?lang=${exLang}`} icon="👟" name={labels.dn4} sub={labels.ds4} />
-      </Section>
+      <div className={`cobb-sidebar${open ? ' cobb-open' : ''}`} style={{
+        width: 210, minWidth: 210,
+        background: '#090e12',
+        borderInlineEnd: '1px solid rgba(255,255,255,.08)',
+        padding: '12px 0',
+        position: 'fixed',
+        top: 60,
+        insetInlineStart: 0,
+        height: 'calc(100vh - 60px)',
+        overflowY: 'auto',
+        zIndex: 50,
+      }}>
+        {/* Mobile close button */}
+        <button
+          className="cobb-hamburger"
+          onClick={onClose}
+          aria-label="Kapat"
+          style={{
+            position: 'absolute', top: 10, insetInlineEnd: 10,
+            background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.12)',
+            borderRadius: 6, color: '#7a8fa0', fontSize: 18,
+            width: 32, height: 32, cursor: 'pointer',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >✕</button>
 
-      {/* FOR DOCTORS */}
-      <Section>
-        <Label>{labels.dl3}</Label>
-        <NavLink href="/info-scoliosis.html" icon="🩺" name={labels.dn5} sub={labels.ds5} />
-        <NavLink href="/info-flatfoot.html"  icon="🩺" name={labels.dn6} sub={labels.ds6} />
-      </Section>
+        {/* X-RAY ANALYSIS */}
+        <Section>
+          <Label>{labels.dl1}</Label>
+          <NavBtn active={isSpine} activeClass="spine" onClick={() => handleModality('spine')} icon="🦴" name={labels.dn1} sub={labels.ds1} />
+          <NavBtn active={isFoot}  activeClass="foot"  onClick={() => handleModality('foot')}  icon="🦶" name={labels.dn2} sub={labels.ds2} />
+        </Section>
 
-      {/* FOR PATIENTS */}
-      <Section>
-        <Label>{labels.dl4}</Label>
-        <NavLink href="/info-scoliosis-patient.html" icon="👤" name={labels.dn7} sub={labels.ds7} />
-        <NavLink href="/info-flatfoot-patient.html"  icon="👤" name={labels.dn8} sub={labels.ds8} />
-      </Section>
+        {/* EXERCISES */}
+        <Section>
+          <Label>{labels.dl2}</Label>
+          <NavLink href={`/exercises/scoliosis-exercises.html?lang=${exLang}`} icon="🧘" name={labels.dn3} sub={labels.ds3} onClick={onClose} />
+          <NavLink href={`/exercises/flatfoot-exercises.html?lang=${exLang}`}  icon="👟" name={labels.dn4} sub={labels.ds4} onClick={onClose} />
+        </Section>
 
-      {/* VALIDATION */}
-      <Section>
-        <Label>{labels.dl5}</Label>
-        <NavLink href="/validation.html" icon="📊" name={labels.dnVal} sub={labels.dsVal} />
-        <NavLink href="/tests.html"      icon="🧪" name={lang==='tr'?'Unit Testler':lang==='ar'?'اختبارات الوحدة':'Unit Tests'} sub="Cobb · geometry" />
-      </Section>
-    </div>
+        {/* FOR DOCTORS */}
+        <Section>
+          <Label>{labels.dl3}</Label>
+          <NavLink href="/info-scoliosis.html" icon="🩺" name={labels.dn5} sub={labels.ds5} onClick={onClose} />
+          <NavLink href="/info-flatfoot.html"  icon="🩺" name={labels.dn6} sub={labels.ds6} onClick={onClose} />
+        </Section>
+
+        {/* FOR PATIENTS */}
+        <Section>
+          <Label>{labels.dl4}</Label>
+          <NavLink href="/info-scoliosis-patient.html" icon="👤" name={labels.dn7} sub={labels.ds7} onClick={onClose} />
+          <NavLink href="/info-flatfoot-patient.html"  icon="👤" name={labels.dn8} sub={labels.ds8} onClick={onClose} />
+        </Section>
+
+        {/* VALIDATION */}
+        <Section>
+          <Label>{labels.dl5}</Label>
+          <NavLink href="/validation.html" icon="📊" name={labels.dnVal} sub={labels.dsVal} onClick={onClose} />
+          <NavLink href="/tests.html" icon="🧪" name={lang==='tr'?'Unit Testler':lang==='ar'?'اختبارات الوحدة':'Unit Tests'} sub="Cobb · geometry" onClick={onClose} />
+        </Section>
+      </div>
+    </>
   );
 };
 
@@ -106,7 +128,6 @@ const NavBtn: React.FC<NavBtnProps> = ({ active, activeClass, onClick, icon, nam
     <button onClick={onClick} style={{
       display:'flex', alignItems:'center', gap:10, padding:'11px 16px',
       fontSize:14, width:'100%', textAlign:'start', border:'none',
-      // Use logical border: left in LTR, right in RTL
       borderInlineStart: active ? `3px solid ${col}` : '3px solid transparent',
       background: active ? (activeClass==='spine'?'rgba(0,200,83,.1)':'rgba(33,150,243,.1)') : 'none',
       color: active ? col : '#7a8fa0',
@@ -125,9 +146,9 @@ const NavBtn: React.FC<NavBtnProps> = ({ active, activeClass, onClick, icon, nam
   );
 };
 
-interface NavLinkProps { href:string; icon:string; name:string; sub:string; }
-const NavLink: React.FC<NavLinkProps> = ({ href, icon, name, sub }) => (
-  <a href={href} target="_blank" rel="noreferrer" style={{
+interface NavLinkProps { href:string; icon:string; name:string; sub:string; onClick?: () => void; }
+const NavLink: React.FC<NavLinkProps> = ({ href, icon, name, sub, onClick }) => (
+  <a href={href} target="_blank" rel="noreferrer" onClick={onClick} style={{
     display:'flex', alignItems:'center', gap:10, padding:'11px 16px',
     fontSize:14, color:'#7a8fa0', textDecoration:'none',
     borderInlineStart:'3px solid transparent', transition:'background .12s, color .12s',
