@@ -102,9 +102,53 @@ body.light-mode select, body.light-mode input {
 .cobb-sidebar       { display: block; }
 .cobb-mobile-tabs   { display: none; }
 .cobb-content       { margin-inline-start: 210px; }
+.cobb-hamburger     { display: none; }
+.cobb-sidebar-overlay { display: none; }
+
+/* Prevent horizontal scroll on all screen sizes */
+html, body          { overflow-x: hidden; max-width: 100%; }
 
 @media (max-width: 768px) {
-  .cobb-sidebar     { display: none !important; }
-  .cobb-mobile-tabs { display: flex !important; }
+  /* Hamburger button visible */
+  .cobb-hamburger { display: flex !important; }
+
+  /* Sidebar becomes a slide-in drawer */
+  .cobb-sidebar {
+    transform: translateX(-110%);
+    transition: transform 0.25s cubic-bezier(.4,0,.2,1);
+    z-index: 200 !important;
+    top: 0 !important;
+    height: 100vh !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,.7);
+  }
+  /* RTL: slide from right */
+  [dir="rtl"] .cobb-sidebar { transform: translateX(110%); }
+
+  .cobb-sidebar.cobb-open {
+    transform: translateX(0) !important;
+  }
+
+  /* Dim overlay behind open drawer */
+  .cobb-sidebar-overlay {
+    display: block;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0);
+    pointer-events: none;
+    z-index: 199;
+    transition: background 0.25s ease;
+  }
+  .cobb-sidebar-overlay.cobb-open {
+    background: rgba(0,0,0,0.6);
+    pointer-events: auto;
+  }
+
+  /* Content full width */
+  .cobb-mobile-tabs { display: none !important; }
   .cobb-content     { margin-inline-start: 0 !important; }
+
+  /* Prevent any child from overflowing viewport */
+  .cobb-content > * { max-width: 100vw; box-sizing: border-box; }
+
+  /* Hide nav AI chip on very small screens to save space */
+  .cobb-aichip { display: none; }
 }
