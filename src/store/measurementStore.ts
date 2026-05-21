@@ -104,11 +104,15 @@ export interface AppState {
   resetAll:          () => void;
 }
 
+function safeStorage(fn: () => string | null, fallback: string | null = null): string | null {
+  try { return fn(); } catch { return fallback; }
+}
+
 export const useMeasurementStore = create<AppState>((set) => ({
   modality:         'spine',
-  language:         (localStorage.getItem('cobbai_lang') as AppLanguage) ?? 'tr',
-  consentGiven:     sessionStorage.getItem('cobbai_role') === 'doctor',
-  onboardingDone:   !!localStorage.getItem('cobbai_onboard'),
+  language:         (safeStorage(() => localStorage.getItem('cobbai_lang')) as AppLanguage) ?? 'tr',
+  consentGiven:     safeStorage(() => sessionStorage.getItem('cobbai_role')) === 'doctor',
+  onboardingDone:   !!safeStorage(() => localStorage.getItem('cobbai_onboard')),
   loadedImage:      null, qualityReport:    null, isPreprocessing:  false,
   isAnalyzing:      false,
   spineResult:      null, processedSpine:   null, footResult:       null,
@@ -119,10 +123,10 @@ export const useMeasurementStore = create<AppState>((set) => ({
   showReport: false, showComparison: false, showHistory: false,
   doctorNotes: '',
   history: [],
-  lightMode: localStorage.getItem('cobbai_theme') === 'light',
+  lightMode: safeStorage(() => localStorage.getItem('cobbai_theme')) === 'light',
 
   setModality: (m) => set({ modality:m, spineResult:null, processedSpine:null, footResult:null, correction:null, showCorrection:false }),
-  setLanguage: (l) => { localStorage.setItem('cobbai_lang', l); set({ language:l }); },
+  setLanguage: (l) => { try { localStorage.setItem('cobbai_lang', l); } catch { /* quota */ } set({ language:l }); },
   setConsent:  (v) => set({ consentGiven:v }),
   setOnboardingDone: (v) => { if(v) { try { localStorage.setItem('cobbai_onboard','1'); } catch { /* quota */ } } set({ onboardingDone:v }); },
 
@@ -155,7 +159,7 @@ export const useMeasurementStore = create<AppState>((set) => ({
 
   toggleTheme: () => set(s => {
     const next = !s.lightMode;
-    localStorage.setItem('cobbai_theme', next?'light':'dark');
+    try { localStorage.setItem('cobbai_theme', next?'light':'dark'); } catch { /* quota */ }
     document.body.classList.toggle('light-mode', next);
     return { lightMode:next };
   }),
