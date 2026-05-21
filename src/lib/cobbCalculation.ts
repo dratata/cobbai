@@ -182,10 +182,34 @@ export interface ProcessedSpineResult {
  * the superior corners (upper) and inferior corners (lower) instead of using
  * the AI-supplied slope metadata. This reduces endplate drift.
  */
-/** Tilt of a line in image Y-pixels (larger = more tilted) */
-function lineTilt(l: NormLine): number { return Math.abs(l.y2 - l.y1); }
+/**
+ * Reconstruct an endplate line using the AI's measured slope and the
+ * horizontal extent from the corner coordinates.
+ *
+ * Why: The AI reports both corner positions (for the vertebra box) and a
+ * slope angle (for the Cobb measurement). The drawn endplate line should
+ * exactly reflect the slope the AI measured — not the raw corner-to-corner
+ * angle, which can differ due to small corner placement errors.
+ *
+ * Method: keep x1, x2 from the base line (corners); compute y1, y2 by
+ * applying tan(slopeDeg) around the vertical midpoint of the line.
+ */
+function applyAISlope(base: NormLine, slopeDeg: number): NormLine {
+  const { x1, x2 } = base;
+  const midY    = (base.y1 + base.y2) / 2;       // anchor at vertical midpoint
+  const halfDx  = (x2 - x1) / 2;
+  const rad     = slopeDeg * Math.PI / 180;
+  return {
+    x1,
+    y1: midY - halfDx * Math.tan(rad),
+    x2,
+    y2: midY + halfDx * Math.tan(rad),
+  };
+}
+
 
 export function normaliseCurveEndplates(curve: CurveResult): CurveResult {
+  // Build base lines from corner coordinates
   const upperFromCorners: NormLine | null = curve.upper_corners
     ? { x1: curve.upper_corners.ul[0], y1: curve.upper_corners.ul[1],
         x2: curve.upper_corners.ur[0], y2: curve.upper_corners.ur[1] }
@@ -195,20 +219,34 @@ export function normaliseCurveEndplates(curve: CurveResult): CurveResult {
         x2: curve.lower_corners.lr[0], y2: curve.lower_corners.lr[1] }
     : null;
 
-  // Prefer corners when they are valid AND more tilted than the direct line
-  // (nearly-horizontal direct lines are a common AI error).
-  const pickBest = (direct: NormLine, fromCorners: NormLine | null): NormLine => {
-    if (!fromCorners || !isValidNormLine(fromCorners)) return direct;
-    if (!isValidNormLine(direct)) return fromCorners;
-    // If corners give at least 0.008 more tilt, prefer them
-    return lineTilt(fromCorners) >= lineTilt(direct) - 0.005 ? fromCorners : direct;
-  };
+  // Candidate base lines (corners preferred over direct AI-supplied line)
+  const upperBase = (upperFromCorners && isValidNormLine(upperFromCorners))
+    ? upperFromCorners
+    : (isValidNormLine(curve.upper_line) ? curve.upper_line : null);
 
-  return {
-    ...curve,
-    upper_line: pickBest(curve.upper_line, upperFromCorners),
-    lower_line: pickBest(curve.lower_line, lowerFromCorners),
-  };
+  const lowerBase = (lowerFromCorners && isValidNormLine(lowerFromCorners))
+    ? lowerFromCorners
+    : (isValidNormLine(curve.lower_line) ? curve.lower_line : null);
+
+  // Check whether the AI provided meaningful (non-zero) slope values
+  const hasSlopes =
+    typeof curve.upper_slope_deg === 'number' &&
+    typeof curve.lower_slope_deg === 'number' &&
+    !(curve.upper_slope_deg === 0 && curve.lower_slope_deg === 0);
+
+  // If AI supplied slope angles, rebuild lines so the drawn endplate EXACTLY
+  // matches the angle the AI measured (same horizontal span, AI-corrected tilt).
+  // This ensures the displayed Cobb arc is geometrically consistent with the
+  // AI's cobb_angle = |upper_slope - lower_slope|.
+  const upper_line = upperBase
+    ? (hasSlopes ? applyAISlope(upperBase, curve.upper_slope_deg!) : upperBase)
+    : curve.upper_line;
+
+  const lower_line = lowerBase
+    ? (hasSlopes ? applyAISlope(lowerBase, curve.lower_slope_deg!) : lowerBase)
+    : curve.lower_line;
+
+  return { ...curve, upper_line, lower_line };
 }
 
 /**
