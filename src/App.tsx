@@ -375,10 +375,6 @@ const App: React.FC = () => {
           parsed.outcome
         );
         store.addToHistory({ id: Date.now().toString(), timestamp: new Date().toISOString(), modality:'spine', result: parsed.result, patientAge: store.patientAge, patientGender: store.patientGender });
-        // Surgimap-style: auto-open the endplate correction panel after analysis.
-        // The physician immediately sees AI-suggested draggable handles and can
-        // drag them to the correct position if the AI was wrong.
-        store.setShowCorrection(true);
       } else {
         const foot = safeParseFootResult(rawJson);
         if (!foot) {
