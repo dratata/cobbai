@@ -2,6 +2,10 @@ import React, { useRef, useEffect, useState } from 'react';
 import type { SpineAnalysisResult, FootAnalysisResult } from '@/types';
 import type { Translations } from '@/lib/i18n';
 
+function esc(s: string): string {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 interface ReportModalProps {
   open: boolean;
   onClose: () => void;
@@ -38,7 +42,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   const handlePrint = () => {
     const content = contentRef.current?.innerHTML ?? '';
     const win = window.open('', '_blank', 'width=800,height=900');
-    if (!win) return;
+    if (!win) { alert('Popup engellendi. Tarayıcı ayarlarından popup iznini etkinleştirin.'); return; }
     win.document.write(`<!DOCTYPE html><html><head><title>CobbAI Rapor</title><style>
       body{margin:24px;font-family:Georgia,serif;color:#111;font-size:13px;line-height:1.6}
       h1{font-size:20px;margin-bottom:4px} h2{font-size:15px;margin:16px 0 6px;border-bottom:1px solid #ccc;padding-bottom:4px}
@@ -145,9 +149,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       <p style="color:#555;font-size:12px">${date} · ${time} · cobbai.vercel.app</p>
       <h2>Hasta Bilgileri</h2>
       <table>
-        <tr><th>Yaş</th><td>${patientAge||'—'}</td><th>Cinsiyet</th><td>${patientGender||'—'}</td></tr>
-        <tr><th>Görüntü Kalitesi</th><td>${spineResult.image_quality}</td><th>Güven</th><td>${spineResult.measurement_confidence}</td></tr>
-        <tr><th>Vertebra Sayısı</th><td>${spineResult.vertebrae_detected}</td><th>Görüş</th><td>${spineResult.view_type}</td></tr>
+        <tr><th>Yaş</th><td>${esc(patientAge||'—')}</td><th>Cinsiyet</th><td>${esc(patientGender||'—')}</td></tr>
+        <tr><th>Görüntü Kalitesi</th><td>${esc(spineResult.image_quality)}</td><th>Güven</th><td>${esc(spineResult.measurement_confidence)}</td></tr>
+        <tr><th>Vertebra Sayısı</th><td>${spineResult.vertebrae_detected}</td><th>Görüş</th><td>${esc(spineResult.view_type)}</td></tr>
       </table>
       <h2>Ölçüm Sonuçları</h2>
       <table>
@@ -165,15 +169,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           </tr>`).join('')}
       </table>
       <h2>Klinik Değerlendirme</h2>
-      <p>${spineResult.overall_description||'—'}</p>
+      <p>${esc(spineResult.overall_description||'—')}</p>
       <h2>Yaşa Göre Öneri</h2>
-      <p>${(spineResult.age_based_recommendation||'—').replace(/\n/g,'<br>')}</p>
+      <p>${esc(spineResult.age_based_recommendation||'—').replace(/\n/g,'<br>')}</p>
       <h2>Tedavi Planı</h2>
-      <p>${(spineResult.treatment_plan||'—').replace(/\n/g,'<br>')}</p>
+      <p>${esc(spineResult.treatment_plan||'—').replace(/\n/g,'<br>')}</p>
       <h2>Takip Programı</h2>
-      <p>${spineResult.followup_plan||'—'}</p>
-      ${spineResult.imaging_indications && spineResult.imaging_indications!=='None' ? `<h2>Ek Tetkik Endikasyonları</h2><p>${spineResult.imaging_indications}</p>` : ''}
-      ${notes ? `<h2>Hekim Notu</h2><p>${notes}</p>` : ''}
+      <p>${esc(spineResult.followup_plan||'—')}</p>
+      ${spineResult.imaging_indications && spineResult.imaging_indications!=='None' ? `<h2>Ek Tetkik Endikasyonları</h2><p>${esc(spineResult.imaging_indications)}</p>` : ''}
+      ${notes ? `<h2>Hekim Notu</h2><p>${esc(notes)}</p>` : ''}
       <div class="disclaimer">
         ⚕ Bu rapor CobbAI yapay zeka analizi ile oluşturulmuştur. Tıbbi tanı yerine geçmez.
         Kesin tanı ve tedavi için lisanslı FTR Uzman Hekimine başvurunuz.
@@ -188,8 +192,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       <p style="color:#555;font-size:12px">${date} · ${time} · cobbai.vercel.app</p>
       <h2>Hasta Bilgileri</h2>
       <table>
-        <tr><th>Yaş</th><td>${patientAge||'—'}</td><th>Cinsiyet</th><td>${patientGender||'—'}</td></tr>
-        <tr><th>Ayak</th><td>${footResult.foot_side}</td><th>Güven</th><td>${footResult.measurement_confidence}</td></tr>
+        <tr><th>Yaş</th><td>${esc(patientAge||'—')}</td><th>Cinsiyet</th><td>${esc(patientGender||'—')}</td></tr>
+        <tr><th>Ayak</th><td>${esc(footResult.foot_side)}</td><th>Güven</th><td>${esc(footResult.measurement_confidence)}</td></tr>
       </table>
       <h2>Ölçüm Sonuçları</h2>
       <table>
@@ -198,11 +202,11 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         <tr><th>Şiddet</th><td>${footResult.severity}</td><th>Esneklik</th><td>${footResult.flexibility}</td></tr>
       </table>
       <h2>Klinik Değerlendirme</h2>
-      <p>${footResult.overall_description||'—'}</p>
+      <p>${esc(footResult.overall_description||'—')}</p>
       <h2>Tedavi Planı</h2>
-      <p>${(footResult.treatment_plan||'—').replace(/\n/g,'<br>')}</p>
-      ${footResult.orthotic_recommendations ? `<h2>Ortez Önerileri</h2><p>${footResult.orthotic_recommendations}</p>` : ''}
-      ${notes ? `<h2>Hekim Notu</h2><p>${notes}</p>` : ''}
+      <p>${esc(footResult.treatment_plan||'—').replace(/\n/g,'<br>')}</p>
+      ${footResult.orthotic_recommendations ? `<h2>Ortez Önerileri</h2><p>${esc(footResult.orthotic_recommendations)}</p>` : ''}
+      ${notes ? `<h2>Hekim Notu</h2><p>${esc(notes)}</p>` : ''}
       <div class="disclaimer">⚕ Bu rapor CobbAI yapay zeka analizi ile oluşturulmuştur. Tıbbi tanı yerine geçmez.</div>
     `;
   };

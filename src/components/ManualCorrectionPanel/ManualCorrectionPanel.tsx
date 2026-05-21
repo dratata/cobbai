@@ -62,13 +62,15 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
   // Uses refs (not captured state) to avoid stale-closure issues.
   useEffect(() => {
     if (!imageSrc) return;
+    let cancelled = false;
     const img = new Image();
     img.onload = () => {
+      if (cancelled) return;
       xrayImgRef.current = img;
-      // redrawRef always points to the latest redraw (updated after useCallback below)
       redrawRef.current(linesRef.current, activeRef.current, hoveredRef.current);
     };
     img.src = imageSrc;
+    return () => { cancelled = true; };
   }, [imageSrc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [lines, setLines]   = useState<EditLines>(() => ({

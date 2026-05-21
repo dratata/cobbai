@@ -561,10 +561,11 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
     // 3. window resize — catches orientation flip, browser zoom, devtools toggle
     window.addEventListener('resize', syncSize, { passive: true });
 
-    requestAnimationFrame(syncSize);
+    const rafId = requestAnimationFrame(syncSize);
     return () => {
       obs.disconnect();
       window.removeEventListener('resize', syncSize);
+      cancelAnimationFrame(rafId);
     };
   }, [draw]);
 

@@ -11,7 +11,7 @@
  *   - All coordinate values are within [0, 1]
  *   - upper_line is above lower_line (in image space)
  *   - All required fields are present
- *   - Cobb angle is within physiological range [0, 90]
+ *   - Cobb angle is within physiological range [0, 120]
  */
 
 import { isValidNormLine } from '@/lib/lineGeometry';
@@ -42,8 +42,8 @@ function validateCurve(curve: unknown, idx: number): ValidationOutcome {
     errors.push(`${prefix}: cobb_angle is missing or not a number`);
   } else {
     const deg = c['cobb_angle'] as number;
-    if (deg < 0 || deg > 90) {
-      warnings.push(`${prefix}: cobb_angle ${deg}° is outside physiological range [0, 90]`);
+    if (deg < 0 || deg > 120) {
+      warnings.push(`${prefix}: cobb_angle ${deg}° is outside physiological range [0, 120]`);
     }
   }
 

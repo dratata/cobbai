@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { ProcessedSpineResult } from '@/lib/cobbCalculation';
 import type { SpineAnalysisResult } from '@/types';
 import type { Translations } from '@/lib/i18n';
 import { estimateProgressionRisk } from '@/lib/cobbCalculation';
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 interface SpineResultsProps {
   processed: ProcessedSpineResult;
@@ -26,7 +30,7 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
 }) => {
   const cf   = raw.measurement_confidence ?? 'medium';
   const cfCol = { high:'#00c853', medium:'#f0a045', low:'#e05555' }[cf] ?? '#f0a045';
-  const ts   = new Date().toLocaleString();
+  const ts   = useMemo(() => new Date().toLocaleString(), []);
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -226,7 +230,7 @@ const RecCard: React.FC<{ ico:string; title:string; body:string }> = ({ ico, tit
   <div style={{ background:'#0e1419', padding:'1.1rem' }}>
     <div style={{ fontSize:18, marginBottom:6 }}>{ico}</div>
     <div style={{ fontSize:10, letterSpacing:'1px', color:'#00c853', marginBottom:7, fontWeight:700 }}>{title}</div>
-    <div style={{ fontSize:14, color:'#7a8fa0', lineHeight:1.65 }} dangerouslySetInnerHTML={{ __html: (body||'—').replace(/\n/g,'<br/>') }}/>
+    <div style={{ fontSize:14, color:'#7a8fa0', lineHeight:1.65 }} dangerouslySetInnerHTML={{ __html: escapeHtml(body||'—').replace(/\n/g,'<br/>') }}/>
   </div>
 );
 
