@@ -262,8 +262,9 @@ function recoverJSON(raw, finishReason) {
 }
 
 // ─── Prompt ───────────────────────────────────────────────────────────────
-// MEASUREMENT-ONLY. No clinical text = no literal newlines = no JSON errors.
-// Clinical recommendations are generated locally in clinicalRules.ts.
+// LANDMARK-ONLY. The application computes all angles, severity, and clinical
+// recommendations locally. The AI's only job: identify which vertebrae and
+// WHERE their corners are.
 
 function buildPrompt(lang, age, gender) {
   const pa = age    ? (lang==='tr'?'Hasta yaşı: '+age  :lang==='ar'?'العمر: '+age  :'Age: '+age)    : '';
@@ -271,149 +272,114 @@ function buildPrompt(lang, age, gender) {
 
   if (lang === 'tr') return `Sen SRS/SOSORT 2024 omurga radyologusun. ${pa}${pg}
 
-COBB 1948 ÖLÇÜM PROTOKOLÜ (Caesarendra 2022 ICC=0.995 + Maeda 2023):
+GÖREVİN YALNIZCA VERTEBRA TANIMLAMA VE KÖŞELERİNİ İŞARETLEMEKTİR.
+Cobb açısını hesaplama — uygulama bunu lokal geometri ile kendisi hesaplıyor.
 
-1. GÖRÜNTÜ KALİTESİ: Ayakta PA/AP tam omurga? image_quality: good/poor/unacceptable
+ADIM 1 — GÖRÜNTÜ KALİTESİ
+  Ayakta PA/AP tam omurga? image_quality: good / poor / unacceptable
 
-2. KOORDİNAT SİSTEMİ: Sol-üst=(0.0, 0.0) | Sağ-alt=(1.0, 1.0)
-   17 VERTEBRA (T1-L5), her biri için 4 köşe:
-   ul=üst-sol, ur=üst-sağ, ll=alt-sol, lr=alt-sağ (GERÇEK KEMIK YÜZEYLERİ)
+ADIM 2 — KOORDİNAT SİSTEMİ
+  Sol-üst=(0.0, 0.0) | Sağ-alt=(1.0, 1.0). Tüm değerler bu aralıkta.
 
-3. APEKS VERTEBRA: Vertebral colonun orta çizgisinden en fazla yatay sapan vertebra.
+ADIM 3 — 3 VERTEBRAYI BELİRLE VE KÖŞELERİNİ İŞARETLE
 
-4. UÇ VERTEBRALARı BELİRLE (kritik adım):
-   ÜST UÇ = Apeksin üstündeki eğrinin en üst vertebrası: üst kenar eğimi komşulardan >= 5° fazla olan.
-   ALT UÇ = Apeksin altındaki eğrinin en alt vertebrası: alt kenar eğimi komşulardan >= 5° fazla olan.
+  A) APEKS: Orta çizgiden en fazla yatay sapan vertebra.
+     apex_x, apex_y: apeksin merkez koordinatı.
 
-5. ENDPLATE ÇİZGİLERİ (Cobb standardı):
-   upper_line = ÜST UÇ vertebranın SUPERIOR (ÜST) ENDPLATE'i
-     → x1=ul[0], y1=ul[1] (üst-sol köşe), x2=ur[0], y2=ur[1] (üst-sağ köşe)
-   lower_line = ALT UÇ vertebranın INFERIOR (ALT) ENDPLATE'i
-     → x1=ll[0], y1=ll[1] (alt-sol köşe), x2=lr[0], y2=lr[1] (alt-sağ köşe)
+  B) ÜST UÇ VERTEBRa: Apeksin üstündeki eğrinin en üst vertebrası.
+     Üst kenarı (SUPERIOR endplate), komşu vertebralardan >= 5° daha eğik olmalı.
+     upper_corners: Bu vertebranın 4 köşesi → ul, ur, ll, lr
+       ul=[üst-sol x,y]  ur=[üst-sağ x,y]  ll=[alt-sol x,y]  lr=[alt-sağ x,y]
 
-   ZORUNLU KURALLAR:
-   ✓ upper_line Y koordinatları < lower_line Y koordinatları (üst çizgi görüntünün üstünde)
-   ✓ Çizgiler EĞİK olmalı: |y2 - y1| >= 0.02 (yatay çizgi = YANLIŞ)
-   ✓ İki çizgi birbirinden UZAKLAŞMALI (Cobb açısını oluşturan açık taraf konveks tarafa bakmalı)
-   ✓ cobb_angle = |upper_slope_deg - lower_slope_deg|, 3° hata payı içinde olmalı
+  C) ALT UÇ VERTEBRA: Apeksin altındaki eğrinin en alt vertebrası.
+     Alt kenarı (INFERIOR endplate), komşu vertebralardan >= 5° daha eğik olmalı.
+     lower_corners: Bu vertebranın 4 köşesi → ul, ur, ll, lr
 
-6. SINIFLANDIRMA: thoracic/thoracolumbar/lumbar | normal<10/mild 10-24/moderate 25-44/severe>=45
-   Nash-Moe rotasyon: 0/I/II/III/IV | coronal_balance: balanced/left_shift/right_shift
+  KRİTİK: Koordinatlar GERÇEK KEMIK YÜZEYİ üzerinde olmalı.
+  upper_corners.ul/ur (üst vertebranın üst kenarı) görüntünün ÜSTÜNDE olmalı.
+  lower_corners.ll/lr (alt vertebranın alt kenarı) görüntünün ALTINDA olmalı.
 
-7. warnings: KISA string listesi (maksimum 5 kelime her biri). UZUN METİN YAZMA.`;
+ADIM 4 — GENEL BİLGİLER
+  convexity_direction: right / left (hangi tarafa konveks)
+  curve_location: thoracic / thoracolumbar / lumbar
+  coronal_balance: balanced / left_shift / right_shift`;
 
   if (lang === 'ar') return `أنت طبيب أشعة متخصص (SRS/SOSORT 2024). ${pa}${pg}
 
-بروتوكول القياس (Caesarendra 2022 + Maeda 2023 + Cobb 1948):
-1. صورة PA/AP واقفة. image_quality: good/poor/unacceptable
-2. 17 فقرة × 4 زوايا. إحداثيات: (0,0)-(1,1).
-3. فقرة الذروة: أكثر انحرافاً جانبياً.
-4. الفقرات الطرفية: أقصى ميل فوق/تحت الذروة.
-5. upper_line=صفيحة علوية | lower_line=صفيحة سفلية. cobb=|upper_slope-lower_slope|.
-   مهم: الخطوط يجب أن تكون مائلة (|y2-y1|>=0.02). لا تكتب نصوصاً طويلة.
-6. التصنيف والتوازن.
-7. warnings: قائمة قصيرة.`;
+مهمتك فقط: تحديد الفقرات وتحديد إحداثيات زواياها.
+لا تحسب زاوية Cobb — التطبيق يحسبها محلياً.
 
-  return `You are a spinal deformity radiologist following SRS/SOSORT 2024 standards. ${pa}${pg}
+1. image_quality: good/poor/unacceptable
+2. الإحداثيات: (0,0) أعلى يسار، (1,1) أسفل يمين.
+3. حدد: فقرة الذروة (apex_x, apex_y) + الفقرة العلوية الطرفية (upper_corners) + الفقرة السفلية الطرفية (lower_corners).
+   لكل فقرة: ul=[أعلى يسار], ur=[أعلى يمين], ll=[أسفل يسار], lr=[أسفل يمين]
+4. convexity_direction, curve_location, coronal_balance.`;
 
-COBB 1948 MEASUREMENT PROTOCOL (Caesarendra 2022 ICC=0.995 + Maeda 2023 ICC=0.973):
+  return `You are a spinal radiologist. ${pa}${pg}
+
+YOUR ONLY TASK: Identify vertebral landmarks in this spine X-ray.
+DO NOT compute Cobb angles — the application handles all angle calculation locally.
 
 STEP 1 — IMAGE QUALITY
-  Standing PA/AP full-spine X-ray? Set image_quality: good / poor / unacceptable
+  Is this a standing PA/AP full-spine X-ray?
+  image_quality: good / poor / unacceptable
 
 STEP 2 — COORDINATE SYSTEM
-  Origin (0,0) = TOP-LEFT corner of image. (1,1) = BOTTOM-RIGHT.
-  Identify 17 vertebrae (T1-L5). For each vertebra, mark 4 corners on actual bone surfaces:
-    ul = upper-left (superior-left)   ur = upper-right (superior-right)
-    ll = lower-left (inferior-left)   lr = lower-right (inferior-right)
+  Origin (0,0) = TOP-LEFT of image. (1,1) = BOTTOM-RIGHT. All values in [0,1].
 
-STEP 3 — APEX VERTEBRA
-  The vertebra with the GREATEST lateral displacement from the mid-sagittal line.
+STEP 3 — IDENTIFY AND MARK 3 VERTEBRAE
 
-STEP 4 — END VERTEBRAE (critical — follow exactly)
-  SUPERIOR END VERTEBRA = The most cranial vertebra in the curve whose SUPERIOR (TOP) endplate
-    tilts MORE than any vertebra above it in the curve. Tilt difference must be ≥5°.
-  INFERIOR END VERTEBRA = The most caudal vertebra in the curve whose INFERIOR (BOTTOM) endplate
-    tilts MORE than any vertebra below it in the curve. Tilt difference must be ≥5°.
+  A) APEX VERTEBRA — most laterally displaced from the mid-sagittal line.
+     Set apex_x, apex_y to its center coordinates.
 
-STEP 5 — ENDPLATE LINES (Cobb standard)
-  upper_line = SUPERIOR endplate of the SUPERIOR END VERTEBRA
-    x1 = ul[0],  y1 = ul[1]  (upper-left corner of that vertebra)
-    x2 = ur[0],  y2 = ur[1]  (upper-right corner of that vertebra)
+  B) SUPERIOR END VERTEBRA — most cranial vertebra in the curve whose SUPERIOR
+     (top) endplate tilts ≥5° more than any vertebra above it in the curve.
+     Provide upper_corners: the 4 corners of THIS vertebra:
+       ul = [upper-left x, y]    ur = [upper-right x, y]
+       ll = [lower-left x, y]    lr = [lower-right x, y]
+     CRITICAL: ul/ur must be on the actual TOP bone edge of this vertebra.
 
-  lower_line = INFERIOR endplate of the INFERIOR END VERTEBRA
-    x1 = ll[0],  y1 = ll[1]  (lower-left corner of that vertebra)
-    x2 = lr[0],  y2 = lr[1]  (lower-right corner of that vertebra)
+  C) INFERIOR END VERTEBRA — most caudal vertebra in the curve whose INFERIOR
+     (bottom) endplate tilts ≥5° more than any vertebra below it in the curve.
+     Provide lower_corners: the 4 corners of THIS vertebra:
+       ul = [upper-left x, y]    ur = [upper-right x, y]
+       ll = [lower-left x, y]    lr = [lower-right x, y]
+     CRITICAL: ll/lr must be on the actual BOTTOM bone edge of this vertebra.
 
-  MANDATORY CHECKS before outputting:
-  ✓ upper_line Y-values < lower_line Y-values (upper line is HIGHER in the image)
-  ✓ Both lines MUST be tilted: |y2 - y1| ≥ 0.02 (horizontal lines are WRONG)
-  ✓ The two lines DIVERGE toward the convex side of the curve
-  ✓ cobb_angle = |upper_slope_deg − lower_slope_deg|, within 3° of geometric calculation
-  ✓ If endplates obscured → use pedicle method, set measurement_method="pedicle"
+  COORDINATE PRECISION: Place corners on the visible cortical bone surface.
+  Superior end corners (ul/ur of upper_corners) MUST have smaller Y values than
+  inferior end corners (ll/lr of lower_corners).
 
-  SPATIAL PRECISION: Pay extreme attention to coordinate accuracy. Corner coordinates
-  MUST align with the actual visible bone edge — not the estimated center of the vertebral
-  body. DO NOT interpolate or guess; trace the exact pixel ratios from the image boundaries.
-  A 1% coordinate error in a 400px-wide image = 4px drift = potentially 3-5° Cobb error.
-
-STEP 6 — CLASSIFY
+STEP 4 — CURVE CHARACTERISTICS
+  convexity_direction: right / left
   curve_location: thoracic / thoracolumbar / lumbar
-  severity: normal (<10°) / mild (10-24°) / moderate (25-44°) / severe (≥45°)
-  Nash-Moe rotation: 0 / I / II / III / IV
-  coronal_balance: balanced / left_shift / right_shift
-
-STEP 7 — WARNINGS
-  Short string array only (max 5 words each). NO long text. NO clinical advice.
-  Example: ["image slightly rotated", "L4 endplate unclear"]`;
+  coronal_balance: balanced / left_shift / right_shift`;
 }
 
-// ─── Measurement-only schema (NO clinical text fields) ───────────────────
+// ─── Landmark-only schema ────────────────────────────────────────────────
+// API returns ONLY: which vertebrae + corner coordinates.
+// Cobb angle, severity, clinical recs, intermediate labels → all computed locally.
 //
-// ⚠ CRITICAL: The numeric values in this schema are FORMAT PLACEHOLDERS ONLY.
-// They do NOT represent any real measurement. The AI MUST compute all
-// coordinates and angles from the actual X-ray image — never echo these numbers.
-// The schema only shows field names and JSON structure.
-//
-// Root cause of "always 27.8°" bug: the previous schema used coordinates that
-// produced exactly 27.8° locally (upper_slope ≈ −8.5°, lower_slope ≈ +19.5°).
-// Gemini was returning those example coordinates verbatim while only changing
-// the cobb_angle field — so the local geometry always computed 27.8°.
-// Fix: placeholder coordinates below produce ≈15° locally, making it obvious
-// when the model echoes the template instead of analysing the image.
+// ⚠ ALL COORDINATES ARE ZERO PLACEHOLDERS. Replace with actual bone positions.
 function buildMeasureSchema(isTR, isAR) {
   return {
     is_valid_xray: true,
     image_quality: 'good',
     view_type: 'PA',
-    curve_type: 'single',
-    measurement_confidence: 'high',
-    measurement_method: 'endplate',
-    vertebrae_detected: 17,
     curves: [{
-      id: 1,
-      // ⚠ PLACEHOLDER — measure the actual Cobb angle from the image
-      cobb_angle: 0,
-      curve_location: 'thoracic',
+      // Vertebra level identification — fill with actual names (e.g. "T5", "T12", "T8")
+      upper_vertebra_name: 'T0',
+      lower_vertebra_name: 'T0',
+      apical_vertebra_name: 'T0',
       convexity_direction: 'right',
-      upper_vertebra_name: 'T0',   // ← placeholder, use real vertebra name
-      lower_vertebra_name: 'T0',   // ← placeholder
-      apical_vertebra_name: 'T0',  // ← placeholder
-      rotation_grade: '0',
-      // ⚠ ALL CORNER AND LINE COORDINATES ARE PLACEHOLDERS.
-      // Replace with exact bone-edge pixel ratios from the image.
-      // Returning these placeholder values will produce a WRONG result.
+      curve_location: 'thoracic',
+      // Corner coordinates — MUST be on actual bone cortical surface
       upper_corners: { ul:[0.0,0.0], ur:[0.0,0.0], ll:[0.0,0.0], lr:[0.0,0.0] },
       lower_corners: { ul:[0.0,0.0], ur:[0.0,0.0], ll:[0.0,0.0], lr:[0.0,0.0] },
-      upper_line: { x1:0.0, y1:0.0, x2:0.0, y2:0.0 },
-      lower_line: { x1:0.0, y1:0.0, x2:0.0, y2:0.0 },
-      upper_slope_deg: 0,
-      lower_slope_deg: 0,
       apex_x: 0.0,
       apex_y: 0.0
     }],
-    coronal_balance: 'balanced',
-    warnings: []
+    coronal_balance: 'balanced'
   };
 }
 

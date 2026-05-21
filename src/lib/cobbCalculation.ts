@@ -137,23 +137,21 @@ export function validateAndFinaliseCobb(curve: CurveResult): CobbValidationResul
   }
 
   // ── Step 5: Choose display value ───────────────────────────
-  // ALWAYS display AI-reported Cobb as the primary value.
+  // displayCobb = LOCAL GEOMETRY (computed from corner coordinates).
   //
-  // Rationale: The AI analysed the full X-ray image and reported an angle
-  // based on visual landmark detection. Local geometry cross-checks the
-  // coordinates the AI also returned — but those coordinates can be
-  // imprecise (especially with the zero-placeholder schema fix) and may
-  // not reflect the true clinical angle the radiologist would measure.
+  // Architecture change: API now returns only landmark coordinates (which vertebra
+  // + corner positions). The application computes the Cobb angle deterministically
+  // from those coordinates. This eliminates AI hallucination of the angle and
+  // ensures the measurement is fully reproducible and auditable.
   //
-  // The local geometry value is shown in the audit row ("AI: X° · Lokal: Y°")
-  // so the physician can compare. If the discrepancy > 5°, a warning prompts
-  // manual verification. But the displayed Cobb is the AI reading.
-  const displayCobb = aiReportedCobb;
+  // If geometry fails (invalid/zero lines), geometryCobb = 0 and a warning is shown.
+  // The physician can then use Manual Correction to measure directly.
+  const displayCobb = geometryIsReliable ? geometryCobb : 0;
 
   return {
     displayCobb,
-    aiReportedCobb,
-    geometryCobb:   isNaN(geometryCobb) ? aiReportedCobb : geometryCobb,
+    aiReportedCobb,                                          // kept for audit trail
+    geometryCobb:   isNaN(geometryCobb) ? 0 : geometryCobb, // local geometry
     discrepancyDeg: geometryIsReliable ? discrepancy : 0,
     isConsistent:   geometryIsReliable ? isConsistent : true,
     warnings,

@@ -94,15 +94,15 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
               <Metric val={`${c.upper_vertebra_name??'?'}↓${c.lower_vertebra_name??'?'}`} lbl={t.vert} col="#eef2f7" small />
             </div>
 
-            {/* Geometry cross-check row — only shown when local geometry is available */}
-            {c.validation && c.validation.geometryCobb > 0.5 && (
+            {/* Cobb source row — shown when geometry is available */}
+            {c.validation && c.cobb_angle > 0 && (
               <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,.06)', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', fontSize:11 }}>
-                <span style={{ color:'#4a5a6a', fontFamily:'monospace' }}>
-                  Geometri doğrulama: <span style={{ color: col }}>{c.validation.geometryCobb}°</span>
+                <span style={{ color:'#3a5a4a', fontFamily:'monospace', fontSize:10 }}>
+                  📐 Lokal geometri (köşe koordinatlarından)
                 </span>
-                {!c.validation.isConsistent && c.validation.discrepancyDeg > 5 && (
+                {!c.validation.isConsistent && c.validation.discrepancyDeg > 10 && (
                   <span style={{ padding:'1px 7px', borderRadius:10, background:'rgba(240,160,69,.1)', border:'1px solid rgba(240,160,69,.3)', color:'#f0a045', fontWeight:700 }}>
-                    ⚠ Δ{c.validation.discrepancyDeg.toFixed(1)}° — Koordinatları kontrol edin
+                    ⚠ Koordinatları kontrol edin
                   </span>
                 )}
               </div>

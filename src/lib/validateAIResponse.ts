@@ -37,22 +37,26 @@ function validateCurve(curve: unknown, idx: number): ValidationOutcome {
   }
   const c = curve as Record<string, unknown>;
 
-  // Required fields
-  if (typeof c['cobb_angle'] !== 'number' || !isFinite(c['cobb_angle'] as number)) {
-    errors.push(`${prefix}: cobb_angle is missing or not a number`);
-  } else {
+  // cobb_angle: API no longer required to return this — computed locally from corners.
+  // Accept 0 or missing gracefully; local geometry overrides it in processSpineResult.
+  if (typeof c['cobb_angle'] === 'number' && isFinite(c['cobb_angle'] as number)) {
     const deg = c['cobb_angle'] as number;
-    if (deg < 0 || deg > 90) {
-      warnings.push(`${prefix}: cobb_angle ${deg}° is outside physiological range [0, 90]`);
+    if (deg < 0 || deg > 120) {
+      warnings.push(`${prefix}: cobb_angle ${deg}° is outside physiological range`);
     }
   }
+  // Not a hard error if cobb_angle is missing — local geometry will compute it.
 
-  // Endplate lines
-  if (!isValidNormLine(c['upper_line'])) {
-    errors.push(`${prefix}: upper_line is missing, degenerate, or out-of-range`);
+  // upper_line / lower_line: optional if upper_corners / lower_corners are present.
+  // normaliseCurveEndplates() will derive the lines from corners.
+  // Validate lines only when no corners are provided as fallback.
+  const hasUpperCorners = c['upper_corners'] && typeof c['upper_corners'] === 'object';
+  const hasLowerCorners = c['lower_corners'] && typeof c['lower_corners'] === 'object';
+  if (!hasUpperCorners && !isValidNormLine(c['upper_line'])) {
+    errors.push(`${prefix}: upper_corners and upper_line are both missing/invalid`);
   }
-  if (!isValidNormLine(c['lower_line'])) {
-    errors.push(`${prefix}: lower_line is missing, degenerate, or out-of-range`);
+  if (!hasLowerCorners && !isValidNormLine(c['lower_line'])) {
+    errors.push(`${prefix}: lower_corners and lower_line are both missing/invalid`);
   }
 
   // Geometric sanity: upper endplate should generally be above lower endplate
@@ -150,9 +154,18 @@ function repairCurve(curve: CurveResult): { curve: CurveResult; warnings: string
   const warnings: string[] = [];
   let c = { ...curve };
 
-  // 1. Clamp coordinates
-  c.upper_line = clampLine(c.upper_line) as typeof c.upper_line;
-  c.lower_line = clampLine(c.lower_line) as typeof c.lower_line;
+  // Ensure cobb_angle has a numeric default — local geometry will overwrite it
+  // in processSpineResult. API no longer required to return this field.
+  if (typeof (c as unknown as Record<string,unknown>).cobb_angle !== 'number') {
+    (c as unknown as Record<string,unknown>).cobb_angle = 0;
+  }
+
+  // 1. Clamp line coordinates (only if lines are present; corners may be used instead)
+  if (c.upper_line) c.upper_line = clampLine(c.upper_line) as typeof c.upper_line;
+  if (c.lower_line) c.lower_line = clampLine(c.lower_line) as typeof c.lower_line;
+  // Provide zero-length fallback lines so downstream null-checks don't crash
+  if (!c.upper_line) c.upper_line = { x1:0, y1:0, x2:0, y2:0 };
+  if (!c.lower_line) c.lower_line = { x1:0, y1:0, x2:0, y2:0 };
 
   // 2. Auto-swap if upper line is geometrically below the lower line
   //    (image y-axis: 0 = top of image, 1 = bottom)
@@ -210,8 +223,9 @@ export function safeParseSpineResult(
     is_valid_xray:           r.is_valid_xray ?? false,
     image_quality:           r.image_quality ?? 'poor',
     view_type:               r.view_type ?? 'unknown',
+    // API simplified — these fields now have sensible defaults computed locally
     curve_type:              r.curve_type ?? 'single',
-    measurement_confidence:  r.measurement_confidence ?? 'low',
+    measurement_confidence:  r.measurement_confidence ?? 'medium', // overridden locally
     measurement_method:      r.measurement_method ?? 'endplate',
     vertebrae_detected:      typeof r.vertebrae_detected === 'number' ? r.vertebrae_detected : 0,
     curves:                  repairedCurves,
