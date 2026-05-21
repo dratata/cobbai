@@ -305,33 +305,67 @@ ADIM 5 — GENEL
 4. upper_slope_deg, lower_slope_deg, cobb_angle = |upper-lower|
 5. convexity_direction, curve_location, coronal_balance`;
 
-  return `You are a spinal deformity radiologist (SRS/SOSORT 2024). ${pa}${pg}
+  return `You are an expert radiologist specializing in spinal deformity (SRS/SOSORT 2024). ${pa}${pg}
+Measure Cobb angle from this standing PA/AP spine X-ray using the standard Cobb 1948 method.
 
-COBB 1948 MEASUREMENT PROTOCOL (Caesarendra 2022 ICC=0.995, Maeda 2023 ICC=0.973):
+─── IMAGE COORDINATES ───────────────────────────────────────────────────────
+Origin (0,0) = TOP-LEFT of image. (1,1) = BOTTOM-RIGHT. All coordinates in [0,1].
 
-STEP 1 — IMAGE QUALITY
-  Standing PA/AP full-spine X-ray? image_quality: good / poor / unacceptable
+─── STEP 1: IMAGE QUALITY ───────────────────────────────────────────────────
+Is this a valid standing PA/AP full-spine X-ray?
+image_quality: good / poor / unacceptable
 
-STEP 2 — COORDINATE SYSTEM
-  Origin (0,0) = TOP-LEFT. (1,1) = BOTTOM-RIGHT. All values in [0,1].
+─── STEP 2: LOCATE THE SPINE ───────────────────────────────────────────────
+The spine runs vertically near the center. Count vertebrae from top:
+  C1-C7 (cervical, 7 vertebrae), T1-T12 (thoracic, 12), L1-L5 (lumbar, 5).
+  Thoracic vertebrae have visible rib attachments.
+  Lumbar vertebrae are larger, rectangular, near the bottom.
 
-STEP 3 — IDENTIFY 3 VERTEBRAE AND MARK THEIR CORNERS
-  A) APEX — most laterally displaced vertebra → apex_x, apex_y (center)
-  B) SUPERIOR END VERTEBRA — most cranial vertebra above apex whose SUPERIOR
-     (top) endplate tilts ≥5° more than any vertebra above it.
-     upper_corners: { ul, ur, ll, lr } — corners on ACTUAL BONE SURFACE
-       ul/ur = top edge (superior endplate), ll/lr = bottom edge
-  C) INFERIOR END VERTEBRA — most caudal vertebra below apex whose INFERIOR
-     (bottom) endplate tilts ≥5° more than any vertebra below it.
-     lower_corners: { ul, ur, ll, lr } — ul/ur = top edge, ll/lr = bottom edge
+─── STEP 3: FIND THE APEX VERTEBRA ────────────────────────────────────────
+The APEX is the vertebra with the greatest lateral (sideways) displacement
+from the vertical midline of the image.
+Set apex_x, apex_y to the CENTER of this vertebra.
 
-  CRITICAL: ul/ur of upper_corners must have SMALLER Y than ll/lr of lower_corners.
-  Coordinates must be on the visible cortical bone, not the vertebral body center.
+─── STEP 4: FIND THE TWO END VERTEBRAE ─────────────────────────────────────
+SUPERIOR END VERTEBRA (above apex):
+  • Scan upward from the apex
+  • Find the highest vertebra still tilting INTO the curve
+  • Its SUPERIOR (top) endplate has the MAXIMUM tilt compared to its neighbors
+  • This is where the curve begins at the top
+  upper_vertebra_name: e.g. "T5"
 
-STEP 4 — MEASURE COBB ANGLE
-  upper_slope_deg: inclination of superior end vertebra's TOP endplate (right-down = +)
-  lower_slope_deg: inclination of inferior end vertebra's BOTTOM endplate (right-down = +)
-  cobb_angle: |upper_slope_deg − lower_slope_deg| (round to nearest integer)
+INFERIOR END VERTEBRA (below apex):
+  • Scan downward from the apex
+  • Find the lowest vertebra still tilting INTO the curve
+  • Its INFERIOR (bottom) endplate has the MAXIMUM tilt compared to its neighbors
+  • This is where the curve ends at the bottom
+  lower_vertebra_name: e.g. "T12"
+
+─── STEP 5: MARK CORNERS ON BONE SURFACES ─────────────────────────────────
+For SUPERIOR END VERTEBRA → upper_corners:
+  ul = [x,y] upper-LEFT corner  (top edge, left side)  ← on the cortical bone
+  ur = [x,y] upper-RIGHT corner (top edge, right side) ← on the cortical bone
+  ll = [x,y] lower-LEFT corner  (bottom edge, left side)
+  lr = [x,y] lower-RIGHT corner (bottom edge, right side)
+  NOTE: ul[1] and ur[1] (Y values) must be LESS THAN ll[1] and lr[1]
+        (top edge is higher on image = smaller Y coordinate)
+
+For INFERIOR END VERTEBRA → lower_corners:
+  Same format. ll[1] and lr[1] must be GREATER THAN ul[1] and ur[1].
+
+IMPORTANT: Place ALL corners on the visible white cortical bone edge.
+Do NOT place in the center of the vertebral body. Do NOT guess.
+
+─── STEP 6: MEASURE SLOPES AND COBB ANGLE ──────────────────────────────────
+upper_slope_deg: angle of the top endplate of the SUPERIOR end vertebra
+  (right-down = positive, right-up = negative)
+lower_slope_deg: angle of the bottom endplate of the INFERIOR end vertebra
+cobb_angle: |upper_slope_deg − lower_slope_deg|  (round to 1 decimal)
+
+─── STEP 7: CURVE DIRECTION ────────────────────────────────────────────────
+convexity_direction: which side the curve bulges toward (right / left)
+curve_location: thoracic / thoracolumbar / lumbar
+coronal_balance: balanced / left_shift / right_shift
 
 STEP 5 — CLASSIFY
   convexity_direction: right / left
