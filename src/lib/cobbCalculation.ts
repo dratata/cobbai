@@ -314,8 +314,8 @@ export function estimateProgressionRisk(
 
   if (isFemale) score += 2;
 
-  if (ageYears < 12)  score += 3;
-  else if (ageYears < 15) score += 2;
+  if (ageYears < 12)       score += 3;
+  else if (ageYears <= 15) score += 2;
 
   if (risserStage != null) {
     if (risserStage <= 1) score += 3;

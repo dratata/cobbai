@@ -68,7 +68,8 @@ function sampleImageData(
   const cvs = document.createElement('canvas');
   cvs.width  = targetW;
   cvs.height = targetH;
-  const ctx = cvs.getContext('2d')!;
+  const ctx = cvs.getContext('2d');
+  if (!ctx) return new ImageData(targetW, targetH);
   ctx.drawImage(img, 0, 0, targetW, targetH);
   return ctx.getImageData(0, 0, targetW, targetH);
 }
@@ -215,7 +216,8 @@ export async function preprocessXray(
   const cvs = document.createElement('canvas');
   cvs.width  = w;
   cvs.height = h;
-  const ctx = cvs.getContext('2d')!;
+  const ctx = cvs.getContext('2d');
+  if (!ctx) return { base64: imgSrc.split(',')[1] ?? '', mimeType: 'image/jpeg', width: w, height: h, operations: ops };
   ctx.drawImage(img, 0, 0, w, h);
 
   // ── Histogram stretch ───────────────────────────────────────
@@ -334,7 +336,7 @@ export async function autoCropBlackBorders(
       cropCtx.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
       resolve(cropCanvas.toDataURL('image/jpeg', 0.87));
     };
-    img.onerror = reject;
+    img.onerror = () => reject(new Error('Image load failed'));
     img.src = imgSrc;
   });
 }
@@ -405,7 +407,9 @@ export async function normalizeExifOrientation(url: string): Promise<string> {
         const cvs    = document.createElement('canvas');
         cvs.width    = bitmap.width;
         cvs.height   = bitmap.height;
-        cvs.getContext('2d')!.drawImage(bitmap, 0, 0);
+        const bitmapCtx = cvs.getContext('2d');
+        if (!bitmapCtx) throw new Error('getContext failed');
+        bitmapCtx.drawImage(bitmap, 0, 0);
         bitmap.close?.();
         return cvs.toDataURL('image/jpeg', 0.92);
       } catch {
@@ -494,7 +498,8 @@ function _applyExifRotation(img: HTMLImageElement, orientation: number): string 
   const w   = Math.max(1, Math.round(nw * sf));
   const h   = Math.max(1, Math.round(nh * sf));
   const cvs = document.createElement('canvas');
-  const ctx = cvs.getContext('2d')!;
+  const ctx = cvs.getContext('2d');
+  if (!ctx) return img.src;
   // Orientations 5–8 swap width and height
   if (orientation >= 5) { cvs.width = h; cvs.height = w; }
   else                  { cvs.width = w; cvs.height = h; }

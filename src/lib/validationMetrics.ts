@@ -68,7 +68,8 @@ export function calculateMetrics(cases: ValidationCase[]): ValidationMetrics {
   const ms_c = n * ((mE - grandMean) ** 2 + (mA - grandMean) ** 2) / (2 - 1);
   const ss_e = cases.reduce((s, c) => s + (c.expertCobb - mE - c.aiCobb + mA) ** 2, 0);
   const ms_e = ss_e / ((n - 1) * 1);
-  const icc  = ms_e > 0 ? (ms_r - ms_e) / (ms_r + ms_e + 2 * (ms_c - ms_e) / n) : 0;
+  // ICC(2,1) two-way mixed absolute agreement: (MSR-MSE)/(MSR+(k-1)*MSE+k*(MSC-MSE)/n), k=2
+  const icc  = ms_e > 0 ? (ms_r - ms_e) / (ms_r + (2 - 1) * ms_e + 2 * (ms_c - ms_e) / n) : 0;
 
   const within5deg  = cases.filter(c => Math.abs(c.expertCobb - c.aiCobb) <= 5).length / n * 100;
   const within10deg = cases.filter(c => Math.abs(c.expertCobb - c.aiCobb) <= 10).length / n * 100;
