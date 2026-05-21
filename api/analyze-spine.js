@@ -122,12 +122,14 @@ export default async function handler(req, res) {
 
   try {
     let r = await callGemini();
-    clearTimeout(timeoutId); // ← cancel the 8-s timer now that we have a response
 
-    // Safe JSON parse — Gemini occasionally returns non-JSON on errors
+    // Safe JSON parse — Gemini occasionally returns non-JSON on errors.
+    // clearTimeout is called AFTER r.json() so the 8-s abort also covers body reads
+    // (headers can arrive fast while the body stream stalls).
     let d;
     try { d = await r.json(); }
-    catch { return res.status(502).json({ error: 'Gemini returned non-JSON response. Try again.' }); }
+    catch { clearTimeout(timeoutId); return res.status(502).json({ error: 'Gemini returned non-JSON response. Try again.' }); }
+    clearTimeout(timeoutId); // ← cancel the 8-s timer only after body is fully read
 
     // Return 429 immediately on overload (no sleep — Vercel timeout risk)
     if (!r.ok) {

@@ -127,11 +127,13 @@ Follow this exact JSON schema, write nothing else:`;
 
   try {
     let r = await callGemini();
-    clearTimeout(timeoutId);
 
+    // Fix: clearTimeout called AFTER body read so the 8-s abort also covers
+    // body streaming stalls (headers can arrive fast while body hangs).
     let d;
     try { d = await r.json(); }
-    catch { return res.status(502).json({ error: 'Gemini returned non-JSON response. Try again.' }); }
+    catch { clearTimeout(timeoutId); return res.status(502).json({ error: 'Gemini returned non-JSON response. Try again.' }); }
+    clearTimeout(timeoutId); // cleared AFTER body read — covers streaming body stalls
 
     if (!r.ok) {
       const msg = d?.error?.message || '';
@@ -187,7 +189,13 @@ function sanitizeJSON(str) {
 }
 function recoverJSON(raw, finishReason) {
   try { return { result: JSON.parse(raw) }; } catch {}
+  // Level 1: strip markdown fences and extract first {...last} block
   let clean = raw.replace(/^```json\s*/im,'').replace(/^```\s*/im,'').replace(/```\s*$/im,'').trim();
+  const firstBrace = clean.indexOf('{');
+  const lastBrace  = clean.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    clean = clean.slice(firstBrace, lastBrace + 1);
+  }
   try { return { result: JSON.parse(clean) }; } catch {}
   const sanitized = sanitizeJSON(clean);
   try { return { result: JSON.parse(sanitized) }; } catch {}

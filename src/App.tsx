@@ -94,11 +94,13 @@ const App: React.FC = () => {
   const [cooldownSec, setCooldownSec] = useState(0);
   const cooldownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   // GPT patch: KVKK React state (localStorage stays in sync)
-  const [kvkkAccepted, setKvkkAccepted] = useState(() => localStorage.getItem('cobbai_kvkk') === '1');
+  const [kvkkAccepted, setKvkkAccepted] = useState(() => { try { return localStorage.getItem('cobbai_kvkk') === '1'; } catch { return false; } });
   const [sidebarOpen, setSidebarOpen]   = useState(false);
 
   // Cleanup cooldown interval on unmount
   useEffect(() => () => { if (cooldownRef.current) clearInterval(cooldownRef.current); }, []);
+  // Abort any in-flight Gemini request on unmount
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   // Clear stale cache entries on mount — ensures old hash-collision results
   // (e.g. always "27.8°") are not served from a previous session.
@@ -332,12 +334,13 @@ const App: React.FC = () => {
           setTimeout(() => {
             if (analysisIdRef.current === analysisId) {
               // Only retry if this analysis is still the active one
-              analyzingRef.current = false;
               store.setAnalyzeError(null);
               // Trigger a fresh analysis without force-refresh (use cache if available)
               runAnalysis(forceRefresh);
             }
           }, wait * 1000);
+          // Release debounce lock so user can manually retry during wait period
+          analyzingRef.current = false;
           return;
         }
         store.setAnalyzeError(errData.error ?? (
@@ -911,7 +914,7 @@ const App: React.FC = () => {
                   {store.analyzeError && (
                     <div style={{ padding:'1rem', background:'rgba(224,85,85,.08)', border:'1px solid rgba(224,85,85,.3)', borderRadius:8, color:'#e05555', fontSize:14, lineHeight:1.6, marginBottom:8 }}>
                       ⚠ {store.analyzeError}
-                      <br/><button onClick={() => runAnalysis(true)} style={{ marginTop:12, padding:'8px 20px', background:'#00c853', color:'#000', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>🔄 {store.language==='tr'?'Tekrar Dene':store.language==='ar'?'حاول مجدداً':'Try Again'}</button>
+                      <br/><button onClick={() => handleAnalyzeClick(true)} style={{ marginTop:12, padding:'8px 20px', background:'#00c853', color:'#000', border:'none', borderRadius:8, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>🔄 {store.language==='tr'?'Tekrar Dene':store.language==='ar'?'حاول مجدداً':'Try Again'}</button>
                     </div>
                   )}
 
