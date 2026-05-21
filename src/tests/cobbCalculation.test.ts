@@ -84,15 +84,13 @@ describe('validateAndFinaliseCobb — inconsistent result', () => {
     expect(r.warnings.some(w => w.includes('differ'))).toBe(true);
   });
 
-  it('displayCobb is LOCAL GEOMETRY (API no longer reports angle)', () => {
-    // Architecture change: API now returns only landmark coordinates.
-    // displayCobb = local geometry computed from lines (reliable when lines are valid).
-    // aiReportedCobb is kept for audit but not used for display.
+  it('displayCobb is AI-reported value when AI returns non-zero', () => {
+    // AI measures directly from image — use that as primary display.
+    // Local geometry is a cross-check only.
     const r = validateAndFinaliseCobb(makeCurve({ cobb_angle: 70 }));
-    // Valid lines → geometryIsReliable=true → displayCobb = geometryCobb (~28°)
-    expect(r.displayCobb).toBeLessThan(40);    // local geometry, not AI's 70°
-    expect(r.geometryCobb).toBeLessThan(40);   // same as displayCobb when reliable
-    expect(r.aiReportedCobb).toBe(70);         // kept for reference only
+    expect(r.displayCobb).toBe(70);            // AI value shown
+    expect(r.geometryCobb).toBeLessThan(40);   // local geometry computed separately
+    expect(r.aiReportedCobb).toBe(70);
   });
 });
 

@@ -137,16 +137,19 @@ export function validateAndFinaliseCobb(curve: CurveResult): CobbValidationResul
   }
 
   // ── Step 5: Choose display value ───────────────────────────
-  // displayCobb = LOCAL GEOMETRY (computed from corner coordinates).
+  // Primary = AI-reported cobb_angle (the radiologist's visual measurement).
+  // AI measures directly from the image using visual assessment of endplate tilt —
+  // this is the same method a physician uses at the lightbox.
   //
-  // Architecture change: API now returns only landmark coordinates (which vertebra
-  // + corner positions). The application computes the Cobb angle deterministically
-  // from those coordinates. This eliminates AI hallucination of the angle and
-  // ensures the measurement is fully reproducible and auditable.
+  // Local geometry (from corner coordinates) is used as a cross-check:
+  // if the two values differ >5° a warning prompts manual verification.
+  // displayCobb = AI value so the physician sees what the AI directly measured.
   //
-  // If geometry fails (invalid/zero lines), geometryCobb = 0 and a warning is shown.
-  // The physician can then use Manual Correction to measure directly.
-  const displayCobb = geometryIsReliable ? geometryCobb : 0;
+  // Fallback: if AI returns 0 or missing (placeholder echo), use local geometry
+  // when it is reliable, otherwise show 0 with a warning.
+  const displayCobb = aiReportedCobb > 0
+    ? aiReportedCobb
+    : (geometryIsReliable ? geometryCobb : 0);
 
   return {
     displayCobb,
