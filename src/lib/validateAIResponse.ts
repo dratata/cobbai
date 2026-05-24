@@ -95,6 +95,7 @@ export function validateSpineResult(raw: unknown): ValidationOutcome {
   // is_valid_xray must be boolean
   if (typeof r['is_valid_xray'] !== 'boolean') {
     errors.push('is_valid_xray field missing or not boolean');
+    return { isValid: false, errors, warnings };
   }
 
   if (r['is_valid_xray'] === false) {
@@ -246,16 +247,18 @@ export function safeParseFootResult(raw: unknown): FootAnalysisResult | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Partial<FootAnalysisResult>;
   if (typeof r.is_valid_xray !== 'boolean') return null;
+  const isValidXray = r.is_valid_xray;
   return {
-    is_valid_xray:           r.is_valid_xray,
+    is_valid_xray:           isValidXray,
     foot_side:               r.foot_side ?? 'unknown',
     measurement_confidence:  r.measurement_confidence ?? 'low',
-    // Use null (not -1) for missing measurements — prevents "-1°" being shown as a
-    // valid reading in the report. UI components must guard with ?? 'N/A'.
-    meary_angle:             typeof r.meary_angle === 'number' && r.meary_angle >= 0 ? r.meary_angle : null,
+    // Use null (not -1) for missing/invalid measurements — prevents "-1°" or schema
+    // placeholder values (e.g. 12.5 echoed by the AI) appearing in the report.
+    // Also guard on isValidXray so measurements from an invalid X-ray are suppressed.
+    meary_angle:             isValidXray && typeof r.meary_angle === 'number' && r.meary_angle >= 0 ? r.meary_angle : null,
     meary_direction:         r.meary_direction ?? 'neutral',
-    calcaneal_pitch:         typeof r.calcaneal_pitch === 'number' && r.calcaneal_pitch >= 0 ? r.calcaneal_pitch : null,
-    talar_declination:       typeof r.talar_declination === 'number' && r.talar_declination >= 0 ? r.talar_declination : null,
+    calcaneal_pitch:         isValidXray && typeof r.calcaneal_pitch === 'number' && r.calcaneal_pitch >= 0 ? r.calcaneal_pitch : null,
+    talar_declination:       isValidXray && typeof r.talar_declination === 'number' && r.talar_declination >= 0 ? r.talar_declination : null,
     severity:                r.severity ?? 'normal',
     flexibility:             r.flexibility ?? 'unknown',
     talus_line:              (r.talus_line && isValidNormLine(r.talus_line)) ? r.talus_line : { x1:0.3,y1:0.4,x2:0.6,y2:0.5 },

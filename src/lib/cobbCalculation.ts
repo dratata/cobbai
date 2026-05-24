@@ -285,9 +285,9 @@ export function processSpineResult(
       ...curve,
       cobb_angle:  validation.displayCobb,
       severity:    classifyCobb(validation.displayCobb),
-      slope_delta_deg: Math.abs(
-        (curve.upper_slope_deg ?? 0) - (curve.lower_slope_deg ?? 0)
-      ),
+      slope_delta_deg: typeof curve.upper_slope_deg === 'number' && typeof curve.lower_slope_deg === 'number'
+        ? Math.abs(curve.upper_slope_deg - curve.lower_slope_deg)
+        : undefined,
     };
 
     allWarnings.push(...validation.warnings);
