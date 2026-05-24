@@ -122,7 +122,7 @@ export const useMeasurementStore = create<AppState>((set) => ({
   lightMode: localStorage.getItem('cobbai_theme') === 'light',
 
   setModality: (m) => set({ modality:m, spineResult:null, processedSpine:null, footResult:null, correction:null, showCorrection:false }),
-  setLanguage: (l) => { localStorage.setItem('cobbai_lang', l); set({ language:l }); },
+  setLanguage: (l) => { try { localStorage.setItem('cobbai_lang', l); } catch { /* quota */ } set({ language:l }); },
   setConsent:  (v) => set({ consentGiven:v }),
   setOnboardingDone: (v) => { if(v) { try { localStorage.setItem('cobbai_onboard','1'); } catch { /* quota */ } } set({ onboardingDone:v }); },
 
@@ -155,9 +155,9 @@ export const useMeasurementStore = create<AppState>((set) => ({
 
   toggleTheme: () => set(s => {
     const next = !s.lightMode;
-    localStorage.setItem('cobbai_theme', next?'light':'dark');
+    try { localStorage.setItem('cobbai_theme', next ? 'light' : 'dark'); } catch { /* quota */ }
     document.body.classList.toggle('light-mode', next);
-    return { lightMode:next };
+    return { lightMode: next };
   }),
 
   resetImage: () => set({

@@ -113,15 +113,13 @@ export function extendLine(
 export function cobbAngleFromLines(upperLine: NormLine, lowerLine: NormLine): number {
   if (!isValidLine(upperLine) || !isValidLine(lowerLine)) return NaN;
 
-  // Compute inclinations (angle from horizontal)
+  // Compute inclinations (angle from horizontal) and take their absolute difference.
+  // Note: adding π/2 to both before differencing is a mathematical no-op (cancels out),
+  // so we compute the angle directly from the inclinations.
   const a1 = Math.atan2(upperLine.y2 - upperLine.y1, upperLine.x2 - upperLine.x1);
   const a2 = Math.atan2(lowerLine.y2 - lowerLine.y1, lowerLine.x2 - lowerLine.x1);
 
-  // Perpendicular directions
-  const perp1 = a1 + Math.PI / 2;
-  const perp2 = a2 + Math.PI / 2;
-
-  let angle = Math.abs(perp1 - perp2) * RAD_TO_DEG;
+  let angle = Math.abs(a1 - a2) * RAD_TO_DEG;
 
   // Normalise to [0, 360)
   angle = ((angle % 360) + 360) % 360;

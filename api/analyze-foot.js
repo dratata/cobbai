@@ -52,20 +52,24 @@ MEASUREMENTS:
 
 Follow this exact JSON schema, write nothing else:`;
 
+  // ⚠ ALL NUMERIC VALUES ARE ZERO PLACEHOLDERS.
+  //   Replace every 0.0 coordinate and 0 angle with the actual measured value from the X-ray image.
+  //   Do NOT return the placeholder values — returning zeros or these exact coordinates
+  //   will produce a clinically wrong result.
   const schema = {
     is_valid_xray: true,
     foot_side: "right",
     measurement_confidence: "high",
-    meary_angle: 12.5,
+    meary_angle: 0.0,
     meary_direction: "plantar",
-    calcaneal_pitch: 15.0,
-    talar_declination: 24.0,
+    calcaneal_pitch: 0.0,
+    talar_declination: 0.0,
     severity: "mild",
     severity_label: isTR ? "Hafif Pes Planus" : "Mild Flatfoot",
     flexibility: "flexible",
-    talus_line: { x1: 0.35, y1: 0.38, x2: 0.62, y2: 0.52 },
-    metatarsal_line: { x1: 0.58, y1: 0.50, x2: 0.88, y2: 0.57 },
-    calcaneus_line: { x1: 0.16, y1: 0.74, x2: 0.42, y2: 0.70 },
+    talus_line: { x1: 0.0, y1: 0.0, x2: 0.0, y2: 0.0 },
+    metatarsal_line: { x1: 0.0, y1: 0.0, x2: 0.0, y2: 0.0 },
+    calcaneus_line: { x1: 0.0, y1: 0.0, x2: 0.0, y2: 0.0 },
     overall_description: isTR ? "Klinik deger." : "Clinical assessment.",
     age_based_recommendation: isTR ? "Oner." : "Recommendation.",
     treatment_plan: isTR ? "Tedavi." : "Plan.",
@@ -96,7 +100,11 @@ Follow this exact JSON schema, write nothing else:`;
     orthotic_recommendations: ""
   };
 
-  const fullPrompt = prompt + '\nOutput ONLY this JSON:\n' + JSON.stringify(schema) +
+  const fullPrompt = prompt
+    + '\n\n⚠ CRITICAL: The JSON schema below shows field NAMES and TYPES only.'
+    + ' All 0.0 coordinates and angles are PLACEHOLDERS — replace every one with the actual measured value from the X-ray image.'
+    + ' Do NOT return 0.0 placeholder values.'
+    + '\nOutput ONLY this JSON:\n' + JSON.stringify(schema) +
     '\n' + (isTR ? 'Geçerli ayak röntgeni değilse:' : 'If not a foot X-ray:') + '\n' + JSON.stringify(invalidSchema);
 
   const model  = (process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
@@ -186,22 +194,44 @@ function sanitizeJSON(str) {
   return result;
 }
 function recoverJSON(raw, finishReason) {
+  // Level 0: try raw directly
   try { return { result: JSON.parse(raw) }; } catch {}
-  let clean = raw.replace(/^```json\s*/im,'').replace(/^```\s*/im,'').replace(/```\s*$/im,'').trim();
+  // Level 1: strip ALL markdown fences globally
+  let clean = raw
+    .replace(/^```[\w]*\s*/gm, '')
+    .replace(/^\s*```\s*$/gm, '')
+    .trim();
+  const firstBrace = clean.indexOf('{');
+  const lastBrace  = clean.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    clean = clean.slice(firstBrace, lastBrace + 1);
+  }
   try { return { result: JSON.parse(clean) }; } catch {}
+  // Level 2: sanitize literal newlines inside strings
   const sanitized = sanitizeJSON(clean);
   try { return { result: JSON.parse(sanitized) }; } catch {}
   const s = sanitized.indexOf('{'); if (s === -1) return { error: 'No JSON in response. Try again.' };
   const e = sanitized.lastIndexOf('}');
   if (e !== -1) {
+    // Level 3: remove trailing commas
     let candidate = sanitized.slice(s, e+1).replace(/,(\s*[}\]])/g,'$1');
     try { return { result: JSON.parse(candidate) }; } catch {}
+    // Level 4: close open brackets
     let fixed = candidate;
     if ((fixed.match(/"/g)||[]).length % 2 !== 0) fixed += '"';
     const ab=(fixed.match(/\[/g)||[]).length-(fixed.match(/\]/g)||[]).length;
     const ob=(fixed.match(/\{/g)||[]).length-(fixed.match(/\}/g)||[]).length;
     for(let i=0;i<ab;i++) fixed+=']'; for(let i=0;i<ob;i++) fixed+='}';
     try { return { result: JSON.parse(fixed) }; } catch {}
+    // Level 5: trim to last complete key-value pair (handles maxOutputTokens truncation)
+    const lastComma = fixed.lastIndexOf(',');
+    if (lastComma > s + 10) {
+      let trimmed = fixed.slice(0, lastComma);
+      const ob2=(trimmed.match(/\{/g)||[]).length-(trimmed.match(/\}/g)||[]).length;
+      const ab2=(trimmed.match(/\[/g)||[]).length-(trimmed.match(/\]/g)||[]).length;
+      for(let i=0;i<ab2;i++) trimmed+=']'; for(let i=0;i<ob2;i++) trimmed+='}';
+      try { return { result: JSON.parse(trimmed) }; } catch {}
+    }
   }
   return { error: 'AI response could not be parsed. Please try again. ('+finishReason+')' };
 }
