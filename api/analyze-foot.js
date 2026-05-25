@@ -96,8 +96,13 @@ Follow this exact JSON schema, write nothing else:`;
     orthotic_recommendations: ""
   };
 
-  const fullPrompt = prompt + '\nOutput ONLY this JSON:\n' + JSON.stringify(schema) +
-    '\n' + (isTR ? 'Geçerli ayak röntgeni değilse:' : 'If not a foot X-ray:') + '\n' + JSON.stringify(invalidSchema);
+  const fullPrompt = prompt
+    + '\n\n⚠ CRITICAL INSTRUCTION: The JSON schema below shows field NAMES and TYPES only.'
+    + ' All numeric values (angles, coordinates) are EXAMPLE PLACEHOLDERS.'
+    + ' You MUST replace every numeric value with the actual measured value from the X-ray image.'
+    + ' Do NOT return these example placeholder values unchanged.\n'
+    + '\nOutput ONLY this JSON:\n' + JSON.stringify(schema)
+    + '\n' + (isTR ? 'Geçerli ayak röntgeni değilse:' : 'If not a foot X-ray:') + '\n' + JSON.stringify(invalidSchema);
 
   const model  = (process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
