@@ -257,6 +257,7 @@ export function safeParseFootResult(raw: unknown): FootAnalysisResult | null {
     calcaneal_pitch:         typeof r.calcaneal_pitch === 'number' && r.calcaneal_pitch >= 0 ? r.calcaneal_pitch : null,
     talar_declination:       typeof r.talar_declination === 'number' && r.talar_declination >= 0 ? r.talar_declination : null,
     severity:                r.severity ?? 'normal',
+    severity_label:          r.severity_label,
     flexibility:             r.flexibility ?? 'unknown',
     talus_line:              (r.talus_line && isValidNormLine(r.talus_line)) ? r.talus_line : { x1:0.3,y1:0.4,x2:0.6,y2:0.5 },
     metatarsal_line:         (r.metatarsal_line && isValidNormLine(r.metatarsal_line)) ? r.metatarsal_line : { x1:0.55,y1:0.4,x2:0.85,y2:0.44 },

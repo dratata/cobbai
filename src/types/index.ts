@@ -170,6 +170,7 @@ export interface FootAnalysisResult {
   calcaneal_pitch: number | null;
   talar_declination: number | null;
   severity: SeverityLevel;
+  severity_label?: string;
   flexibility: 'flexible' | 'rigid' | 'unknown';
   talus_line: NormLine;
   metatarsal_line: NormLine;

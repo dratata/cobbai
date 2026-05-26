@@ -161,7 +161,13 @@ Follow this exact JSON schema, write nothing else:`;
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
       if (clientClosed) return; // Fix 1: client gone — exit silently
-      if (!res.headersSent) return res.status(504).json({ error: 'Google AI did not respond within 8 seconds. Please try again.' });
+      if (!res.headersSent) return res.status(504).json({
+        error: lang === 'tr'
+          ? 'Google AI 8 saniye içinde yanıt vermedi. Lütfen tekrar deneyin.'
+          : lang === 'ar'
+          ? 'لم يستجب Google AI خلال 8 ثوانٍ. يرجى المحاولة مرة أخرى.'
+          : 'Google AI did not respond within 8 seconds. Please try again.',
+      });
       return;
     }
     if (!res.headersSent) return res.status(500).json({ error: 'Server error: ' + err.message });
