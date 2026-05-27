@@ -9,7 +9,7 @@ import { useMeasurementStore, selectCanAnalyze } from '@/store/measurementStore'
 import { processSpineResult } from '@/lib/cobbCalculation';
 import { safeParseSpineResult, safeParseFootResult } from '@/lib/validateAIResponse';
 import { analyseImageQuality, preprocessXray, autoCropBlackBorders, normalizeExifOrientation } from '@/lib/imagePreprocessing';
-import { hashBase64, getCachedResult, setCachedResult, clearAllCache, clearTrackingHistory, clearAllLocalData } from '@/lib/imageCache';
+import { hashBase64, getCachedResult, setCachedResult, saveTrackEntry, clearAllCache, clearTrackingHistory, clearAllLocalData } from '@/lib/imageCache';
 import { getT } from '@/lib/i18n';
 import { SafeSuspense } from '@/components/ErrorBoundary/ErrorBoundary';
 import CobbAILogo    from '@/components/CobbAILogo';
@@ -435,6 +435,11 @@ const App: React.FC = () => {
           parsed.outcome
         );
         store.addToHistory({ id: Date.now().toString(), timestamp: new Date().toISOString(), modality:'spine', result: parsed.result, patientAge: store.patientAge, patientGender: store.patientGender });
+        // Save to persistent tracking history
+        const primaryCobb = parsed.result.curves?.[0]?.cobb_angle;
+        if (primaryCobb != null) {
+          saveTrackEntry('spine', { date: new Date().toISOString(), cobb: primaryCobb, source: 'ai', ts: Date.now() });
+        }
       } else {
         const foot = safeParseFootResult(rawJson);
         if (!foot) {
@@ -453,6 +458,10 @@ const App: React.FC = () => {
           console.warn('[CobbAI] localStorage quota exceeded — foot result not cached', qe);
         }
         store.setFootResult(foot);
+        // Save to persistent tracking history
+        if (foot.meary_angle != null) {
+          saveTrackEntry('foot', { date: new Date().toISOString(), meary: foot.meary_angle, source: 'ai', ts: Date.now() });
+        }
       }
     } catch(e) {
       const err = e as Error;

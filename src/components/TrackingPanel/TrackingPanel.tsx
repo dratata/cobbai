@@ -1,15 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Lang } from '@/lib/i18n';
 import { getT } from '@/lib/i18n';
-
-interface TrackEntry {
-  date: string;
-  cobb?: number;
-  meary?: number;
-  source: 'ai' | 'manual';
-  ts: number;
-  note?: string;
-}
+import type { TrackEntry } from '@/lib/imageCache';
 
 interface TrackingPanelProps {
   modality: 'spine' | 'foot';
