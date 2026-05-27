@@ -1018,6 +1018,7 @@ const App: React.FC = () => {
                       <SpineResults
                         processed={store.processedSpine!}
                         raw={store.spineResult!}
+                        lang={store.language}
                         t={t}
                         patientAge={store.patientAge}
                         patientGender={store.patientGender}

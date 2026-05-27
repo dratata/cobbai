@@ -48,8 +48,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   if (!open) return null;
 
-  const date = new Date().toLocaleDateString('tr-TR', { year:'numeric', month:'long', day:'numeric' });
-  const time = new Date().toLocaleTimeString('tr-TR');
+  const dateLocale = lang === 'tr' ? 'tr-TR' : lang === 'ar' ? 'ar-SA' : 'en-US';
+  const date = new Date().toLocaleDateString(dateLocale, { year:'numeric', month:'long', day:'numeric' });
+  const time = new Date().toLocaleTimeString(dateLocale);
 
   // ── Localized report labels ────────────────────────────────────
   const lbl = {
@@ -180,7 +181,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         }
       }
 
-      pdf.save(`CobbAI-Rapor-${new Date().toISOString().slice(0, 10)}.pdf`);
+      const reportWord = lang==='ar'?'تقرير':lang==='en'?'Report':'Rapor';
+      pdf.save(`CobbAI-${reportWord}-${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (err) {
       console.error('[CobbAI] PDF export failed:', err);
       // Fall back to browser print
