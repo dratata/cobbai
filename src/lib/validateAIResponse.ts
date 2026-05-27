@@ -11,7 +11,7 @@
  *   - All coordinate values are within [0, 1]
  *   - upper_line is above lower_line (in image space)
  *   - All required fields are present
- *   - Cobb angle is within physiological range [0, 90]
+ *   - Cobb angle is within physiological range [0, 120]
  */
 
 import { isValidNormLine } from '@/lib/lineGeometry';
@@ -42,8 +42,8 @@ function validateCurve(curve: unknown, idx: number): ValidationOutcome {
     errors.push(`${prefix}: cobb_angle is missing or not a number`);
   } else {
     const deg = c['cobb_angle'] as number;
-    if (deg < 0 || deg > 90) {
-      warnings.push(`${prefix}: cobb_angle ${deg}° is outside physiological range [0, 90]`);
+    if (deg < 0 || deg > 120) {
+      warnings.push(`${prefix}: cobb_angle ${deg}° is outside physiological range [0, 120]`);
     }
   }
 
@@ -242,7 +242,7 @@ export function safeParseFootResult(raw: unknown): FootAnalysisResult | null {
     meary_direction:         r.meary_direction ?? 'neutral',
     calcaneal_pitch:         typeof r.calcaneal_pitch === 'number' && r.calcaneal_pitch >= 0 && r.calcaneal_pitch <= 90 ? r.calcaneal_pitch : null,
     talar_declination:       typeof r.talar_declination === 'number' && r.talar_declination >= 0 && r.talar_declination <= 90 ? r.talar_declination : null,
-    severity:                r.severity ?? 'normal',
+    severity:                (['normal','mild','moderate','severe'] as const).includes(r.severity as never) ? r.severity! : 'normal',
     flexibility:             r.flexibility ?? 'unknown',
     talus_line:              (r.talus_line && isValidNormLine(r.talus_line)) ? r.talus_line : { x1:0.3,y1:0.4,x2:0.6,y2:0.5 },
     metatarsal_line:         (r.metatarsal_line && isValidNormLine(r.metatarsal_line)) ? r.metatarsal_line : { x1:0.55,y1:0.4,x2:0.85,y2:0.44 },

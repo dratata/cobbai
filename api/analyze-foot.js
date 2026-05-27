@@ -109,8 +109,23 @@ Follow this exact JSON schema, write nothing else:`;
     orthotic_recommendations: ""
   };
 
+  const criticalInstruction = isTR
+    ? '\n\n⚠ KRİTİK TALİMAT: Aşağıdaki JSON şeması yalnızca alan ADLARINI ve TİPLERİNİ göstermektedir.'
+      + ' Tüm sayısal değerler (koordinatlar, açılar) sadece ÖRNEK YER TUTUCULARIDIR.'
+      + ' Her değeri röntgen görüntüsündeki gerçek ölçümle DEĞİŞTİRMELİSİNİZ.'
+      + ' Örnek değerleri olduğu gibi döndürmeyin — klinik olarak yanlış sonuç üretir.\n'
+    : isAR
+    ? '\n\n⚠ تعليمات حرجة: مخطط JSON أدناه يُظهر أسماء الحقول والأنواع فقط.'
+      + ' جميع القيم الرقمية (الإحداثيات، الزوايا) هي عناصر نائبة فقط.'
+      + ' يجب استبدال كل قيمة بالقياس الفعلي من صورة الأشعة.'
+      + ' لا تُعيد القيم النائبة — سيُنتج ذلك نتيجة خاطئة سريرياً.\n'
+    : '\n\n⚠ CRITICAL INSTRUCTION: The JSON schema below shows field NAMES and TYPES only.'
+      + ' All numeric values (coordinates, angles) are EXAMPLE PLACEHOLDERS.'
+      + ' You MUST replace every value with the actual measurement from the X-ray image.'
+      + ' Do NOT return the placeholder values as-is — this will produce a clinically wrong result.\n';
+
   const ifNotFoot = isTR ? 'Geçerli ayak röntgeni değilse:' : isAR ? 'إذا لم تكن صورة قدم صالحة:' : 'If not a foot X-ray:';
-  const fullPrompt = prompt + '\nOutput ONLY this JSON:\n' + JSON.stringify(schema) +
+  const fullPrompt = prompt + criticalInstruction + '\nOutput ONLY this JSON:\n' + JSON.stringify(schema) +
     '\n' + ifNotFoot + '\n' + JSON.stringify(invalidSchema);
 
   const model  = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
@@ -175,7 +190,13 @@ Follow this exact JSON schema, write nothing else:`;
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
       if (clientClosed) return; // Fix 1: client gone — exit silently
-      if (!res.headersSent) return res.status(504).json({ error: 'Google AI did not respond within 8 seconds. Please try again.' });
+      if (!res.headersSent) return res.status(504).json({
+        error: isTR
+          ? 'Google AI 8 saniye içinde yanıt vermedi. Lütfen tekrar deneyin.'
+          : isAR
+          ? 'لم يستجب Google AI خلال 8 ثوانٍ. يرجى المحاولة مرة أخرى.'
+          : 'Google AI did not respond within 8 seconds. Please try again.',
+      });
       return;
     }
     if (!res.headersSent) return res.status(500).json({ error: 'Server error: ' + err.message });
