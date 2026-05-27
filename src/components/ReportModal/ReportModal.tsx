@@ -2,6 +2,15 @@ import React, { useRef, useEffect, useState } from 'react';
 import type { SpineAnalysisResult, FootAnalysisResult } from '@/types';
 import type { Translations, Lang } from '@/lib/i18n';
 
+function esc(s: unknown): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 interface ReportModalProps {
   open: boolean;
   onClose: () => void;
@@ -200,9 +209,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       <p style="color:#555;font-size:12px">${date} · ${time} · cobbai.vercel.app</p>
       <h2>${lbl.ptInfo}</h2>
       <table>
-        <tr><th>${lbl.age}</th><td>${patientAge||'—'}</td><th>${lbl.gender}</th><td>${patientGender||'—'}</td></tr>
-        <tr><th>${lbl.imgQual}</th><td>${spineResult.image_quality}</td><th>${lbl.conf}</th><td>${spineResult.measurement_confidence}</td></tr>
-        <tr><th>${lbl.vertCount}</th><td>${spineResult.vertebrae_detected}</td><th>${lbl.view}</th><td>${spineResult.view_type}</td></tr>
+        <tr><th>${lbl.age}</th><td>${esc(patientAge)||'—'}</td><th>${lbl.gender}</th><td>${esc(patientGender)||'—'}</td></tr>
+        <tr><th>${lbl.imgQual}</th><td>${esc(spineResult.image_quality)}</td><th>${lbl.conf}</th><td>${esc(spineResult.measurement_confidence)}</td></tr>
+        <tr><th>${lbl.vertCount}</th><td>${esc(spineResult.vertebrae_detected)}</td><th>${lbl.view}</th><td>${esc(spineResult.view_type)}</td></tr>
       </table>
       <h2>${lbl.meas}</h2>
       <table>
@@ -210,25 +219,25 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         ${curves.map((c,i) => `
           <tr>
             <td>${i+1}</td>
-            <td>${c.label}</td>
-            <td><strong>${c.cobb_angle}°</strong></td>
-            <td><span class="pill" style="background:${sevBg(c.severity)};color:${sevCol(c.severity)}">${c.severity}</span></td>
-            <td>${c.curve_location}</td>
-            <td>${c.upper_vertebra_name||'—'}</td>
-            <td>${c.lower_vertebra_name||'—'}</td>
-            <td>${c.apical_vertebra_name||'—'}</td>
+            <td>${esc(c.label)}</td>
+            <td><strong>${esc(c.cobb_angle)}°</strong></td>
+            <td><span class="pill" style="background:${sevBg(c.severity)};color:${sevCol(c.severity)}">${esc(c.severity)}</span></td>
+            <td>${esc(c.curve_location)}</td>
+            <td>${esc(c.upper_vertebra_name)||'—'}</td>
+            <td>${esc(c.lower_vertebra_name)||'—'}</td>
+            <td>${esc(c.apical_vertebra_name)||'—'}</td>
           </tr>`).join('')}
       </table>
       <h2>${lbl.clinEval}</h2>
-      <p>${spineResult.overall_description||'—'}</p>
+      <p>${esc(spineResult.overall_description)||'—'}</p>
       <h2>${lbl.ageRec}</h2>
-      <p>${(spineResult.age_based_recommendation||'—').replace(/\n/g,'<br>')}</p>
+      <p>${esc(spineResult.age_based_recommendation||'—').replace(/\n/g,'<br>')}</p>
       <h2>${lbl.treatPlan}</h2>
-      <p>${(spineResult.treatment_plan||'—').replace(/\n/g,'<br>')}</p>
+      <p>${esc(spineResult.treatment_plan||'—').replace(/\n/g,'<br>')}</p>
       <h2>${lbl.followUp}</h2>
-      <p>${spineResult.followup_plan||'—'}</p>
-      ${spineResult.imaging_indications && spineResult.imaging_indications!=='None' ? `<h2>${lbl.imaging}</h2><p>${spineResult.imaging_indications}</p>` : ''}
-      ${notes ? `<h2>${lbl.docNotes}</h2><p>${notes}</p>` : ''}
+      <p>${esc(spineResult.followup_plan)||'—'}</p>
+      ${spineResult.imaging_indications && spineResult.imaging_indications!=='None' ? `<h2>${lbl.imaging}</h2><p>${esc(spineResult.imaging_indications)}</p>` : ''}
+      ${notes ? `<h2>${lbl.docNotes}</h2><p>${esc(notes).replace(/\n/g,'<br>')}</p>` : ''}
       <div class="disclaimer">${lbl.disc}</div>
     `;
   };
@@ -240,21 +249,21 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       <p style="color:#555;font-size:12px">${date} · ${time} · cobbai.vercel.app</p>
       <h2>${lbl.ptInfo}</h2>
       <table>
-        <tr><th>${lbl.age}</th><td>${patientAge||'—'}</td><th>${lbl.gender}</th><td>${patientGender||'—'}</td></tr>
-        <tr><th>${lbl.foot}</th><td>${footResult.foot_side}</td><th>${lbl.conf}</th><td>${footResult.measurement_confidence}</td></tr>
+        <tr><th>${lbl.age}</th><td>${esc(patientAge)||'—'}</td><th>${lbl.gender}</th><td>${esc(patientGender)||'—'}</td></tr>
+        <tr><th>${lbl.foot}</th><td>${esc(footResult.foot_side)}</td><th>${lbl.conf}</th><td>${esc(footResult.measurement_confidence)}</td></tr>
       </table>
       <h2>${lbl.meas}</h2>
       <table>
-        <tr><th>${t.flM}</th><td><strong>${footResult.meary_angle != null ? footResult.meary_angle + '°' : '—'}</strong></td><th>${lbl.dir}</th><td>${footResult.meary_direction}</td></tr>
-        <tr><th>${t.flC}</th><td>${footResult.calcaneal_pitch != null ? footResult.calcaneal_pitch + '°' : '—'}</td><th>${t.flT}</th><td>${footResult.talar_declination != null ? footResult.talar_declination + '°' : '—'}</td></tr>
-        <tr><th>${lbl.sev}</th><td>${footResult.severity}</td><th>${lbl.flex}</th><td>${footResult.flexibility}</td></tr>
+        <tr><th>${t.flM}</th><td><strong>${footResult.meary_angle != null ? esc(footResult.meary_angle) + '°' : '—'}</strong></td><th>${lbl.dir}</th><td>${esc(footResult.meary_direction)}</td></tr>
+        <tr><th>${t.flC}</th><td>${footResult.calcaneal_pitch != null ? esc(footResult.calcaneal_pitch) + '°' : '—'}</td><th>${t.flT}</th><td>${footResult.talar_declination != null ? esc(footResult.talar_declination) + '°' : '—'}</td></tr>
+        <tr><th>${lbl.sev}</th><td>${esc(footResult.severity)}</td><th>${lbl.flex}</th><td>${esc(footResult.flexibility)}</td></tr>
       </table>
       <h2>${lbl.clinEval}</h2>
-      <p>${footResult.overall_description||'—'}</p>
+      <p>${esc(footResult.overall_description)||'—'}</p>
       <h2>${lbl.treatPlan}</h2>
-      <p>${(footResult.treatment_plan||'—').replace(/\n/g,'<br>')}</p>
-      ${footResult.orthotic_recommendations ? `<h2>${lbl.ortho}</h2><p>${footResult.orthotic_recommendations}</p>` : ''}
-      ${notes ? `<h2>${lbl.docNotes}</h2><p>${notes}</p>` : ''}
+      <p>${esc(footResult.treatment_plan||'—').replace(/\n/g,'<br>')}</p>
+      ${footResult.orthotic_recommendations ? `<h2>${lbl.ortho}</h2><p>${esc(footResult.orthotic_recommendations)}</p>` : ''}
+      ${notes ? `<h2>${lbl.docNotes}</h2><p>${esc(notes).replace(/\n/g,'<br>')}</p>` : ''}
       <div class="disclaimer">${lbl.disc}</div>
     `;
   };
