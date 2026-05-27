@@ -66,7 +66,51 @@ const App: React.FC = () => {
   const isPreproc    = useMeasurementStore(s => s.isPreprocessing);
   const controls     = useMeasurementStore(useShallow(s => s.controls));
 
-  const store      = useMeasurementStore();
+  // Explicit selector excludes `controls`, `isAnalyzing`, `isPreprocessing`
+  // (already subscribed above) so rapid changes to those don't cause an
+  // extra App.tsx re-render through this subscription.
+  const store = useMeasurementStore(useShallow(s => ({
+    analyzeError:      s.analyzeError,
+    consentGiven:      s.consentGiven,
+    doctorNotes:       s.doctorNotes,
+    footResult:        s.footResult,
+    language:          s.language,
+    lightMode:         s.lightMode,
+    loadedImage:       s.loadedImage,
+    modality:          s.modality,
+    patientAge:        s.patientAge,
+    patientGender:     s.patientGender,
+    processedSpine:    s.processedSpine,
+    qualityReport:     s.qualityReport,
+    risserStage:       s.risserStage,
+    showComparison:    s.showComparison,
+    showCorrection:    s.showCorrection,
+    showHistory:       s.showHistory,
+    showReport:        s.showReport,
+    spineResult:       s.spineResult,
+    validationOutcome: s.validationOutcome,
+    addToHistory:      s.addToHistory,
+    resetControls:     s.resetControls,
+    resetImage:        s.resetImage,
+    setAnalyzeError:   s.setAnalyzeError,
+    setAnalyzing:      s.setAnalyzing,
+    setConsent:        s.setConsent,
+    setControls:       s.setControls,
+    setDoctorNotes:    s.setDoctorNotes,
+    setFootResult:     s.setFootResult,
+    setLanguage:       s.setLanguage,
+    setLoadedImage:    s.setLoadedImage,
+    setModality:       s.setModality,
+    setPatient:        s.setPatient,
+    setPreprocessing:  s.setPreprocessing,
+    setQualityReport:  s.setQualityReport,
+    setShowComparison: s.setShowComparison,
+    setShowCorrection: s.setShowCorrection,
+    setShowHistory:    s.setShowHistory,
+    setShowReport:     s.setShowReport,
+    setSpineResult:    s.setSpineResult,
+    toggleTheme:       s.toggleTheme,
+  })));
   const canAnalyze = useMeasurementStore(selectCanAnalyze);
   const t          = getT(language);
 
@@ -453,7 +497,7 @@ const App: React.FC = () => {
 
     // HATA 2: Scale overlay from its CSS-rendered size to natural image size
     const overlay = document.querySelector('#overlay-canvas') as HTMLCanvasElement | null;
-    if (overlay && store.controls.showOverlay && overlay.width > 0 && overlay.height > 0) {
+    if (overlay && controls.showOverlay && overlay.width > 0 && overlay.height > 0) {
       // overlay.width/height = CSS-rendered px via ResizeObserver
       // We need to draw it scaled to fill natW×natH
       ctx.drawImage(overlay, 0, 0, overlay.width, overlay.height, 0, 0, natW, natH);
@@ -491,7 +535,7 @@ const App: React.FC = () => {
     a.download = 'cobbai-' + new Date().toISOString().slice(0, 10) + '.png';
     a.href = dataUrl;
     a.click();
-  }, [store]);
+  }, [store, controls]);
 
   // ── Image filter string — uses granular `controls` selector ──
   const imgFilter = `brightness(${100 + controls.brightness}%) contrast(${controls.contrast}%)`;
@@ -723,8 +767,8 @@ const App: React.FC = () => {
                               naturalW={store.loadedImage.naturalWidth}
                               naturalH={store.loadedImage.naturalHeight}
                               lang={store.language}
-                              brightness={store.controls.brightness}
-                              contrast={store.controls.contrast}
+                              brightness={controls.brightness}
+                              contrast={controls.contrast}
                               onCobbMeasured={(cobb) => setManualCobb(cobb)}
                               onClose={() => setIsManualMode(false)}
                             />
@@ -734,7 +778,7 @@ const App: React.FC = () => {
                         /* Zoom wrapper — width% changes zoom level; no minWidth so zoom-out works */
                         <div style={{
                           position:'relative',
-                          width: `${store.controls.zoom * 100}%`,
+                          width: `${controls.zoom * 100}%`,
                           margin:'0 auto',
                           transition:'width .18s ease',
                           lineHeight:0,
@@ -747,25 +791,25 @@ const App: React.FC = () => {
                             style={{ width:'100%', display:'block', background:'#111', filter: imgFilter, opacity: isAnalyzing ? 0.3 : 1, transition: 'opacity .2s', userSelect:'none' }}
                           />
                           {/* Canvas overlay — always same size as img wrapper → always aligned */}
-                          {store.processedSpine && store.controls.showOverlay && (
+                          {store.processedSpine && controls.showOverlay && (
                             <SafeSuspense fallback={null}>
                               <CobbOverlay
                                 id="overlay-canvas"
                                 result={store.processedSpine}
                                 naturalW={store.loadedImage.naturalWidth}
                                 naturalH={store.loadedImage.naturalHeight}
-                                overlayOpacity={store.controls.overlayOpacity}
+                                overlayOpacity={controls.overlayOpacity}
                                 lang={store.language}
-                                showVertebraLabels={store.controls.showVertebraLabels}
-                                showApexLabel={store.controls.showApexLabel}
+                                showVertebraLabels={controls.showVertebraLabels}
+                                showApexLabel={controls.showApexLabel}
                                 style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', pointerEvents:'none' }}
                               />
                             </SafeSuspense>
                           )}
                           {/* Zoom indicator */}
-                          {store.controls.zoom !== 1 && (
+                          {controls.zoom !== 1 && (
                             <div style={{ position:'absolute', bottom:8, right:8, fontSize:12, padding:'4px 8px', background:'rgba(0,0,0,.82)', border:'1px solid rgba(255,255,255,.22)', borderRadius:4, color:'#00c853', zIndex:9 }}>
-                              🔍 {Math.round(store.controls.zoom * 100)}%
+                              🔍 {Math.round(controls.zoom * 100)}%
                             </div>
                           )}
                         </div>
@@ -811,23 +855,23 @@ const App: React.FC = () => {
                   {store.loadedImage && (
                     <ImageControls
                       lang={store.language}
-                      showOverlay={store.controls.showOverlay}
+                      showOverlay={controls.showOverlay}
                       // Fix #2: Pass controlled values so sliders sync with store
-                      brightnessValue={store.controls.brightness}
-                      contrastValue={store.controls.contrast}
-                      opacityValue={store.controls.overlayOpacity}
-                      zoomValue={store.controls.zoom}
+                      brightnessValue={controls.brightness}
+                      contrastValue={controls.contrast}
+                      opacityValue={controls.overlayOpacity}
+                      zoomValue={controls.zoom}
                       onBrightnessChange={v => store.setControls({ brightness:v })}
                       onContrastChange={v   => store.setControls({ contrast:v })}
                       onOpacityChange={v    => store.setControls({ overlayOpacity:v })}
-                      onZoomIn={()  => store.setControls({ zoom: Math.min(4, store.controls.zoom+0.2) })}
-                      onZoomOut={() => store.setControls({ zoom: Math.max(0.5, store.controls.zoom-0.2) })}
+                      onZoomIn={()  => store.setControls({ zoom: Math.min(4, controls.zoom+0.2) })}
+                      onZoomOut={() => store.setControls({ zoom: Math.max(0.5, controls.zoom-0.2) })}
                       onResetZoom={() => store.setControls({ zoom:1 })}
-                      onToggleOverlay={() => store.setControls({ showOverlay:!store.controls.showOverlay })}
-                      onToggleVertebraLabels={() => store.setControls({ showVertebraLabels:!store.controls.showVertebraLabels })}
-                      onToggleApexLabel={() => store.setControls({ showApexLabel:!store.controls.showApexLabel })}
-                      showVertebraLabels={store.controls.showVertebraLabels}
-                      showApexLabel={store.controls.showApexLabel}
+                      onToggleOverlay={() => store.setControls({ showOverlay:!controls.showOverlay })}
+                      onToggleVertebraLabels={() => store.setControls({ showVertebraLabels:!controls.showVertebraLabels })}
+                      onToggleApexLabel={() => store.setControls({ showApexLabel:!controls.showApexLabel })}
+                      showVertebraLabels={controls.showVertebraLabels}
+                      showApexLabel={controls.showApexLabel}
                       // Fix #1: Real auto-enhance based on qualityReport + toast notification
                       onAutoEnhance={() => {
                         const q = store.qualityReport;
