@@ -110,16 +110,15 @@ export function clearAllCache(): void {
 }
 
 export function clearTrackingHistory(): void {
-  ['cobbai_track_spine', 'cobbai_track_foot'].forEach(k => localStorage.removeItem(k));
+  ['cobbai_track_spine', 'cobbai_track_foot'].forEach(k => {
+    try { localStorage.removeItem(k); } catch { /* ITP */ }
+  });
 }
 
 export function clearAllLocalData(): void {
-  // Clear tracking
   clearTrackingHistory();
-  // Clear cache
   clearAllCache();
-  // Clear session role
-  sessionStorage.removeItem('cobbai_role');
-  sessionStorage.removeItem('cobbai_onboard');
-  // Keep language preference
+  try { sessionStorage.removeItem('cobbai_role'); } catch { /* ITP */ }
+  // cobbai_onboard lives in localStorage (not sessionStorage)
+  try { localStorage.removeItem('cobbai_onboard'); } catch { /* ITP */ }
 }
