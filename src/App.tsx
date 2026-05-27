@@ -138,7 +138,7 @@ const App: React.FC = () => {
   const [cooldownSec, setCooldownSec] = useState(0);
   const cooldownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   // GPT patch: KVKK React state (localStorage stays in sync)
-  const [kvkkAccepted, setKvkkAccepted] = useState(() => localStorage.getItem('cobbai_kvkk') === '1');
+  const [kvkkAccepted, setKvkkAccepted] = useState(() => { try { return localStorage.getItem('cobbai_kvkk') === '1'; } catch { return false; } });
   const [sidebarOpen, setSidebarOpen]   = useState(false);
 
   // Cleanup cooldown interval on unmount
@@ -148,12 +148,14 @@ const App: React.FC = () => {
   // (e.g. always "27.8°") are not served from a previous session.
   useEffect(() => {
     const CACHE_VERSION = 'v4'; // bump when cache format/hash changes
-    if (sessionStorage.getItem('cobbai_cache_ver') !== CACHE_VERSION) {
-      Object.keys(sessionStorage)
-        .filter(k => k.startsWith('cobbai_cache_'))
-        .forEach(k => sessionStorage.removeItem(k));
-      sessionStorage.setItem('cobbai_cache_ver', CACHE_VERSION);
-    }
+    try {
+      if (sessionStorage.getItem('cobbai_cache_ver') !== CACHE_VERSION) {
+        Object.keys(sessionStorage)
+          .filter(k => k.startsWith('cobbai_cache_'))
+          .forEach(k => sessionStorage.removeItem(k));
+        sessionStorage.setItem('cobbai_cache_ver', CACHE_VERSION);
+      }
+    } catch { /* iOS Safari private browsing */ }
   }, []);
 
   useEffect(() => {
@@ -561,7 +563,7 @@ const App: React.FC = () => {
       {!store.consentGiven && (
         <LandingScreen
           lang={store.language}
-          onDoctor={() => { store.setConsent(true); sessionStorage.setItem('cobbai_role','doctor'); }}
+          onDoctor={() => { store.setConsent(true); try { sessionStorage.setItem('cobbai_role','doctor'); } catch { /* ITP */ } }}
           onPatient={() => { window.location.href = '/patients.html'; }}
         />
       )}
@@ -587,7 +589,7 @@ const App: React.FC = () => {
         lang={store.language}
         onAccept={() => {
           setKvkkAccepted(true);
-          localStorage.setItem('cobbai_kvkk', '1');
+          try { localStorage.setItem('cobbai_kvkk', '1'); } catch { /* quota */ }
           setShowPrivacy(false);
         }}
         onClose={() => setShowPrivacy(false)}
@@ -693,8 +695,10 @@ const App: React.FC = () => {
                     onClick={() => {
                       const next = !kvkkAccepted;
                       setKvkkAccepted(next);
-                      if (next) localStorage.setItem('cobbai_kvkk', '1');
-                      else      localStorage.removeItem('cobbai_kvkk');
+                      try {
+                        if (next) localStorage.setItem('cobbai_kvkk', '1');
+                        else      localStorage.removeItem('cobbai_kvkk');
+                      } catch { /* quota */ }
                     }}
                     id="kvkk-btn"
                     style={{ width:30, height:30, minWidth:30, border:'2px solid rgba(255,255,255,.2)', borderRadius:6,

@@ -6,6 +6,13 @@ import type {
 import type { ProcessedSpineResult } from '@/lib/cobbCalculation';
 import type { ValidationOutcome } from '@/lib/validateAIResponse';
 
+function safeGet(storage: Storage, key: string): string | null {
+  try { return storage.getItem(key); } catch { return null; }
+}
+function safeSet(storage: Storage, key: string, val: string): void {
+  try { storage.setItem(key, val); } catch { /* quota or ITP */ }
+}
+
 export interface ImageControls {
   brightness:          number;   // [-80, +80]
   contrast:            number;   // [50, 200]
@@ -106,9 +113,9 @@ export interface AppState {
 
 export const useMeasurementStore = create<AppState>((set) => ({
   modality:         'spine',
-  language:         (localStorage.getItem('cobbai_lang') as AppLanguage) ?? 'tr',
-  consentGiven:     sessionStorage.getItem('cobbai_role') === 'doctor',
-  onboardingDone:   !!localStorage.getItem('cobbai_onboard'),
+  language:         (safeGet(localStorage, 'cobbai_lang') as AppLanguage) ?? 'tr',
+  consentGiven:     safeGet(sessionStorage, 'cobbai_role') === 'doctor',
+  onboardingDone:   !!safeGet(localStorage, 'cobbai_onboard'),
   loadedImage:      null, qualityReport:    null, isPreprocessing:  false,
   isAnalyzing:      false,
   spineResult:      null, processedSpine:   null, footResult:       null,
@@ -119,10 +126,10 @@ export const useMeasurementStore = create<AppState>((set) => ({
   showReport: false, showComparison: false, showHistory: false,
   doctorNotes: '',
   history: [],
-  lightMode: localStorage.getItem('cobbai_theme') === 'light',
+  lightMode: safeGet(localStorage, 'cobbai_theme') === 'light',
 
   setModality: (m) => set({ modality:m, spineResult:null, processedSpine:null, footResult:null, correction:null, showCorrection:false, isAnalyzing:false, analyzeError:null }),
-  setLanguage: (l) => { localStorage.setItem('cobbai_lang', l); set({ language:l }); },
+  setLanguage: (l) => { safeSet(localStorage, 'cobbai_lang', l); set({ language:l }); },
   setConsent:  (v) => set({ consentGiven:v }),
   setOnboardingDone: (v) => { if(v) { try { localStorage.setItem('cobbai_onboard','1'); } catch { /* quota */ } } set({ onboardingDone:v }); },
 
@@ -155,7 +162,7 @@ export const useMeasurementStore = create<AppState>((set) => ({
 
   toggleTheme: () => set(s => {
     const next = !s.lightMode;
-    localStorage.setItem('cobbai_theme', next?'light':'dark');
+    safeSet(localStorage, 'cobbai_theme', next?'light':'dark');
     document.body.classList.toggle('light-mode', next);
     return { lightMode:next };
   }),
