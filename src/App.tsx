@@ -125,6 +125,9 @@ const App: React.FC = () => {
   const handleFileRef   = useRef<(f: File) => void>(() => {});
   // Fix 3 (Race Condition): unique symbol per analysis run; guards catch/finally
   const analysisIdRef   = useRef<symbol | null>(null);
+  // 429 retry counter — reset to 0 on each user-initiated analysis
+  const retryCountRef   = useRef(0);
+  const MAX_AUTO_RETRIES = 3;
 
   const [selectedCurveIdx, setSelectedCurveIdx]   = useState(0);
   const [showPrivacy, setShowPrivacy]             = useState(false);
@@ -272,10 +275,13 @@ const App: React.FC = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps — intentionally empty
 
   // ── Analysis with caching + debounce ─────────────────────────
-  const runAnalysis = useCallback(async (forceRefresh = false) => {
+  const runAnalysis = useCallback(async (forceRefresh = false, _isAutoRetry = false) => {
     if (!canAnalyze || !store.loadedImage) return;
     if (analyzingRef.current) return;  // debounce
     analyzingRef.current = true;
+
+    // Reset retry counter on user-initiated (non-auto-retry) calls
+    if (!_isAutoRetry) retryCountRef.current = 0;
 
     // Fix 3 (Race Condition): unique token for this analysis run.
     // If the user loads a new image and triggers a 2nd analysis before the 1st
@@ -366,22 +372,30 @@ const App: React.FC = () => {
         const errData = rawJson as { error?: string; retryAfter?: number };
         if (resp.status === 429) {
           const wait = errData.retryAfter ?? 5;
+          retryCountRef.current += 1;
+          if (retryCountRef.current > MAX_AUTO_RETRIES) {
+            store.setAnalyzeError(
+              store.language === 'tr'
+                ? `Sunucu aşırı yoğun. Lütfen birkaç dakika bekleyip tekrar deneyin.`
+                : store.language === 'ar'
+                ? `الخادم مرهق. انتظر بضع دقائق وحاول مجدداً.`
+                : `Server is overloaded. Please wait a few minutes and try again.`
+            );
+            return;
+          }
           // Auto-retry: show countdown, release debounce, then automatically re-trigger.
-          // User doesn't need to manually click the button again.
           store.setAnalyzeError(
             store.language === 'tr'
-              ? `⏳ Sunucu yoğun. ${wait} saniye içinde otomatik tekrar deneniyor…`
+              ? `⏳ Sunucu yoğun. ${wait} saniye içinde otomatik tekrar deneniyor… (${retryCountRef.current}/${MAX_AUTO_RETRIES})`
               : store.language === 'ar'
-              ? `⏳ الخادم مشغول. إعادة المحاولة تلقائياً خلال ${wait} ثوانٍ…`
-              : `⏳ Server busy. Auto-retrying in ${wait} seconds…`
+              ? `⏳ الخادم مشغول. إعادة المحاولة خلال ${wait} ثوانٍ… (${retryCountRef.current}/${MAX_AUTO_RETRIES})`
+              : `⏳ Server busy. Auto-retrying in ${wait} seconds… (${retryCountRef.current}/${MAX_AUTO_RETRIES})`
           );
           setTimeout(() => {
             if (analysisIdRef.current === analysisId) {
-              // Only retry if this analysis is still the active one
               analyzingRef.current = false;
               store.setAnalyzeError(null);
-              // Trigger a fresh analysis without force-refresh (use cache if available)
-              runAnalysis(forceRefresh);
+              runAnalysis(forceRefresh, true);
             }
           }, wait * 1000);
           return;
