@@ -710,7 +710,7 @@ export function getT(lang: Lang): Translations {
 // ── React hook ────────────────────────────────────────────────
 
 export function useT(lang?: Lang): Translations {
-  const stored = (typeof window !== 'undefined' ? localStorage.getItem('cobbai_lang') : null) as Lang | null;
+  const stored = (typeof window !== 'undefined' ? (() => { try { return localStorage.getItem('cobbai_lang'); } catch { return null; } })() : null) as Lang | null;
   const resolved: Lang = lang ?? stored ?? 'tr';
   return T[resolved] ?? T['tr'];
 }

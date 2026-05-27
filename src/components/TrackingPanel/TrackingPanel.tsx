@@ -36,7 +36,7 @@ function loadEntries(key: string): TrackEntry[] {
 }
 
 function clearEntries(key: string): void {
-  localStorage.removeItem(key);
+  try { localStorage.removeItem(key); } catch { /* ITP */ }
 }
 
 function severityFromValue(modality: 'spine' | 'foot', value: number): { label: string; color: string } {
