@@ -24,11 +24,15 @@ export default async function handler(req, res) {
     return res.status(413).json({ error: 'Image too large. Please resize to under 8 MB before uploading.' });
   }
 
+  // Sanitize user-supplied fields before prompt injection
+  const safeAge    = typeof patientAge    === 'string' ? patientAge.replace(/[^0-9.]/g, '').slice(0, 5)       : '';
+  const safeGender = typeof patientGender === 'string' ? patientGender.replace(/[^a-zA-Z]/g, '').slice(0, 10) : '';
+
   const isTR = lang === 'tr', isAR = lang === 'ar';
 
   const prompt = isTR
     ? `Sen deneyimli bir kas-iskelet radyologusun. Bu yuk tasimali lateral ayak rontgenini pes planus acisindan analiz et.
-${patientAge ? 'Hasta yasi: ' + patientAge : ''} ${patientGender ? 'Cinsiyet: ' + patientGender : ''}
+${safeAge ? 'Hasta yasi: ' + safeAge : ''} ${safeGender ? 'Cinsiyet: ' + safeGender : ''}
 
 OLCUMLER:
 1. Meary acisi: talus uzun ekseni ile 1. metatars ekseni arasi. Normal 0-4 derece. Plantar=duz taban.
@@ -41,7 +45,7 @@ OLCUMLER:
 Asagidaki JSON semasinа tam uy, baska hicbir sey yazma:`
     : isAR
     ? `أنت طبيب أشعة متخصص في الجهاز العضلي الهيكلي. حلّل صورة الأشعة السينية الجانبية لهذا القدم (أثناء حمل الوزن) للكشف عن القدم المسطحة.
-${patientAge ? 'عمر المريض: ' + patientAge : ''} ${patientGender ? 'الجنس: ' + patientGender : ''}
+${safeAge ? 'عمر المريض: ' + safeAge : ''} ${safeGender ? 'الجنس: ' + safeGender : ''}
 
 القياسات:
 1. زاوية ميري: بين المحور الطولي للكاحل ومحور عظم مشط القدم الأول. طبيعي 0-4 درجات. أسفل = قدم مسطحة.
@@ -53,7 +57,7 @@ ${patientAge ? 'عمر المريض: ' + patientAge : ''} ${patientGender ? 'ا�
 
 اتبع مخطط JSON التالي بدقة، لا تكتب أي شيء آخر:`
     : `You are an expert musculoskeletal radiologist. Analyze this weight-bearing lateral foot X-ray for pes planus.
-${patientAge ? 'Patient age: ' + patientAge : ''} ${patientGender ? 'Gender: ' + patientGender : ''}
+${safeAge ? 'Patient age: ' + safeAge : ''} ${safeGender ? 'Gender: ' + safeGender : ''}
 
 MEASUREMENTS:
 1. Meary angle: talus longitudinal axis vs 1st metatarsal axis. Normal 0-4 degrees. Plantar=flatfoot.
