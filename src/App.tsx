@@ -741,7 +741,7 @@ const App: React.FC = () => {
                     /* Image viewer — constrained height so tall portrait X-rays don't dominate */
                     <div style={{ position:'relative', background:'#0a0e12', borderRadius:10, overflow:'auto', lineHeight:0, maxHeight:'min(540px,62vh)' }}>
                       {/* AI Loading overlay — shown while analyzing */}
-                      {isAnalyzing && <AILoadingScreen lang={store.language} />}
+                      {isAnalyzing && <AILoadingScreen lang={store.language} modality={store.modality} />}
 
                       {/* ── Manual mode toggle button ── */}
                       <button
@@ -1162,6 +1162,7 @@ const App: React.FC = () => {
           patientAge={store.patientAge}
           patientGender={store.patientGender}
           notes={store.doctorNotes}
+          lang={store.language}
           t={t}
         />
       </SafeSuspense>

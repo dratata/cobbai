@@ -28,18 +28,20 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (f: File) => {
-    const src = await new Promise<string>((res,rej) => {
-      const r = new FileReader();
-      r.onload = e => res(e.target!.result as string);
-      r.onerror = rej;
-      r.readAsDataURL(f);
-    });
-    const processed = await preprocessXray(src, { resize:true, histogramStretch:false });
-    setPrevB64(processed.base64);
-    setPrevMime(processed.mimeType);
-    setPrevSrc(src);
-    setPrevRes(null);
-    setError(null);
+    try {
+      const src = await new Promise<string>((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res(e.target!.result as string);
+        r.onerror = () => rej(new Error('File could not be read'));
+        r.readAsDataURL(f);
+      });
+      const processed = await preprocessXray(src, { resize:true, histogramStretch:false });
+      setPrevB64(processed.base64);
+      setPrevMime(processed.mimeType);
+      setPrevSrc(src);
+      setPrevRes(null);
+      setError(null);
+    } catch(e) { setError((e as Error).message); }
   };
 
   const analyze = async () => {
@@ -100,7 +102,7 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
                 <img src={prevSrc} alt="Previous X-ray" style={{ width:'100%', display:'block', maxHeight:300, objectFit:'contain' }}/>
                 <button onClick={() => { setPrevSrc(null); setPrevB64(null); setPrevRes(null); }}
                   style={{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,.75)', color:'#fff', border:'1px solid rgba(255,255,255,.25)', borderRadius:6, padding:'5px 11px', fontSize:12, cursor:'pointer' }}>
-                  ↺ Değiştir
+                  {lang==='tr'?'↺ Değiştir':lang==='ar'?'↺ تغيير':'↺ Change'}
                 </button>
               </div>
               {!prevRes && !loading && (
@@ -129,7 +131,9 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
               <div style={{ fontSize:13, color:'#7a8fa0' }}>{modality==='spine'?'Cobb':'Meary'}</div>
             </>
           ) : (
-            <div style={{ color:'#4a5a6a', fontSize:13, textAlign:'center' }}>Önce ana panelden analiz yapın</div>
+            <div style={{ color:'#4a5a6a', fontSize:13, textAlign:'center' }}>
+              {lang==='tr'?'Önce ana panelden analiz yapın':lang==='ar'?'قم بالتحليل من اللوحة الرئيسية أولاً':'Run analysis from the main panel first'}
+            </div>
           )}
         </div>
       </div>
@@ -138,18 +142,18 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
       {diff !== null && curr !== null && prev !== null && (
         <div style={{ marginTop:12, background:'#0e1419', border:'1px solid rgba(255,255,255,.12)', borderRadius:12, padding:'1.25rem' }}>
           <div style={{ fontSize:10, letterSpacing:'1.5px', color:'#7a8fa0', fontWeight:700, marginBottom:12 }}>{t.compTitle}</div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
-            <CompCell lbl={lang==='tr'?'ÖNCEKİ':'PREVIOUS'} val={`${prev}°`} col="#f0a045"/>
-            <CompCell lbl={lang==='tr'?'GÜNCEL':'CURRENT'}  val={`${curr}°`} col={modality==='spine'?'#00c853':'#2196f3'}/>
-            <CompCell lbl={lang==='tr'?'FARK':'CHANGE'}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, direction: lang==='ar'?'rtl':'ltr' }}>
+            <CompCell lbl={lang==='tr'?'ÖNCEKİ':lang==='ar'?'السابق':'PREVIOUS'} val={`${prev}°`} col="#f0a045"/>
+            <CompCell lbl={lang==='tr'?'GÜNCEL':lang==='ar'?'الحالي':'CURRENT'}  val={`${curr}°`} col={modality==='spine'?'#00c853':'#2196f3'}/>
+            <CompCell lbl={lang==='tr'?'FARK':lang==='ar'?'الفرق':'CHANGE'}
               val={(diff>0?'+':'')+diff.toFixed(1)+'°'}
               col={diffCol}
-              sub={diff>0?(lang==='tr'?'Artış':'Increase'):(diff<0?(lang==='tr'?'Azalış':'Decrease'):(lang==='tr'?'Değişim yok':'No change'))}/>
+              sub={diff>0?(lang==='tr'?'Artış':lang==='ar'?'زيادة':'Increase'):(diff<0?(lang==='tr'?'Azalış':lang==='ar'?'انخفاض':'Decrease'):(lang==='tr'?'Değişim yok':lang==='ar'?'لا تغيير':'No change'))}/>
           </div>
           <div style={{ marginTop:12, fontSize:14, color:'#7a8fa0', padding:'10px 14px', background:'rgba(255,255,255,.04)', borderRadius:8, lineHeight:1.6 }}>
             {Math.abs(diff) >= 5
-              ? `⚠️ ${Math.abs(diff).toFixed(1)}° değişim tespit edildi. FTR Uzman Hekimine başvurun.`
-              : `✅ ${Math.abs(diff).toFixed(1)}° fark klinik olarak kabul edilebilir aralıkta.`}
+              ? `⚠️ ${lang==='tr'?`${Math.abs(diff).toFixed(1)}° değişim tespit edildi. FTR Uzman Hekimine başvurun.`:lang==='ar'?`تم اكتشاف تغيير ${Math.abs(diff).toFixed(1)}°. استشر طبيب العلاج الطبيعي.`:`${Math.abs(diff).toFixed(1)}° change detected. Consult your specialist.`}`
+              : `✅ ${lang==='tr'?`${Math.abs(diff).toFixed(1)}° fark klinik olarak kabul edilebilir aralıkta.`:lang==='ar'?`فرق ${Math.abs(diff).toFixed(1)}° ضمن النطاق المقبول سريريًا.`:`${Math.abs(diff).toFixed(1)}° difference is within clinically acceptable range.`}`}
           </div>
         </div>
       )}

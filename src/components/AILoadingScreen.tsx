@@ -1,20 +1,29 @@
 // src/components/AILoadingScreen.tsx
 import React from 'react';
+import type { Lang } from '@/lib/i18n';
 
 interface AILoadingScreenProps {
-  lang?: string;
+  lang?: Lang;
+  modality?: 'spine' | 'foot';
 }
 
-const AILoadingScreen: React.FC<AILoadingScreenProps> = ({ lang = 'tr' }) => {
+const AILoadingScreen: React.FC<AILoadingScreenProps> = ({ lang = 'tr', modality = 'spine' }) => {
+  const isSpine = modality === 'spine';
   const title = lang === 'ar' ? 'جارٍ تحليل الذكاء الاصطناعي'
     : lang === 'en' ? 'AI ANALYSIS IN PROGRESS'
     : 'AI ANALİZİ YÜKLENİYOR';
 
   const sub = lang === 'ar'
-    ? 'يتم تقسيم العمود الفقري وحساب زوايا كوب… يرجى الانتظار.'
+    ? (isSpine
+      ? 'يتم تقسيم العمود الفقري وحساب زوايا كوب… يرجى الانتظار.'
+      : 'يتم قياس زاوية ميري والكشف عن القدم المسطحة… يرجى الانتظار.')
     : lang === 'en'
-    ? 'Spine segmentation and Cobb angle calculation in progress… Please wait.'
-    : 'Omurga segmentasyonu yapılıyor ve Cobb açıları hesaplanıyor… Lütfen bekleyin.';
+    ? (isSpine
+      ? 'Spine segmentation and Cobb angle calculation in progress… Please wait.'
+      : 'Meary angle measurement and pes planus detection in progress… Please wait.')
+    : (isSpine
+      ? 'Omurga segmentasyonu yapılıyor ve Cobb açıları hesaplanıyor… Lütfen bekleyin.'
+      : 'Meary açısı ölçülüyor ve pes planus analizi yapılıyor… Lütfen bekleyin.');
 
   return (
     <div style={{
