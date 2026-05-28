@@ -1062,6 +1062,7 @@ const App: React.FC = () => {
                     <SafeSuspense fallback={null}>
                       <SurgimapLitePanel
                         processed={store.processedSpine}
+                        lang={store.language}
                         onEditCurve={(idx) => { setSelectedCurveIdx(idx); store.setShowCorrection(true); }}
                       />
                     </SafeSuspense>
