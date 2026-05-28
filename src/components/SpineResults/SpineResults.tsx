@@ -188,7 +188,7 @@ const GrowthPrediction: React.FC<{ raw:SpineAnalysisResult; patientAge:string; p
   if (!cobb || isNaN(age)) return null;
   const isFemale = patientGender?.toLowerCase().includes('female') || patientGender === 'Kadın';
   const risserN  = risser ? parseInt(risser) : undefined;
-  const pred = estimateProgressionRisk(cobb, age, isFemale, risserN);
+  const pred = estimateProgressionRisk(cobb, age, isFemale, risserN, lang);
   const col  = { low:'#00c853', medium:'#f0a045', high:'#e05555' }[pred.risk];
   const riskLbl = lang==='ar'
     ? { low:'خطر منخفض', medium:'خطر متوسط', high:'خطر مرتفع' }[pred.risk]

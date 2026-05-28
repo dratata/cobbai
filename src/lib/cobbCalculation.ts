@@ -300,11 +300,30 @@ export interface GrowthPrediction {
   recommendation: string;
 }
 
+const PROGRESSION_TEXT: Record<Lang, Record<ProgressionRisk, { description: string; recommendation: string }>> = {
+  en: {
+    low:    { description: 'Low progression risk.',      recommendation: 'Clinical follow-up every 6 months. Exercise programme.' },
+    medium: { description: 'Moderate progression risk.', recommendation: 'PMR specialist review every 3–4 months. Consider bracing if skeletally immature.' },
+    high:   { description: 'High progression risk.',     recommendation: 'Urgent PMR Specialist review. Brace evaluation if Cobb 25–45°. Surgical evaluation if Cobb >45°.' },
+  },
+  tr: {
+    low:    { description: 'Düşük ilerleme riski.',      recommendation: '6 ayda bir klinik takip. Egzersiz programı.' },
+    medium: { description: 'Orta ilerleme riski.',       recommendation: '3–4 ayda bir FTR uzmanı değerlendirmesi. İskelet olgunlaşması tamamlanmadıysa korse düşünülmeli.' },
+    high:   { description: 'Yüksek ilerleme riski.',     recommendation: 'Acil FTR uzmanı değerlendirmesi. Cobb 25–45° ise korse değerlendirmesi. Cobb >45° ise cerrahi değerlendirme.' },
+  },
+  ar: {
+    low:    { description: 'خطر تطور منخفض.',  recommendation: 'متابعة سريرية كل 6 أشهر. برنامج تمارين.' },
+    medium: { description: 'خطر تطور متوسط.',  recommendation: 'مراجعة أخصائي الطب الطبيعي والتأهيل كل 3–4 أشهر. النظر في الدعامة إذا لم يكتمل النضج الهيكلي.' },
+    high:   { description: 'خطر تطور مرتفع.',  recommendation: 'مراجعة عاجلة لأخصائي الطب الطبيعي والتأهيل. تقييم الدعامة إذا كانت زاوية كوب 25–45°. تقييم جراحي إذا كانت زاوية كوب >45°.' },
+  },
+};
+
 export function estimateProgressionRisk(
   cobbDeg: number,
   ageYears: number,
   isFemale: boolean,
-  risserStage?: number
+  risserStage?: number,
+  lang: Lang = 'en'
 ): GrowthPrediction {
   let score = 0;
 
@@ -324,22 +343,11 @@ export function estimateProgressionRisk(
   }
 
   let risk: ProgressionRisk;
-  let description: string;
-  let recommendation: string;
+  if (score <= 3)      risk = 'low';
+  else if (score <= 6) risk = 'medium';
+  else                 risk = 'high';
 
-  if (score <= 3) {
-    risk = 'low';
-    description = 'Low progression risk.';
-    recommendation = 'Clinical follow-up every 6 months. Exercise programme.';
-  } else if (score <= 6) {
-    risk = 'medium';
-    description = 'Moderate progression risk.';
-    recommendation = 'PMR specialist review every 3–4 months. Consider bracing if skeletally immature.';
-  } else {
-    risk = 'high';
-    description = 'High progression risk.';
-    recommendation = 'Urgent PMR Specialist review. Brace evaluation if Cobb 25–45°. Surgical evaluation if Cobb >45°.';
-  }
+  const text = (PROGRESSION_TEXT[lang] ?? PROGRESSION_TEXT.en)[risk];
 
-  return { risk, score, description, recommendation };
+  return { risk, score, description: text.description, recommendation: text.recommendation };
 }
