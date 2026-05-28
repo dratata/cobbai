@@ -102,7 +102,7 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
             {c.validation && c.validation.geometryCobb > 0.5 && (
               <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,.06)', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', fontSize:11 }}>
                 <span style={{ color:'#4a5a6a', fontFamily:'monospace' }}>
-                  {lang==='ar'?'التحقق الهندسي:':lang==='en'?'Geometry check:':'Geometri doğrulama:'} <span style={{ color: col }}>{c.validation.geometryCobb}°</span>
+                  {lang==='ar'?'التحقق الهندسي:':lang==='en'?'Geometry check:':'Geometri doğrulama:'} <span style={{ color: col }}>{c.validation.geometryCobb.toFixed(1)}°</span>
                 </span>
                 {!c.validation.isConsistent && c.validation.discrepancyDeg > 5 && (
                   <span style={{ padding:'1px 7px', borderRadius:10, background:'rgba(240,160,69,.1)', border:'1px solid rgba(240,160,69,.3)', color:'#f0a045', fontWeight:700 }}>

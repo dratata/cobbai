@@ -93,6 +93,7 @@ export const TrackingPanel: React.FC<TrackingPanelProps> = ({ modality, lang }) 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || values.length < 2) return;
+    if (canvas.offsetWidth === 0) return; // not yet laid out — avoid Infinity coords
 
     const dpr = window.devicePixelRatio || 1;
     const W = canvas.offsetWidth;
