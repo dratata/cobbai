@@ -37,13 +37,17 @@ import { ImageControls } from '@/components/ImageControls/ImageControls';
 
 
 // ── Helpers ───────────────────────────────────────────────────
-const Spinner: React.FC<{ label?: string }> = ({ label }) => (
-  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12, padding:'2rem', color:'#7a8fa0', fontSize:14 }}>
-    <div style={{ width:36, height:36, border:'3px solid rgba(0,200,83,.2)', borderTopColor:'#00c853', borderRadius:'50%', animation:'_spin .75s linear infinite' }} />
-    {label ?? 'Yükleniyor...'}
-    <style>{`@keyframes _spin{to{transform:rotate(360deg)}}`}</style>
-  </div>
-);
+const Spinner: React.FC<{ label?: string }> = ({ label }) => {
+  const lang = useMeasurementStore(s => s.language);
+  const defaultLabel = lang === 'ar' ? 'جارٍ التحميل…' : lang === 'en' ? 'Loading…' : 'Yükleniyor…';
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12, padding:'2rem', color:'#7a8fa0', fontSize:14 }}>
+      <div style={{ width:36, height:36, border:'3px solid rgba(0,200,83,.2)', borderTopColor:'#00c853', borderRadius:'50%', animation:'_spin .75s linear infinite' }} />
+      {label ?? defaultLabel}
+      <style>{`@keyframes _spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+};
 
 // ── Main App ──────────────────────────────────────────────────
 const App: React.FC = () => {
@@ -788,7 +792,7 @@ const App: React.FC = () => {
                       {/* ── AdvancedManualTool (zero-API) ── */}
                       {isManualMode ? (
                         <div style={{ width:'100%', height:480 }}>
-                          <SafeSuspense fallback={<Spinner label="Yükleniyor..." />}>
+                          <SafeSuspense fallback={<Spinner />}>
                             <AdvancedManualTool
                               imageSrc={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
                               naturalW={store.loadedImage.naturalWidth}
