@@ -271,8 +271,8 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
     };
     const obs = new ResizeObserver(syncSize);
     obs.observe(parent);
-    requestAnimationFrame(syncSize);
-    return () => obs.disconnect();
+    const rafId = requestAnimationFrame(syncSize);
+    return () => { cancelAnimationFrame(rafId); obs.disconnect(); };
   }, [naturalW, naturalH, redraw]);
 
   // ── Mouse / touch coordinate helpers ─────────────────────────
