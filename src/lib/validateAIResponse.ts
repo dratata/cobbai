@@ -223,6 +223,7 @@ export function safeParseSpineResult(
     imaging_indications:     r.imaging_indications ?? '',
     _model:                  r._model,
     _timestamp:              new Date().toISOString(),
+    warnings:                Array.isArray(r.warnings) ? r.warnings.filter((w): w is string => typeof w === 'string') : undefined,
   };
 
   return { result, outcome };

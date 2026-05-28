@@ -403,6 +403,12 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     if (e.touches.length === 0) st.isPanning = false;
   };
 
+  const handleTouchCancel = () => {
+    const st = stateRef.current;
+    st.isPanning = false;
+    lastPinchDist.current = null;
+  };
+
   // Fix 2 (Memory Leak): keydown handler via stable ref.
   // Previously: useCallback([draw]) → draw changes → handleKeyDown changes →
   // useEffect([handleKeyDown]) re-fires → remove+add each render → n listeners.
@@ -516,6 +522,7 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
         />
         {!imgLoaded && (
           <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'#7a8fa0', fontSize:14 }}>
