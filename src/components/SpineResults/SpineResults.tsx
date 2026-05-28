@@ -93,7 +93,7 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
               </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-              <Metric val={`${c.cobb_angle}°`} lbl={t.cobb} col={col} />
+              <Metric val={`${c.cobb_angle.toFixed(1)}°`} lbl={t.cobb} col={col} />
               <Metric val={isL ? t.dL : t.dR} sub={t.conv} lbl="" col={col} />
               <Metric val={`${c.upper_vertebra_name??'?'}↓${c.lower_vertebra_name??'?'}`} lbl={t.vert} col="#eef2f7" small />
             </div>
