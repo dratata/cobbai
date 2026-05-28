@@ -130,10 +130,10 @@ function setLang(l){
   setText('tipsTitle',t.tipsTitle);
   document.getElementById('tipsList').innerHTML=t.tipsList.map(x=>`<li>${x}</li>`).join('');
   setText('footerText',t.footer);
-  localStorage.setItem('cobbai_lang',l);
+  try { localStorage.setItem('cobbai_lang',l); } catch(e) {}
 }
 const p=new URLSearchParams(window.location.search);
-const saved=localStorage.getItem('cobbai_lang');
+const saved=function(){try{return localStorage.getItem('cobbai_lang');}catch(e){return null;}}();
 const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';
 const initLang=p.get('lang')||saved||(tz.includes('Istanbul')?'tr':'en');
 setLang(initLang);
@@ -178,7 +178,7 @@ setLang(initLang);
 <script>
 var TRACK_KEY = 'cobbai_foot_track';
 function getTrackData(){try{return JSON.parse(localStorage.getItem(TRACK_KEY)||'{"days":[]}');}catch(e){return{days:[]};}}
-function saveTrackData(d){localStorage.setItem(TRACK_KEY,JSON.stringify(d));}
+function saveTrackData(d){try{localStorage.setItem(TRACK_KEY,JSON.stringify(d));}catch(e){}}
 function todayStr(){return new Date().toISOString().slice(0,10);}
 function markDone(){var data=getTrackData(),today=todayStr();if(data.days.indexOf(today)===-1){data.days.push(today);saveTrackData(data);}renderTracking();}
 function renderTracking(){
