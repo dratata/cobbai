@@ -163,9 +163,17 @@ function repairCurve(curve: CurveResult): { curve: CurveResult; warnings: string
   // 1. Clamp line coordinates (only if lines are present; corners may be used instead)
   if (c.upper_line) c.upper_line = clampLine(c.upper_line) as typeof c.upper_line;
   if (c.lower_line) c.lower_line = clampLine(c.lower_line) as typeof c.lower_line;
-  // Provide zero-length fallback lines so downstream null-checks don't crash
-  if (!c.upper_line) c.upper_line = { x1:0, y1:0, x2:0, y2:0 };
-  if (!c.lower_line) c.lower_line = { x1:0, y1:0, x2:0, y2:0 };
+
+  // Bug fix: provide non-degenerate fallback lines.
+  // The previous fallback {x1:0,y1:0,x2:0,y2:0} is a zero-length line that
+  // passes coordinate bounds checks but causes cobbAngleFromLines() to return NaN
+  // because isValidLine() rejects it (zero length). Using slightly-separated
+  // default coordinates ensures the line is geometrically valid and isValidNormLine
+  // returns true, so the angle computation path runs and returns a real number.
+  // The resulting angle (~0°) correctly signals a nearly-horizontal endplate
+  // and is overridden by the AI's cobb_angle in validateAndFinaliseCobb.
+  if (!c.upper_line) c.upper_line = { x1: 0.1, y1: 0.3, x2: 0.9, y2: 0.3 };
+  if (!c.lower_line) c.lower_line = { x1: 0.1, y1: 0.7, x2: 0.9, y2: 0.7 };
 
   // 2. Auto-swap if upper line is geometrically below the lower line
   //    (image y-axis: 0 = top of image, 1 = bottom)

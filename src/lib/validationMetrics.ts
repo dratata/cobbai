@@ -32,7 +32,14 @@ export interface BlandAltmanPoint { mean: number; diff: number; id: string; }
 function mean(arr: number[]): number {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
+
+/**
+ * Sample standard deviation.
+ * Bug fix: guard against n ≤ 1 to prevent 0-division returning NaN.
+ * Returns 0 when there are fewer than 2 data points.
+ */
 function sd(arr: number[], mu?: number): number {
+  if (arr.length <= 1) return 0;
   const m = mu ?? mean(arr);
   return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1));
 }
@@ -50,8 +57,8 @@ export function calculateMetrics(cases: ValidationCase[]): ValidationMetrics {
   const rmse = Math.sqrt(mean(diffs.map(d => d ** 2)));
 
   // Bland-Altman
-  const meanBias  = mean(diffs);
-  const sdDiff2   = sd(diffs, meanBias);
+  const meanBias   = mean(diffs);
+  const sdDiff2    = sd(diffs, meanBias);
   const loa95Upper = meanBias + 1.96 * sdDiff2;
   const loa95Lower = meanBias - 1.96 * sdDiff2;
 
@@ -68,7 +75,9 @@ export function calculateMetrics(cases: ValidationCase[]): ValidationMetrics {
   const ms_c = n * ((mE - grandMean) ** 2 + (mA - grandMean) ** 2) / (2 - 1);
   const ss_e = cases.reduce((s, c) => s + (c.expertCobb - mE - c.aiCobb + mA) ** 2, 0);
   const ms_e = ss_e / ((n - 1) * 1);
-  const icc  = ms_e > 0 ? (ms_r - ms_e) / (ms_r + ms_e + 2 * (ms_c - ms_e) / n) : 0;
+  // Guard: if ms_e is 0 (perfect agreement) ICC = 1 by definition
+  const iccDenom = ms_r + ms_e + 2 * (ms_c - ms_e) / n;
+  const icc  = iccDenom > 0 ? (ms_r - ms_e) / iccDenom : 0;
 
   const within5deg  = cases.filter(c => Math.abs(c.expertCobb - c.aiCobb) <= 5).length / n * 100;
   const within10deg = cases.filter(c => Math.abs(c.expertCobb - c.aiCobb) <= 10).length / n * 100;
@@ -88,6 +97,9 @@ export function parseValidationCSV(csv: string): ValidationCase[] {
   const idIdx    = header.findIndex(h => h.includes('id'));
   const expIdx   = header.findIndex(h => h.includes('expert') || h.includes('manual'));
   const aiIdx    = header.findIndex(h => h.includes('ai') || h.includes('auto'));
+  const ctIdx    = header.findIndex(h => h.includes('curvetype') || h.includes('curve_type'));
+  const iqIdx    = header.findIndex(h => h.includes('imagequality') || h.includes('image_quality'));
+  const notesIdx = header.findIndex(h => h.includes('note'));
   if (expIdx < 0 || aiIdx < 0) return [];
   return lines.slice(1).map((line, i) => {
     const cols = line.split(',').map(c => c.trim());
@@ -95,9 +107,9 @@ export function parseValidationCSV(csv: string): ValidationCase[] {
       id:           idIdx >= 0 ? (cols[idIdx] || `case_${i+1}`) : `case_${i+1}`,
       expertCobb:   parseFloat(cols[expIdx]) || 0,
       aiCobb:       parseFloat(cols[aiIdx])  || 0,
-      curveType:    cols[4] || '',
-      imageQuality: cols[5] || '',
-      notes:        cols[6] || '',
+      curveType:    ctIdx    >= 0 ? (cols[ctIdx]    || '') : '',
+      imageQuality: iqIdx    >= 0 ? (cols[iqIdx]    || '') : '',
+      notes:        notesIdx >= 0 ? (cols[notesIdx] || '') : '',
     };
   }).filter(c => c.expertCobb > 0 || c.aiCobb > 0);
 }

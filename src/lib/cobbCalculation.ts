@@ -280,14 +280,22 @@ export function processSpineResult(
     const curve = normaliseCurveEndplates(rawCurve);
     const validation = validateAndFinaliseCobb(curve);
 
+    // Bug fix: only set slope_delta_deg when actual slope values are present;
+    // using ?? 0 wrongly sets it to 0 when slopes are missing, causing the UI
+    // to display "0°" as if it were a real measured value.
+    const hasSlopes =
+      typeof curve.upper_slope_deg === 'number' &&
+      typeof curve.lower_slope_deg === 'number';
+    const slope_delta_deg = hasSlopes
+      ? Math.abs(curve.upper_slope_deg! - curve.lower_slope_deg!)
+      : undefined;
+
     // Update display value to geometry-computed (safer than raw AI)
     const corrected: CurveResult = {
       ...curve,
-      cobb_angle:  validation.displayCobb,
-      severity:    classifyCobb(validation.displayCobb),
-      slope_delta_deg: Math.abs(
-        (curve.upper_slope_deg ?? 0) - (curve.lower_slope_deg ?? 0)
-      ),
+      cobb_angle:     validation.displayCobb,
+      severity:       classifyCobb(validation.displayCobb),
+      slope_delta_deg,
     };
 
     allWarnings.push(...validation.warnings);
