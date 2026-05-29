@@ -43,7 +43,7 @@ interface ManualCorrectionPanelProps {
 }
 
 const CURVE_COLOURS = ['#00c853', '#e53935'];
-const HANDLE_RADIUS_RATIO = 0.032;
+const HANDLE_RADIUS_RATIO = 0.042; // larger handles — easier to grab on touch/desktop
 
 // ── Component ─────────────────────────────────────────────────
 
@@ -393,8 +393,19 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
 
   return (
     <div style={{ background:'#0a1a0f', border:'1px solid rgba(0,200,83,.3)', borderRadius:12, padding:14 }}>
-      {/* Step-by-step instruction microcopy */}
-      <div style={{ fontSize:11, color:'#7a8fa0', background:'rgba(0,0,0,.35)', borderRadius:6, padding:'6px 10px', marginBottom:10, lineHeight:1.5 }}>
+      {/* Surgimap-style banner: AI suggested these positions — physician verifies */}
+      <div style={{ fontSize:12, fontWeight:700, color:'#00e5ff', background:'rgba(0,229,255,.07)', border:'1px solid rgba(0,229,255,.25)', borderRadius:7, padding:'8px 12px', marginBottom:10, display:'flex', alignItems:'center', gap:8 }}>
+        <span style={{ fontSize:16 }}>🔬</span>
+        <span>
+          {lang === 'tr'
+            ? 'AI endplate önerisi — Tutamaçları sürükleyerek doğru pozisyona getirin, sonra Kaydet.'
+            : lang === 'ar'
+            ? 'اقتراح AI للصفيحة — اسحب المقابض إلى الموضع الصحيح ثم احفظ.'
+            : 'AI endplate suggestion — Drag the handles to the correct position, then Save.'}
+        </span>
+      </div>
+      {/* Step guide */}
+      <div style={{ fontSize:10, color:'#5a7a6a', background:'rgba(0,0,0,.25)', borderRadius:5, padding:'5px 9px', marginBottom:10, lineHeight:1.5 }}>
         {t.guide}
       </div>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>

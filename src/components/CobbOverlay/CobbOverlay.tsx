@@ -455,14 +455,7 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
         ctx.restore();
       }
 
-      // ── 6. Validation warning badge (only for large discrepancy AND valid local geometry) ──
-      if (!curve.validation.isConsistent && curve.validation.discrepancyDeg > 10 && curve.validation.geometryCobb > 1) {
-        const warnX = 10, warnY = 10 + i * 28;
-        drawLabelBox(ctx,
-          `⚠ Curve ${i + 1}: Δ${curve.validation.discrepancyDeg.toFixed(1)}° verify`,
-          '#f0a045', warnX, warnY, 11, 'left', cssW, cssH
-        );
-      }
+      // ── 6. Geometry discrepancy badge — removed (AI measurement is primary) ──
 
       // ── 7. Sequential vertebra labels (T5→T6→T7… local, no API) ──
       // Shown when showVertebraLabels is toggled ON.

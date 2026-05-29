@@ -137,23 +137,24 @@ export function validateAndFinaliseCobb(curve: CurveResult): CobbValidationResul
   }
 
   // ── Step 5: Choose display value ───────────────────────────
-  // ALWAYS display AI-reported Cobb as the primary value.
+  // Primary = AI-reported cobb_angle (the radiologist's visual measurement).
+  // AI measures directly from the image using visual assessment of endplate tilt —
+  // this is the same method a physician uses at the lightbox.
   //
-  // Rationale: The AI analysed the full X-ray image and reported an angle
-  // based on visual landmark detection. Local geometry cross-checks the
-  // coordinates the AI also returned — but those coordinates can be
-  // imprecise (especially with the zero-placeholder schema fix) and may
-  // not reflect the true clinical angle the radiologist would measure.
+  // Local geometry (from corner coordinates) is used as a cross-check:
+  // if the two values differ >5° a warning prompts manual verification.
+  // displayCobb = AI value so the physician sees what the AI directly measured.
   //
-  // The local geometry value is shown in the audit row ("AI: X° · Lokal: Y°")
-  // so the physician can compare. If the discrepancy > 5°, a warning prompts
-  // manual verification. But the displayed Cobb is the AI reading.
-  const displayCobb = aiReportedCobb;
+  // Fallback: if AI returns 0 or missing (placeholder echo), use local geometry
+  // when it is reliable, otherwise show 0 with a warning.
+  const displayCobb = aiReportedCobb > 0
+    ? aiReportedCobb
+    : (geometryIsReliable ? geometryCobb : 0);
 
   return {
     displayCobb,
-    aiReportedCobb,
-    geometryCobb:   isNaN(geometryCobb) ? aiReportedCobb : geometryCobb,
+    aiReportedCobb,                                          // kept for audit trail
+    geometryCobb:   isNaN(geometryCobb) ? 0 : geometryCobb, // local geometry
     discrepancyDeg: geometryIsReliable ? discrepancy : 0,
     isConsistent:   geometryIsReliable ? isConsistent : true,
     warnings,
@@ -181,10 +182,34 @@ export interface ProcessedSpineResult {
  * the superior corners (upper) and inferior corners (lower) instead of using
  * the AI-supplied slope metadata. This reduces endplate drift.
  */
-/** Tilt of a line in image Y-pixels (larger = more tilted) */
-function lineTilt(l: NormLine): number { return Math.abs(l.y2 - l.y1); }
+/**
+ * Reconstruct an endplate line using the AI's measured slope and the
+ * horizontal extent from the corner coordinates.
+ *
+ * Why: The AI reports both corner positions (for the vertebra box) and a
+ * slope angle (for the Cobb measurement). The drawn endplate line should
+ * exactly reflect the slope the AI measured — not the raw corner-to-corner
+ * angle, which can differ due to small corner placement errors.
+ *
+ * Method: keep x1, x2 from the base line (corners); compute y1, y2 by
+ * applying tan(slopeDeg) around the vertical midpoint of the line.
+ */
+function applyAISlope(base: NormLine, slopeDeg: number): NormLine {
+  const { x1, x2 } = base;
+  const midY    = (base.y1 + base.y2) / 2;       // anchor at vertical midpoint
+  const halfDx  = (x2 - x1) / 2;
+  const rad     = slopeDeg * Math.PI / 180;
+  return {
+    x1,
+    y1: midY - halfDx * Math.tan(rad),
+    x2,
+    y2: midY + halfDx * Math.tan(rad),
+  };
+}
+
 
 export function normaliseCurveEndplates(curve: CurveResult): CurveResult {
+  // Build base lines from corner coordinates
   const upperFromCorners: NormLine | null = curve.upper_corners
     ? { x1: curve.upper_corners.ul[0], y1: curve.upper_corners.ul[1],
         x2: curve.upper_corners.ur[0], y2: curve.upper_corners.ur[1] }
@@ -194,20 +219,34 @@ export function normaliseCurveEndplates(curve: CurveResult): CurveResult {
         x2: curve.lower_corners.lr[0], y2: curve.lower_corners.lr[1] }
     : null;
 
-  // Prefer corners when they are valid AND more tilted than the direct line
-  // (nearly-horizontal direct lines are a common AI error).
-  const pickBest = (direct: NormLine, fromCorners: NormLine | null): NormLine => {
-    if (!fromCorners || !isValidNormLine(fromCorners)) return direct;
-    if (!isValidNormLine(direct)) return fromCorners;
-    // If corners give at least 0.008 more tilt, prefer them
-    return lineTilt(fromCorners) >= lineTilt(direct) - 0.005 ? fromCorners : direct;
-  };
+  // Candidate base lines (corners preferred over direct AI-supplied line)
+  const upperBase = (upperFromCorners && isValidNormLine(upperFromCorners))
+    ? upperFromCorners
+    : (isValidNormLine(curve.upper_line) ? curve.upper_line : null);
 
-  return {
-    ...curve,
-    upper_line: pickBest(curve.upper_line, upperFromCorners),
-    lower_line: pickBest(curve.lower_line, lowerFromCorners),
-  };
+  const lowerBase = (lowerFromCorners && isValidNormLine(lowerFromCorners))
+    ? lowerFromCorners
+    : (isValidNormLine(curve.lower_line) ? curve.lower_line : null);
+
+  // Check whether the AI provided meaningful (non-zero) slope values
+  const hasSlopes =
+    typeof curve.upper_slope_deg === 'number' &&
+    typeof curve.lower_slope_deg === 'number' &&
+    !(curve.upper_slope_deg === 0 && curve.lower_slope_deg === 0);
+
+  // If AI supplied slope angles, rebuild lines so the drawn endplate EXACTLY
+  // matches the angle the AI measured (same horizontal span, AI-corrected tilt).
+  // This ensures the displayed Cobb arc is geometrically consistent with the
+  // AI's cobb_angle = |upper_slope - lower_slope|.
+  const upper_line = upperBase
+    ? (hasSlopes ? applyAISlope(upperBase, curve.upper_slope_deg!) : upperBase)
+    : curve.upper_line;
+
+  const lower_line = lowerBase
+    ? (hasSlopes ? applyAISlope(lowerBase, curve.lower_slope_deg!) : lowerBase)
+    : curve.lower_line;
+
+  return { ...curve, upper_line, lower_line };
 }
 
 /**

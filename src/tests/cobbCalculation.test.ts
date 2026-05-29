@@ -84,12 +84,12 @@ describe('validateAndFinaliseCobb — inconsistent result', () => {
     expect(r.warnings.some(w => w.includes('differ'))).toBe(true);
   });
 
-  it('displayCobb is always the AI-reported value (design change: AI is primary)', () => {
-    // Previously: displayCobb = geometry (~28°). Now: displayCobb = aiReportedCobb (70°).
-    // Geometry is kept in geometryCobb for physician cross-check, but primary display = AI.
+  it('displayCobb is AI-reported value when AI returns non-zero', () => {
+    // AI measures directly from image — use that as primary display.
+    // Local geometry is a cross-check only.
     const r = validateAndFinaliseCobb(makeCurve({ cobb_angle: 70 }));
-    expect(r.displayCobb).toBe(70);           // AI value always shown
-    expect(r.geometryCobb).toBeLessThan(40);  // geometry still computed for audit
+    expect(r.displayCobb).toBe(70);            // AI value shown
+    expect(r.geometryCobb).toBeLessThan(40);   // local geometry computed separately
     expect(r.aiReportedCobb).toBe(70);
   });
 });

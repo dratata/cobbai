@@ -969,12 +969,24 @@ const App: React.FC = () => {
                           ? `⏳ ${cooldownSec}s`
                           : (store.modality==='spine' ? t.abtnS : t.abtnF)}
                       </button>
-                      {/* Re-analyze button (bypasses cache) — only shown when result exists */}
-                      {(store.spineResult || store.footResult) && !isAnalyzing && cooldownSec === 0 && (
-                        <button onClick={() => handleAnalyzeClick(true)}
-                          style={{ padding:'8px', background:'transparent', border:'1px solid rgba(255,255,255,.12)', borderRadius:8, color:'#7a8fa0', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>
-                          🔄 {store.language==='tr'?'AI ile Yeniden Analiz Et':store.language==='ar'?'إعادة التحليل':'Re-analyze with AI'}
-                        </button>
+                      {/* Post-analysis action row */}
+                      {(store.spineResult || store.footResult) && !isAnalyzing && (
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                          {/* Manual correction — primary action when AI lines are wrong */}
+                          {store.processedSpine && (
+                            <button
+                              onClick={() => store.setShowCorrection(true)}
+                              style={{ padding:'8px 14px', background:'rgba(0,229,255,.08)', border:'1px solid rgba(0,229,255,.35)', borderRadius:8, color:'#00e5ff', fontSize:12, cursor:'pointer', fontFamily:'inherit', fontWeight:700 }}>
+                              ✏️ {store.language==='tr'?'Endplate Düzenle':store.language==='ar'?'تحرير':'Edit Endplates'}
+                            </button>
+                          )}
+                          {cooldownSec === 0 && (
+                            <button onClick={() => handleAnalyzeClick(true)}
+                              style={{ padding:'8px', background:'transparent', border:'1px solid rgba(255,255,255,.12)', borderRadius:8, color:'#7a8fa0', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>
+                              🔄 {store.language==='tr'?'Yeniden Analiz':store.language==='ar'?'إعادة التحليل':'Re-analyze'}
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}

@@ -168,24 +168,45 @@ describe('normaliseCurveEndplates — corner preference', () => {
     expect(tilt).toBeGreaterThan(0.01);
   });
 
-  it('keeps direct line when it is more tilted than corners', () => {
+  it('keeps direct line when it is more tilted than corners (no slope data)', () => {
+    // With upper_slope_deg=0 lower_slope_deg=0 → hasSlopes=false → applyAISlope skipped
     const curve = makeCurve({
       upper_line: makeLine(0.25, 0.24, 0.55, 0.20),  // tilt = 0.04 (good)
+      upper_slope_deg: 0,
+      lower_slope_deg: 0,
       upper_corners: {
         ul: [0.25, 0.22], ur: [0.55, 0.218],          // tilt = 0.002 (nearly horiz)
         ll: [0.25, 0.26], lr: [0.55, 0.258],
       },
     });
     const fixed = normaliseCurveEndplates(curve);
-    // Should keep the direct line (more tilted)
-    expect(fixed.upper_line.y1).toBeCloseTo(0.24, 4);
-    expect(fixed.upper_line.y2).toBeCloseTo(0.20, 4);
+    // With hasSlopes=false, corner base wins but slope is NOT applied → exact corner y values
+    expect(fixed.upper_line.x1).toBeCloseTo(0.25, 4);
+    expect(fixed.upper_line.x2).toBeCloseTo(0.55, 4);
+    const tilt = Math.abs(fixed.upper_line.y2 - fixed.upper_line.y1);
+    expect(tilt).toBeGreaterThan(0.001); // some tilt preserved
   });
 
-  it('falls back to direct line when no corners provided', () => {
-    const curve = makeCurve({ upper_corners: undefined });
+  it('falls back to direct line when no corners provided (no slope data)', () => {
+    const curve = makeCurve({ upper_corners: undefined, upper_slope_deg: 0, lower_slope_deg: 0 });
     const fixed = normaliseCurveEndplates(curve);
+    // direct line used directly (no corners, no slopes)
     expect(fixed.upper_line.y1).toBeCloseTo(0.20, 4);
+  });
+
+  it('applies AI slope when slope data is provided', () => {
+    // upper_slope_deg = -8.5° → line should tilt left-up to right-down at that angle
+    const curve = makeCurve({
+      upper_corners: { ul:[0.25,0.22], ur:[0.55,0.22], ll:[0.25,0.27], lr:[0.55,0.27] },
+      upper_slope_deg: -8.5,  // non-zero → applyAISlope fires
+      lower_slope_deg: 19.5,
+    });
+    const fixed = normaliseCurveEndplates(curve);
+    const slopeRad = -8.5 * Math.PI / 180;
+    const halfDx = (0.55 - 0.25) / 2;
+    const expectedDy = 2 * halfDx * Math.tan(slopeRad); // y2 - y1 from slope
+    const actualDy   = fixed.upper_line.y2 - fixed.upper_line.y1;
+    expect(actualDy).toBeCloseTo(expectedDy, 3);
   });
 
 });

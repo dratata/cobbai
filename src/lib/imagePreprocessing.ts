@@ -229,6 +229,36 @@ export async function preprocessXray(
   const ctx = cvs.getContext('2d')!;
   ctx.drawImage(img, 0, 0, w, h);
 
+  // ── Unsharp mask — enhances vertebra cortical bone edges ──────
+  // Professional spine X-ray software (PACS, Surgimap) applies edge
+  // enhancement before landmark detection. Sharpening the cortical
+  // endplate edges helps the AI distinguish individual vertebra
+  // boundaries, improving end-vertebra selection accuracy.
+  // We use a lightweight unsharp mask: blur → subtract → add back.
+  if (options.histogramStretch) {
+    // Apply subtle unsharp mask first
+    const origData = ctx.getImageData(0, 0, w, h);
+    const blurCvs  = document.createElement('canvas');
+    blurCvs.width  = w; blurCvs.height = h;
+    const blurCtx  = blurCvs.getContext('2d')!;
+    blurCtx.filter = 'blur(1.2px)';
+    blurCtx.drawImage(cvs, 0, 0);
+    const blurData = blurCtx.getImageData(0, 0, w, h);
+    const sharp    = origData;
+    const STRENGTH = 0.55;  // unsharp mask strength
+    for (let i = 0; i < sharp.data.length; i += 4) {
+      for (let c = 0; c < 3; c++) {
+        const orig   = origData.data[i + c];
+        const blur   = blurData.data[i + c];
+        const detail = orig - blur;                       // high-freq detail
+        sharp.data[i + c] = Math.max(0, Math.min(255,
+          Math.round(orig + STRENGTH * detail)
+        ));
+      }
+    }
+    ctx.putImageData(sharp, 0, 0);
+  }
+
   // ── Histogram stretch ───────────────────────────────────────
   if (options.histogramStretch) {
     const id   = ctx.getImageData(0, 0, w, h);

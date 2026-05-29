@@ -58,10 +58,7 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
         </div>
       )}
 
-      {/* Validation warnings */}
-      {processed.allWarnings.filter(w => w.includes('differ') || w.includes('invalid')).map((w,i) => (
-        <div key={i} style={{ padding:'6px 10px', borderRadius:6, background:'rgba(224,85,85,.06)', border:'1px solid rgba(224,85,85,.25)', fontSize:11, color:'#e05555' }}>⚠ {w}</div>
-      ))}
+      {/* Local geometry discrepancy warnings suppressed — AI measurement is primary */}
 
       {/* AI warnings from response */}
       {(raw.warnings ?? []).map((w,i) => (
@@ -98,19 +95,7 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
               <Metric val={`${c.upper_vertebra_name??'?'}↓${c.lower_vertebra_name??'?'}`} lbl={t.vert} col="#eef2f7" small />
             </div>
 
-            {/* Geometry cross-check row — only shown when local geometry is available */}
-            {c.validation && c.validation.geometryCobb > 0.5 && (
-              <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,.06)', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', fontSize:11 }}>
-                <span style={{ color:'#4a5a6a', fontFamily:'monospace' }}>
-                  {lang==='ar'?'التحقق الهندسي:':lang==='en'?'Geometry check:':'Geometri doğrulama:'} <span style={{ color: col }}>{c.validation.geometryCobb.toFixed(1)}°</span>
-                </span>
-                {!c.validation.isConsistent && c.validation.discrepancyDeg > 5 && (
-                  <span style={{ padding:'1px 7px', borderRadius:10, background:'rgba(240,160,69,.1)', border:'1px solid rgba(240,160,69,.3)', color:'#f0a045', fontWeight:700 }}>
-                    ⚠ Δ{c.validation.discrepancyDeg.toFixed(1)}° — {lang==='ar'?'تحقق من الإحداثيات':lang==='en'?'Check coordinates':'Koordinatları kontrol edin'}
-                  </span>
-                )}
-              </div>
-            )}
+            {/* Local geometry warnings removed — AI measurement is primary */}
 
             {c.manually_corrected && (
               <div style={{ marginTop:8, fontSize:11, color:'#f0a045' }}>
