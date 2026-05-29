@@ -24,11 +24,15 @@ export default async function handler(req, res) {
     return res.status(413).json({ error: 'Image too large. Please resize to under 8 MB before uploading.' });
   }
 
-  const isTR = lang === 'tr';
+  // Sanitize user-supplied fields before prompt injection
+  const safeAge    = typeof patientAge    === 'string' ? patientAge.replace(/[^0-9.]/g, '').slice(0, 5)       : '';
+  const safeGender = typeof patientGender === 'string' ? patientGender.replace(/[^a-zA-Z]/g, '').slice(0, 10) : '';
+
+  const isTR = lang === 'tr', isAR = lang === 'ar';
 
   const prompt = isTR
     ? `Sen deneyimli bir kas-iskelet radyologusun. Bu yuk tasimali lateral ayak rontgenini pes planus acisindan analiz et.
-${patientAge ? 'Hasta yasi: ' + patientAge : ''} ${patientGender ? 'Cinsiyet: ' + patientGender : ''}
+${safeAge ? 'Hasta yasi: ' + safeAge : ''} ${safeGender ? 'Cinsiyet: ' + safeGender : ''}
 
 OLCUMLER:
 1. Meary acisi: talus uzun ekseni ile 1. metatars ekseni arasi. Normal 0-4 derece. Plantar=duz taban.
@@ -39,8 +43,21 @@ OLCUMLER:
 6. overall_description, age_based_recommendation, treatment_plan, followup_plan, imaging_indications, orthotic_recommendations alanlarini MUTLAKA detayli Turkce doldur.
 
 Asagidaki JSON semasinа tam uy, baska hicbir sey yazma:`
+    : isAR
+    ? `أنت طبيب أشعة متخصص في الجهاز العضلي الهيكلي. حلّل صورة الأشعة السينية الجانبية لهذا القدم (أثناء حمل الوزن) للكشف عن القدم المسطحة.
+${safeAge ? 'عمر المريض: ' + safeAge : ''} ${safeGender ? 'الجنس: ' + safeGender : ''}
+
+القياسات:
+1. زاوية ميري: بين المحور الطولي للكاحل ومحور عظم مشط القدم الأول. طبيعي 0-4 درجات. أسفل = قدم مسطحة.
+2. ميل العقب: بين السطح السفلي لعظم العقب والأفق. طبيعي 17-32 درجة.
+3. ميل الكاحل: بين محور الكاحل والأفق. طبيعي 17-21 درجة.
+4. الإحداثيات: أعلى اليسار(0,0) أسفل اليمين(1,1).
+5. الشدة: طبيعي 0-4، خفيف 4-15، متوسط 15-30، شديد>30 درجة (زاوية ميري).
+6. يجب ملء overall_description, age_based_recommendation, treatment_plan, followup_plan, imaging_indications, orthotic_recommendations باللغة العربية بالتفصيل.
+
+اتبع مخطط JSON التالي بدقة، لا تكتب أي شيء آخر:`
     : `You are an expert musculoskeletal radiologist. Analyze this weight-bearing lateral foot X-ray for pes planus.
-${patientAge ? 'Patient age: ' + patientAge : ''} ${patientGender ? 'Gender: ' + patientGender : ''}
+${safeAge ? 'Patient age: ' + safeAge : ''} ${safeGender ? 'Gender: ' + safeGender : ''}
 
 MEASUREMENTS:
 1. Meary angle: talus longitudinal axis vs 1st metatarsal axis. Normal 0-4 degrees. Plantar=flatfoot.
@@ -61,17 +78,17 @@ Follow this exact JSON schema, write nothing else:`;
     calcaneal_pitch: 15.0,
     talar_declination: 24.0,
     severity: "mild",
-    severity_label: isTR ? "Hafif Pes Planus" : "Mild Flatfoot",
+    severity_label: isTR ? "Hafif Pes Planus" : isAR ? "قدم مسطحة خفيفة" : "Mild Flatfoot",
     flexibility: "flexible",
     talus_line: { x1: 0.35, y1: 0.38, x2: 0.62, y2: 0.52 },
     metatarsal_line: { x1: 0.58, y1: 0.50, x2: 0.88, y2: 0.57 },
     calcaneus_line: { x1: 0.16, y1: 0.74, x2: 0.42, y2: 0.70 },
-    overall_description: isTR ? "Klinik deger." : "Clinical assessment.",
-    age_based_recommendation: isTR ? "Oner." : "Recommendation.",
-    treatment_plan: isTR ? "Tedavi." : "Plan.",
-    followup_plan: isTR ? "Takip." : "Followup.",
-    imaging_indications: isTR ? "Tetkik." : "Imaging.",
-    orthotic_recommendations: isTR ? "Ortez." : "Orthotics."
+    overall_description: isTR ? "Klinik deger." : isAR ? "التقييم السريري." : "Clinical assessment.",
+    age_based_recommendation: isTR ? "Oner." : isAR ? "التوصية." : "Recommendation.",
+    treatment_plan: isTR ? "Tedavi." : isAR ? "الخطة." : "Plan.",
+    followup_plan: isTR ? "Takip." : isAR ? "المتابعة." : "Followup.",
+    imaging_indications: isTR ? "Tetkik." : isAR ? "التصوير." : "Imaging.",
+    orthotic_recommendations: isTR ? "Ortez." : isAR ? "الدعامة." : "Orthotics."
   };
 
   const invalidSchema = {
@@ -83,12 +100,12 @@ Follow this exact JSON schema, write nothing else:`;
     calcaneal_pitch: -1,
     talar_declination: -1,
     severity: "invalid",
-    severity_label: isTR ? "Gecersiz" : "Invalid",
+    severity_label: isTR ? "Gecersiz" : isAR ? "غير صالح" : "Invalid",
     flexibility: "unknown",
     talus_line: { x1: 0.3, y1: 0.4, x2: 0.6, y2: 0.4 },
     metatarsal_line: { x1: 0.55, y1: 0.4, x2: 0.88, y2: 0.44 },
     calcaneus_line: { x1: 0.15, y1: 0.72, x2: 0.42, y2: 0.70 },
-    overall_description: isTR ? "Gecerli lateral ayak rontgeni degil." : "Not a valid lateral foot X-ray.",
+    overall_description: isTR ? "Gecerli lateral ayak rontgeni degil." : isAR ? "ليست صورة أشعة جانبية صالحة للقدم." : "Not a valid lateral foot X-ray.",
     age_based_recommendation: "",
     treatment_plan: "",
     followup_plan: "",
@@ -96,8 +113,24 @@ Follow this exact JSON schema, write nothing else:`;
     orthotic_recommendations: ""
   };
 
-  const fullPrompt = prompt + '\nOutput ONLY this JSON:\n' + JSON.stringify(schema) +
-    '\n' + (isTR ? 'Geçerli ayak röntgeni değilse:' : 'If not a foot X-ray:') + '\n' + JSON.stringify(invalidSchema);
+  const criticalInstruction = isTR
+    ? '\n\n⚠ KRİTİK TALİMAT: Aşağıdaki JSON şeması yalnızca alan ADLARINI ve TİPLERİNİ göstermektedir.'
+      + ' Tüm sayısal değerler (koordinatlar, açılar) sadece ÖRNEK YER TUTUCULARIDIR.'
+      + ' Her değeri röntgen görüntüsündeki gerçek ölçümle DEĞİŞTİRMELİSİNİZ.'
+      + ' Örnek değerleri olduğu gibi döndürmeyin — klinik olarak yanlış sonuç üretir.\n'
+    : isAR
+    ? '\n\n⚠ تعليمات حرجة: مخطط JSON أدناه يُظهر أسماء الحقول والأنواع فقط.'
+      + ' جميع القيم الرقمية (الإحداثيات، الزوايا) هي عناصر نائبة فقط.'
+      + ' يجب استبدال كل قيمة بالقياس الفعلي من صورة الأشعة.'
+      + ' لا تُعيد القيم النائبة — سيُنتج ذلك نتيجة خاطئة سريرياً.\n'
+    : '\n\n⚠ CRITICAL INSTRUCTION: The JSON schema below shows field NAMES and TYPES only.'
+      + ' All numeric values (coordinates, angles) are EXAMPLE PLACEHOLDERS.'
+      + ' You MUST replace every value with the actual measurement from the X-ray image.'
+      + ' Do NOT return the placeholder values as-is — this will produce a clinically wrong result.\n';
+
+  const ifNotFoot = isTR ? 'Geçerli ayak röntgeni değilse:' : isAR ? 'إذا لم تكن صورة قدم صالحة:' : 'If not a foot X-ray:';
+  const fullPrompt = prompt + criticalInstruction + '\nOutput ONLY this JSON:\n' + JSON.stringify(schema) +
+    '\n' + ifNotFoot + '\n' + JSON.stringify(invalidSchema);
 
   const model  = (process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -161,7 +194,13 @@ Follow this exact JSON schema, write nothing else:`;
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
       if (clientClosed) return; // Fix 1: client gone — exit silently
-      if (!res.headersSent) return res.status(504).json({ error: 'Google AI did not respond within 8 seconds. Please try again.' });
+      if (!res.headersSent) return res.status(504).json({
+        error: isTR
+          ? 'Google AI 8 saniye içinde yanıt vermedi. Lütfen tekrar deneyin.'
+          : isAR
+          ? 'لم يستجب Google AI خلال 8 ثوانٍ. يرجى المحاولة مرة أخرى.'
+          : 'Google AI did not respond within 8 seconds. Please try again.',
+      });
       return;
     }
     if (!res.headersSent) return res.status(500).json({ error: 'Server error: ' + err.message });

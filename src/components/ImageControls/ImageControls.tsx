@@ -214,6 +214,8 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           max={80}
           step={2}
           value={brightness}
+          aria-label={lang==='tr'?'Parlaklık':lang==='ar'?'السطوع':'Brightness'}
+          aria-valuetext={`${brightness > 0 ? '+' : ''}${brightness}`}
           onChange={e  => handleBrightness(Number(e.target.value))}
           onPointerUp={e => commitBrightness(Number((e.target as HTMLInputElement).value))}
           onTouchEnd={e => commitBrightness(Number((e.target as HTMLInputElement).value))}
@@ -231,6 +233,8 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           max={200}
           step={5}
           value={contrast}
+          aria-label={lang==='tr'?'Kontrast':lang==='ar'?'التباين':'Contrast'}
+          aria-valuetext={`${contrast}%`}
           onChange={e  => handleContrast(Number(e.target.value))}
           onPointerUp={e => commitContrast(Number((e.target as HTMLInputElement).value))}
           onTouchEnd={e => commitContrast(Number((e.target as HTMLInputElement).value))}
@@ -248,6 +252,8 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           max={100}
           step={5}
           value={opacity}
+          aria-label={lang==='tr'?'Overlay Opaklığı':lang==='ar'?'تعتيم التراكب':'Overlay Opacity'}
+          aria-valuetext={`${opacity}%`}
           onChange={e  => handleOpacity(Number(e.target.value))}
           onPointerUp={e => commitOpacity(Number((e.target as HTMLInputElement).value))}
           onTouchEnd={e => commitOpacity(Number((e.target as HTMLInputElement).value))}

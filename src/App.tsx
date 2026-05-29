@@ -9,7 +9,7 @@ import { useMeasurementStore, selectCanAnalyze } from '@/store/measurementStore'
 import { processSpineResult } from '@/lib/cobbCalculation';
 import { safeParseSpineResult, safeParseFootResult } from '@/lib/validateAIResponse';
 import { analyseImageQuality, preprocessXray, autoCropBlackBorders, normalizeExifOrientation } from '@/lib/imagePreprocessing';
-import { hashBase64, getCachedResult, setCachedResult, clearAllCache, clearTrackingHistory, clearAllLocalData } from '@/lib/imageCache';
+import { hashBase64, getCachedResult, setCachedResult, saveTrackEntry, clearAllCache, clearTrackingHistory, clearAllLocalData } from '@/lib/imageCache';
 import { getT } from '@/lib/i18n';
 import { SafeSuspense } from '@/components/ErrorBoundary/ErrorBoundary';
 import CobbAILogo    from '@/components/CobbAILogo';
@@ -37,13 +37,17 @@ import { ImageControls } from '@/components/ImageControls/ImageControls';
 
 
 // ── Helpers ───────────────────────────────────────────────────
-const Spinner: React.FC<{ label?: string }> = ({ label }) => (
-  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12, padding:'2rem', color:'#7a8fa0', fontSize:14 }}>
-    <div style={{ width:36, height:36, border:'3px solid rgba(0,200,83,.2)', borderTopColor:'#00c853', borderRadius:'50%', animation:'_spin .75s linear infinite' }} />
-    {label ?? 'Yükleniyor...'}
-    <style>{`@keyframes _spin{to{transform:rotate(360deg)}}`}</style>
-  </div>
-);
+const Spinner: React.FC<{ label?: string }> = ({ label }) => {
+  const lang = useMeasurementStore(s => s.language);
+  const defaultLabel = lang === 'ar' ? 'جارٍ التحميل…' : lang === 'en' ? 'Loading…' : 'Yükleniyor…';
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12, padding:'2rem', color:'#7a8fa0', fontSize:14 }}>
+      <div style={{ width:36, height:36, border:'3px solid rgba(0,200,83,.2)', borderTopColor:'#00c853', borderRadius:'50%', animation:'_spin .75s linear infinite' }} />
+      {label ?? defaultLabel}
+      <style>{`@keyframes _spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+};
 
 // ── Main App ──────────────────────────────────────────────────
 const App: React.FC = () => {
@@ -66,7 +70,51 @@ const App: React.FC = () => {
   const isPreproc    = useMeasurementStore(s => s.isPreprocessing);
   const controls     = useMeasurementStore(useShallow(s => s.controls));
 
-  const store      = useMeasurementStore();
+  // Explicit selector excludes `controls`, `isAnalyzing`, `isPreprocessing`
+  // (already subscribed above) so rapid changes to those don't cause an
+  // extra App.tsx re-render through this subscription.
+  const store = useMeasurementStore(useShallow(s => ({
+    analyzeError:      s.analyzeError,
+    consentGiven:      s.consentGiven,
+    doctorNotes:       s.doctorNotes,
+    footResult:        s.footResult,
+    language:          s.language,
+    lightMode:         s.lightMode,
+    loadedImage:       s.loadedImage,
+    modality:          s.modality,
+    patientAge:        s.patientAge,
+    patientGender:     s.patientGender,
+    processedSpine:    s.processedSpine,
+    qualityReport:     s.qualityReport,
+    risserStage:       s.risserStage,
+    showComparison:    s.showComparison,
+    showCorrection:    s.showCorrection,
+    showHistory:       s.showHistory,
+    showReport:        s.showReport,
+    spineResult:       s.spineResult,
+    validationOutcome: s.validationOutcome,
+    addToHistory:      s.addToHistory,
+    resetControls:     s.resetControls,
+    resetImage:        s.resetImage,
+    setAnalyzeError:   s.setAnalyzeError,
+    setAnalyzing:      s.setAnalyzing,
+    setConsent:        s.setConsent,
+    setControls:       s.setControls,
+    setDoctorNotes:    s.setDoctorNotes,
+    setFootResult:     s.setFootResult,
+    setLanguage:       s.setLanguage,
+    setLoadedImage:    s.setLoadedImage,
+    setModality:       s.setModality,
+    setPatient:        s.setPatient,
+    setPreprocessing:  s.setPreprocessing,
+    setQualityReport:  s.setQualityReport,
+    setShowComparison: s.setShowComparison,
+    setShowCorrection: s.setShowCorrection,
+    setShowHistory:    s.setShowHistory,
+    setShowReport:     s.setShowReport,
+    setSpineResult:    s.setSpineResult,
+    toggleTheme:       s.toggleTheme,
+  })));
   const canAnalyze = useMeasurementStore(selectCanAnalyze);
   const t          = getT(language);
 
@@ -81,6 +129,9 @@ const App: React.FC = () => {
   const handleFileRef   = useRef<(f: File) => void>(() => {});
   // Fix 3 (Race Condition): unique symbol per analysis run; guards catch/finally
   const analysisIdRef   = useRef<symbol | null>(null);
+  // 429 retry counter — reset to 0 on each user-initiated analysis
+  const retryCountRef   = useRef(0);
+  const MAX_AUTO_RETRIES = 3;
 
   const [selectedCurveIdx, setSelectedCurveIdx]   = useState(0);
   const [showPrivacy, setShowPrivacy]             = useState(false);
@@ -94,7 +145,7 @@ const App: React.FC = () => {
   const [cooldownSec, setCooldownSec] = useState(0);
   const cooldownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   // GPT patch: KVKK React state (localStorage stays in sync)
-  const [kvkkAccepted, setKvkkAccepted] = useState(() => localStorage.getItem('cobbai_kvkk') === '1');
+  const [kvkkAccepted, setKvkkAccepted] = useState(() => { try { return localStorage.getItem('cobbai_kvkk') === '1'; } catch { return false; } });
   const [sidebarOpen, setSidebarOpen]   = useState(false);
 
   // Cleanup cooldown interval on unmount
@@ -104,12 +155,14 @@ const App: React.FC = () => {
   // (e.g. always "27.8°") are not served from a previous session.
   useEffect(() => {
     const CACHE_VERSION = 'v4'; // bump when cache format/hash changes
-    if (sessionStorage.getItem('cobbai_cache_ver') !== CACHE_VERSION) {
-      Object.keys(sessionStorage)
-        .filter(k => k.startsWith('cobbai_cache_'))
-        .forEach(k => sessionStorage.removeItem(k));
-      sessionStorage.setItem('cobbai_cache_ver', CACHE_VERSION);
-    }
+    try {
+      if (sessionStorage.getItem('cobbai_cache_ver') !== CACHE_VERSION) {
+        Object.keys(sessionStorage)
+          .filter(k => k.startsWith('cobbai_cache_'))
+          .forEach(k => sessionStorage.removeItem(k));
+        sessionStorage.setItem('cobbai_cache_ver', CACHE_VERSION);
+      }
+    } catch { /* iOS Safari private browsing */ }
   }, []);
 
   useEffect(() => {
@@ -226,10 +279,13 @@ const App: React.FC = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps — intentionally empty
 
   // ── Analysis with caching + debounce ─────────────────────────
-  const runAnalysis = useCallback(async (forceRefresh = false) => {
+  const runAnalysis = useCallback(async (forceRefresh = false, _isAutoRetry = false) => {
     if (!canAnalyze || !store.loadedImage) return;
     if (analyzingRef.current) return;  // debounce
     analyzingRef.current = true;
+
+    // Reset retry counter on user-initiated (non-auto-retry) calls
+    if (!_isAutoRetry) retryCountRef.current = 0;
 
     // Fix 3 (Race Condition): unique token for this analysis run.
     // If the user loads a new image and triggers a 2nd analysis before the 1st
@@ -320,22 +376,30 @@ const App: React.FC = () => {
         const errData = rawJson as { error?: string; retryAfter?: number };
         if (resp.status === 429) {
           const wait = errData.retryAfter ?? 5;
+          retryCountRef.current += 1;
+          if (retryCountRef.current > MAX_AUTO_RETRIES) {
+            store.setAnalyzeError(
+              store.language === 'tr'
+                ? `Sunucu aşırı yoğun. Lütfen birkaç dakika bekleyip tekrar deneyin.`
+                : store.language === 'ar'
+                ? `الخادم مرهق. انتظر بضع دقائق وحاول مجدداً.`
+                : `Server is overloaded. Please wait a few minutes and try again.`
+            );
+            return;
+          }
           // Auto-retry: show countdown, release debounce, then automatically re-trigger.
-          // User doesn't need to manually click the button again.
           store.setAnalyzeError(
             store.language === 'tr'
-              ? `⏳ Sunucu yoğun. ${wait} saniye içinde otomatik tekrar deneniyor…`
+              ? `⏳ Sunucu yoğun. ${wait} saniye içinde otomatik tekrar deneniyor… (${retryCountRef.current}/${MAX_AUTO_RETRIES})`
               : store.language === 'ar'
-              ? `⏳ الخادم مشغول. إعادة المحاولة تلقائياً خلال ${wait} ثوانٍ…`
-              : `⏳ Server busy. Auto-retrying in ${wait} seconds…`
+              ? `⏳ الخادم مشغول. إعادة المحاولة خلال ${wait} ثوانٍ… (${retryCountRef.current}/${MAX_AUTO_RETRIES})`
+              : `⏳ Server busy. Auto-retrying in ${wait} seconds… (${retryCountRef.current}/${MAX_AUTO_RETRIES})`
           );
           setTimeout(() => {
             if (analysisIdRef.current === analysisId) {
-              // Only retry if this analysis is still the active one
               analyzingRef.current = false;
               store.setAnalyzeError(null);
-              // Trigger a fresh analysis without force-refresh (use cache if available)
-              runAnalysis(forceRefresh);
+              runAnalysis(forceRefresh, true);
             }
           }, wait * 1000);
           return;
@@ -375,6 +439,11 @@ const App: React.FC = () => {
           parsed.outcome
         );
         store.addToHistory({ id: Date.now().toString(), timestamp: new Date().toISOString(), modality:'spine', result: parsed.result, patientAge: store.patientAge, patientGender: store.patientGender });
+        // Save to persistent tracking history
+        const primaryCobb = parsed.result.curves?.[0]?.cobb_angle;
+        if (primaryCobb != null) {
+          saveTrackEntry('spine', { date: new Date().toISOString(), cobb: primaryCobb, source: 'ai', ts: Date.now() });
+        }
       } else {
         const foot = safeParseFootResult(rawJson);
         if (!foot) {
@@ -393,6 +462,10 @@ const App: React.FC = () => {
           console.warn('[CobbAI] localStorage quota exceeded — foot result not cached', qe);
         }
         store.setFootResult(foot);
+        // Save to persistent tracking history
+        if (foot.meary_angle != null) {
+          saveTrackEntry('foot', { date: new Date().toISOString(), meary: foot.meary_angle, source: 'ai', ts: Date.now() });
+        }
       }
     } catch(e) {
       const err = e as Error;
@@ -453,7 +526,7 @@ const App: React.FC = () => {
 
     // HATA 2: Scale overlay from its CSS-rendered size to natural image size
     const overlay = document.querySelector('#overlay-canvas') as HTMLCanvasElement | null;
-    if (overlay && store.controls.showOverlay && overlay.width > 0 && overlay.height > 0) {
+    if (overlay && controls.showOverlay && overlay.width > 0 && overlay.height > 0) {
       // overlay.width/height = CSS-rendered px via ResizeObserver
       // We need to draw it scaled to fill natW×natH
       ctx.drawImage(overlay, 0, 0, overlay.width, overlay.height, 0, 0, natW, natH);
@@ -491,7 +564,7 @@ const App: React.FC = () => {
     a.download = 'cobbai-' + new Date().toISOString().slice(0, 10) + '.png';
     a.href = dataUrl;
     a.click();
-  }, [store]);
+  }, [store, controls]);
 
   // ── Image filter string — uses granular `controls` selector ──
   const imgFilter = `brightness(${100 + controls.brightness}%) contrast(${controls.contrast}%)`;
@@ -517,7 +590,7 @@ const App: React.FC = () => {
       {!store.consentGiven && (
         <LandingScreen
           lang={store.language}
-          onDoctor={() => { store.setConsent(true); sessionStorage.setItem('cobbai_role','doctor'); }}
+          onDoctor={() => { store.setConsent(true); try { sessionStorage.setItem('cobbai_role','doctor'); } catch { /* ITP */ } }}
           onPatient={() => { window.location.href = '/patients.html'; }}
         />
       )}
@@ -543,7 +616,7 @@ const App: React.FC = () => {
         lang={store.language}
         onAccept={() => {
           setKvkkAccepted(true);
-          localStorage.setItem('cobbai_kvkk', '1');
+          try { localStorage.setItem('cobbai_kvkk', '1'); } catch { /* quota */ }
           setShowPrivacy(false);
         }}
         onClose={() => setShowPrivacy(false)}
@@ -593,6 +666,23 @@ const App: React.FC = () => {
               onClose={() => setSidebarOpen(false)}
             />
 
+            {/* ── Mobile modality tab bar — hidden on desktop via CSS ── */}
+            <div className="cobb-mobile-tabs" style={{ gap:8, padding:'8px 12px', background:'#090e12', borderBottom:'1px solid rgba(255,255,255,.08)', position:'sticky', top:60, zIndex:49 }}>
+              {(['spine','foot'] as const).map(m => {
+                const active = store.modality === m;
+                const col = m === 'spine' ? '#00c853' : '#2196f3';
+                return (
+                  <button key={m} onClick={() => store.setModality(m)} style={{
+                    flex:1, padding:'9px 8px', border:`1px solid ${active ? col : 'rgba(255,255,255,.12)'}`,
+                    borderRadius:8, background: active ? `${col}18` : 'transparent',
+                    color: active ? col : '#7a8fa0', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit',
+                  }}>
+                    {m === 'spine' ? `🦴 ${sidebarLabels.dn1}` : `🦶 ${sidebarLabels.dn2}`}
+                  </button>
+                );
+              })}
+            </div>
+
             {/* ── Page content ──────────────────────────────────── */}
             {/* cobb-content class: margin-inline-start 210px desktop, 0 mobile via CSS */}
             <div className="cobb-content" style={{ minWidth:0 }}>
@@ -632,8 +722,10 @@ const App: React.FC = () => {
                     onClick={() => {
                       const next = !kvkkAccepted;
                       setKvkkAccepted(next);
-                      if (next) localStorage.setItem('cobbai_kvkk', '1');
-                      else      localStorage.removeItem('cobbai_kvkk');
+                      try {
+                        if (next) localStorage.setItem('cobbai_kvkk', '1');
+                        else      localStorage.removeItem('cobbai_kvkk');
+                      } catch { /* quota */ }
                     }}
                     id="kvkk-btn"
                     style={{ width:30, height:30, minWidth:30, border:'2px solid rgba(255,255,255,.2)', borderRadius:6,
@@ -680,7 +772,7 @@ const App: React.FC = () => {
                     /* Image viewer — constrained height so tall portrait X-rays don't dominate */
                     <div style={{ position:'relative', background:'#0a0e12', borderRadius:10, overflow:'auto', lineHeight:0, maxHeight:'min(540px,62vh)' }}>
                       {/* AI Loading overlay — shown while analyzing */}
-                      {isAnalyzing && <AILoadingScreen lang={store.language} />}
+                      {isAnalyzing && <AILoadingScreen lang={store.language} modality={store.modality} />}
 
                       {/* ── Manual mode toggle button ── */}
                       <button
@@ -700,14 +792,14 @@ const App: React.FC = () => {
                       {/* ── AdvancedManualTool (zero-API) ── */}
                       {isManualMode ? (
                         <div style={{ width:'100%', height:480 }}>
-                          <SafeSuspense fallback={<Spinner label="Yükleniyor..." />}>
+                          <SafeSuspense fallback={<Spinner />}>
                             <AdvancedManualTool
                               imageSrc={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
                               naturalW={store.loadedImage.naturalWidth}
                               naturalH={store.loadedImage.naturalHeight}
                               lang={store.language}
-                              brightness={store.controls.brightness}
-                              contrast={store.controls.contrast}
+                              brightness={controls.brightness}
+                              contrast={controls.contrast}
                               onCobbMeasured={(cobb) => setManualCobb(cobb)}
                               onClose={() => setIsManualMode(false)}
                             />
@@ -717,7 +809,7 @@ const App: React.FC = () => {
                         /* Zoom wrapper — width% changes zoom level; no minWidth so zoom-out works */
                         <div style={{
                           position:'relative',
-                          width: `${store.controls.zoom * 100}%`,
+                          width: `${controls.zoom * 100}%`,
                           margin:'0 auto',
                           transition:'width .18s ease',
                           lineHeight:0,
@@ -730,25 +822,25 @@ const App: React.FC = () => {
                             style={{ width:'100%', display:'block', background:'#111', filter: imgFilter, opacity: isAnalyzing ? 0.3 : 1, transition: 'opacity .2s', userSelect:'none' }}
                           />
                           {/* Canvas overlay — always same size as img wrapper → always aligned */}
-                          {store.processedSpine && store.controls.showOverlay && (
+                          {store.processedSpine && controls.showOverlay && (
                             <SafeSuspense fallback={null}>
                               <CobbOverlay
                                 id="overlay-canvas"
                                 result={store.processedSpine}
                                 naturalW={store.loadedImage.naturalWidth}
                                 naturalH={store.loadedImage.naturalHeight}
-                                overlayOpacity={store.controls.overlayOpacity}
+                                overlayOpacity={controls.overlayOpacity}
                                 lang={store.language}
-                                showVertebraLabels={store.controls.showVertebraLabels}
-                                showApexLabel={store.controls.showApexLabel}
+                                showVertebraLabels={controls.showVertebraLabels}
+                                showApexLabel={controls.showApexLabel}
                                 style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', pointerEvents:'none' }}
                               />
                             </SafeSuspense>
                           )}
                           {/* Zoom indicator */}
-                          {store.controls.zoom !== 1 && (
+                          {controls.zoom !== 1 && (
                             <div style={{ position:'absolute', bottom:8, right:8, fontSize:12, padding:'4px 8px', background:'rgba(0,0,0,.82)', border:'1px solid rgba(255,255,255,.22)', borderRadius:4, color:'#00c853', zIndex:9 }}>
-                              🔍 {Math.round(store.controls.zoom * 100)}%
+                              🔍 {Math.round(controls.zoom * 100)}%
                             </div>
                           )}
                         </div>
@@ -794,23 +886,23 @@ const App: React.FC = () => {
                   {store.loadedImage && (
                     <ImageControls
                       lang={store.language}
-                      showOverlay={store.controls.showOverlay}
+                      showOverlay={controls.showOverlay}
                       // Fix #2: Pass controlled values so sliders sync with store
-                      brightnessValue={store.controls.brightness}
-                      contrastValue={store.controls.contrast}
-                      opacityValue={store.controls.overlayOpacity}
-                      zoomValue={store.controls.zoom}
+                      brightnessValue={controls.brightness}
+                      contrastValue={controls.contrast}
+                      opacityValue={controls.overlayOpacity}
+                      zoomValue={controls.zoom}
                       onBrightnessChange={v => store.setControls({ brightness:v })}
                       onContrastChange={v   => store.setControls({ contrast:v })}
                       onOpacityChange={v    => store.setControls({ overlayOpacity:v })}
-                      onZoomIn={()  => store.setControls({ zoom: Math.min(4, store.controls.zoom+0.2) })}
-                      onZoomOut={() => store.setControls({ zoom: Math.max(0.5, store.controls.zoom-0.2) })}
+                      onZoomIn={()  => store.setControls({ zoom: Math.min(4, controls.zoom+0.2) })}
+                      onZoomOut={() => store.setControls({ zoom: Math.max(0.5, controls.zoom-0.2) })}
                       onResetZoom={() => store.setControls({ zoom:1 })}
-                      onToggleOverlay={() => store.setControls({ showOverlay:!store.controls.showOverlay })}
-                      onToggleVertebraLabels={() => store.setControls({ showVertebraLabels:!store.controls.showVertebraLabels })}
-                      onToggleApexLabel={() => store.setControls({ showApexLabel:!store.controls.showApexLabel })}
-                      showVertebraLabels={store.controls.showVertebraLabels}
-                      showApexLabel={store.controls.showApexLabel}
+                      onToggleOverlay={() => store.setControls({ showOverlay:!controls.showOverlay })}
+                      onToggleVertebraLabels={() => store.setControls({ showVertebraLabels:!controls.showVertebraLabels })}
+                      onToggleApexLabel={() => store.setControls({ showApexLabel:!controls.showApexLabel })}
+                      showVertebraLabels={controls.showVertebraLabels}
+                      showApexLabel={controls.showApexLabel}
                       // Fix #1: Real auto-enhance based on qualityReport + toast notification
                       onAutoEnhance={() => {
                         const q = store.qualityReport;
@@ -969,6 +1061,7 @@ const App: React.FC = () => {
                       <SpineResults
                         processed={store.processedSpine!}
                         raw={store.spineResult!}
+                        lang={store.language}
                         t={t}
                         patientAge={store.patientAge}
                         patientGender={store.patientGender}
@@ -985,6 +1078,7 @@ const App: React.FC = () => {
                     <SafeSuspense fallback={null}>
                       <SurgimapLitePanel
                         processed={store.processedSpine}
+                        lang={store.language}
                         onEditCurve={(idx) => { setSelectedCurveIdx(idx); store.setShowCorrection(true); }}
                       />
                     </SafeSuspense>
@@ -1113,6 +1207,7 @@ const App: React.FC = () => {
           patientAge={store.patientAge}
           patientGender={store.patientGender}
           notes={store.doctorNotes}
+          lang={store.language}
           t={t}
         />
       </SafeSuspense>

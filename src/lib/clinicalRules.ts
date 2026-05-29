@@ -55,11 +55,15 @@ export function getSpineRecs(
   genderStr?: string,
   risserStr?: string
 ): ClinicalRec {
-  const age    = ageStr    ? parseFloat(ageStr)    : NaN;
-  const risser = risserStr ? parseInt(risserStr)   : undefined;
+  const rawAge = ageStr    ? parseFloat(ageStr)  : NaN;
+  const age    = isNaN(rawAge) ? NaN : Math.max(0, Math.min(120, rawAge));
+  const rawRisser = risserStr ? parseInt(risserStr) : undefined;
+  const risser = rawRisser != null && isFinite(rawRisser)
+    ? Math.max(0, Math.min(5, rawRisser)) : undefined;
   const sev    = classifyCobb(cobb);
   const immature = !isNaN(age) && isSkeletallyImmature(age, risser);
-  const isFemale = (genderStr || '').toLowerCase().includes('female') || genderStr === 'Kadın';
+  const gL = (genderStr || '').toLowerCase();
+  const isFemale = gL.includes('female') || gL.includes('kadın') || gL.includes('أنثى');
 
   if (lang === 'tr') return getSpineRecsTR(cobb, sev, curveLocation, age, immature, isFemale, risser);
   if (lang === 'ar') return getSpineRecsAR(cobb, sev, curveLocation, age, immature, isFemale, risser);

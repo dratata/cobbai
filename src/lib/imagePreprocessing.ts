@@ -60,17 +60,23 @@ export function fileToBase64(file: File): Promise<string> {
 
 // ── Sampling ──────────────────────────────────────────────────
 
-/** Draw an image onto a temporary canvas and return the pixel data */
+/** Draw an image onto a temporary canvas and return the pixel data.
+ *  Returns null when the canvas is tainted (SecurityError) or context unavailable. */
 function sampleImageData(
   img: HTMLImageElement,
   targetW = 256, targetH = 256
-): ImageData {
+): ImageData | null {
   const cvs = document.createElement('canvas');
   cvs.width  = targetW;
   cvs.height = targetH;
-  const ctx = cvs.getContext('2d')!;
+  const ctx = cvs.getContext('2d');
+  if (!ctx) return null;
   ctx.drawImage(img, 0, 0, targetW, targetH);
-  return ctx.getImageData(0, 0, targetW, targetH);
+  try {
+    return ctx.getImageData(0, 0, targetW, targetH);
+  } catch {
+    return null;
+  }
 }
 
 // ── Luminance histogram ───────────────────────────────────────
@@ -140,6 +146,11 @@ function isColourImage(data: Uint8ClampedArray): boolean {
 
 export async function analyseImageQuality(img: HTMLImageElement): Promise<ImageQualityReport> {
   const sampleId = sampleImageData(img, 256, 256);
+  if (!sampleId) {
+    // Canvas tainted or context unavailable — skip quality analysis, assume good
+    return { score: 'good', issues: [], meanLuminance: 128, contrastRatio: 1,
+             blurVariance: 999, isColour: false, histogramLow: 0, histogramHigh: 255 };
+  }
   const { data }  = sampleId;
 
   const hist         = buildLuminanceHistogram(data);
@@ -325,7 +336,15 @@ export async function autoCropBlackBorders(
       canvas.height = safeH;
       ctx.drawImage(img, 0, 0, safeW, safeH); // downscaled draw — safe on all devices
 
-      const { data, width, height } = ctx.getImageData(0, 0, safeW, safeH);
+      let imageData: ImageData;
+      try {
+        imageData = ctx.getImageData(0, 0, safeW, safeH);
+      } catch {
+        // iOS Safari throws SecurityError on cross-origin or oversized canvases
+        resolve(imgSrc);
+        return;
+      }
+      const { data, width, height } = imageData;
 
       let minX = width, minY = height, maxX = 0, maxY = 0;
       for (let y = 0; y < height; y++) {

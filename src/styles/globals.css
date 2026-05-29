@@ -142,8 +142,8 @@ html, body          { overflow-x: hidden; max-width: 100%; }
     pointer-events: auto;
   }
 
-  /* Content full width */
-  .cobb-mobile-tabs { display: none !important; }
+  /* Content full width; mobile tab bar visible */
+  .cobb-mobile-tabs { display: flex !important; }
   .cobb-content     { margin-inline-start: 0 !important; }
 
   /* Prevent any child from overflowing viewport */

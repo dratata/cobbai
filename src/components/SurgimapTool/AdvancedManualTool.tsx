@@ -403,6 +403,12 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     if (e.touches.length === 0) st.isPanning = false;
   };
 
+  const handleTouchCancel = () => {
+    const st = stateRef.current;
+    st.isPanning = false;
+    lastPinchDist.current = null;
+  };
+
   // Fix 2 (Memory Leak): keydown handler via stable ref.
   // Previously: useCallback([draw]) → draw changes → handleKeyDown changes →
   // useEffect([handleKeyDown]) re-fires → remove+add each render → n listeners.
@@ -454,6 +460,8 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
 
   const phaseLabel = lang === 'tr'
     ? ['Üst endplate SOL noktası', 'Üst endplate SAĞ noktası', 'Alt endplate SOL noktası', 'Alt endplate SAĞ noktası']
+    : lang === 'ar'
+    ? ['الصفيحة العلوية — اليسار', 'الصفيحة العلوية — اليمين', 'الصفيحة السفلية — اليسار', 'الصفيحة السفلية — اليمين']
     : ['Upper endplate LEFT', 'Upper endplate RIGHT', 'Lower endplate LEFT', 'Lower endplate RIGHT'];
 
   return (
@@ -462,7 +470,7 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       {/* Toolbar */}
       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', background:'#0a1419', borderBottom:'1px solid rgba(255,255,255,.1)', flexShrink:0, flexWrap:'wrap' }}>
         <span style={{ fontSize:11, letterSpacing:'1px', color:'#00c853', fontWeight:800 }}>
-          ✏️ {lang==='tr'?'MANUEL COBB':'MANUAL COBB'} — {lang==='tr'?'SIFIR API':'ZERO API'}
+          ✏️ {lang==='tr'?'MANUEL COBB':lang==='ar'?'كوب يدوي':'MANUAL COBB'} — {lang==='tr'?'SIFIR API':lang==='ar'?'بدون API':'ZERO API'}
         </span>
         <div style={{ flex:1 }}/>
 
@@ -480,7 +488,7 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
           </span>
         )}
 
-        <button onClick={resetPoints} style={tbtn}>{lang==='tr'?'↺ Sıfırla':'↺ Reset'} (R)</button>
+        <button onClick={resetPoints} style={tbtn}>{lang==='tr'?'↺ Sıfırla':lang==='ar'?'↺ إعادة':'↺ Reset'} (R)</button>
         <button onClick={resetZoom}   style={tbtn}>⊡ 100%</button>
         {onClose && <button onClick={onClose} style={{ ...tbtn, color:'#e05555', borderColor:'rgba(224,85,85,.35)' }}>✕</button>}
       </div>
@@ -514,10 +522,11 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
         />
         {!imgLoaded && (
           <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'#7a8fa0', fontSize:14 }}>
-            Görüntü yükleniyor...
+            {lang==='ar'?'جارٍ تحميل الصورة...':lang==='en'?'Loading image...':'Görüntü yükleniyor...'}
           </div>
         )}
       </div>

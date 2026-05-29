@@ -15,14 +15,13 @@
     "noUnusedLocals":            true,
     "noUnusedParameters":        true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl":                   ".",
     "paths": {
-      "@/*":         ["src/*"],
-      "@types/*":    ["src/types/*"],
-      "@lib/*":      ["src/lib/*"],
-      "@components/*": ["src/components/*"],
-      "@hooks/*":    ["src/hooks/*"],
-      "@store/*":    ["src/store/*"]
+      "@/*":           ["./src/*"],
+      "@types/*":      ["./src/types/*"],
+      "@lib/*":        ["./src/lib/*"],
+      "@components/*": ["./src/components/*"],
+      "@hooks/*":      ["./src/hooks/*"],
+      "@store/*":      ["./src/store/*"]
     }
   },
   "include": ["src"],

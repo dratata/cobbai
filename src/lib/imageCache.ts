@@ -9,6 +9,37 @@
  */
 
 const CACHE_KEY_PREFIX = 'cobbai_cache_';
+
+// ── Tracking history ──────────────────────────────────────────
+
+export interface TrackEntry {
+  date: string;   // ISO-8601
+  cobb?: number;
+  meary?: number;
+  source: 'ai' | 'manual';
+  ts: number;
+  note?: string;
+}
+
+const TRACKING_KEYS = { spine: 'cobbai_track_spine', foot: 'cobbai_track_foot' } as const;
+const MAX_TRACK_ENTRIES = 100;
+
+function loadTrackEntries(modality: 'spine' | 'foot'): TrackEntry[] {
+  try {
+    const raw = localStorage.getItem(TRACKING_KEYS[modality]);
+    if (!raw) return [];
+    try { return JSON.parse(atob(raw)) as TrackEntry[]; }
+    catch { return JSON.parse(raw) as TrackEntry[]; }
+  } catch { return []; }
+}
+
+export function saveTrackEntry(modality: 'spine' | 'foot', entry: TrackEntry): void {
+  try {
+    const existing = loadTrackEntries(modality);
+    const updated  = [...existing, entry].slice(-MAX_TRACK_ENTRIES);
+    localStorage.setItem(TRACKING_KEYS[modality], btoa(JSON.stringify(updated)));
+  } catch { /* quota or ITP */ }
+}
 const MAX_ENTRIES = 20; // safety limit
 
 /** Lightweight hash of a base64 string (not cryptographic — for dedup only).
@@ -110,16 +141,15 @@ export function clearAllCache(): void {
 }
 
 export function clearTrackingHistory(): void {
-  ['cobbai_track_spine', 'cobbai_track_foot'].forEach(k => localStorage.removeItem(k));
+  ['cobbai_track_spine', 'cobbai_track_foot'].forEach(k => {
+    try { localStorage.removeItem(k); } catch { /* ITP */ }
+  });
 }
 
 export function clearAllLocalData(): void {
-  // Clear tracking
   clearTrackingHistory();
-  // Clear cache
   clearAllCache();
-  // Clear session role
-  sessionStorage.removeItem('cobbai_role');
-  sessionStorage.removeItem('cobbai_onboard');
-  // Keep language preference
+  try { sessionStorage.removeItem('cobbai_role'); } catch { /* ITP */ }
+  // cobbai_onboard lives in localStorage (not sessionStorage)
+  try { localStorage.removeItem('cobbai_onboard'); } catch { /* ITP */ }
 }

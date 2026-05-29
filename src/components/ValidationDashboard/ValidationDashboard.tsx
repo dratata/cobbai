@@ -33,6 +33,7 @@ export const ValidationDashboard: React.FC<Props> = ({ lang: _lang = 'en' }) => 
   useEffect(() => {
     const cvs = baRef.current; if (!cvs || !metrics || cases.length === 0) return;
     const ctx = cvs.getContext('2d'); if (!ctx) return;
+    if (cvs.offsetWidth === 0) return; // not yet laid out — avoid Infinity coords
     const W = cvs.width = cvs.offsetWidth, H = cvs.height = 280;
     ctx.clearRect(0, 0, W, H);
     const pts = getBlandAltmanPoints(cases);

@@ -1,12 +1,13 @@
 import React from 'react';
 import type { ProcessedSpineResult } from '@/lib/cobbCalculation';
 import type { SpineAnalysisResult } from '@/types';
-import type { Translations } from '@/lib/i18n';
+import type { Translations, Lang } from '@/lib/i18n';
 import { estimateProgressionRisk } from '@/lib/cobbCalculation';
 
 interface SpineResultsProps {
   processed: ProcessedSpineResult;
   raw: SpineAnalysisResult;
+  lang: Lang;
   t: Translations;
   patientAge: string;
   patientGender: string;
@@ -22,7 +23,7 @@ const SEV_COL: Record<string,string> = { normal:'#00d68f',              mild:'#f
 const PAL = ['#00c853','#e53935','#2196f3'];
 
 export const SpineResults: React.FC<SpineResultsProps> = ({
-  processed, raw, t, patientAge, patientGender, risserStage, notes, onNotesChange, onEditLines
+  processed, raw, lang, t, patientAge, patientGender, risserStage, notes, onNotesChange, onEditLines
 }) => {
   const cf   = raw.measurement_confidence ?? 'medium';
   const cfCol = { high:'#00c853', medium:'#f0a045', low:'#e05555' }[cf] ?? '#f0a045';
@@ -43,14 +44,17 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
       {/* Image quality banner */}
       {raw.image_quality && raw.image_quality !== 'good' && (
         <div style={{ padding:'10px 14px', borderRadius:8, background: raw.image_quality==='poor'?'rgba(240,160,69,.1)':'rgba(224,85,85,.1)', border:`1px solid ${raw.image_quality==='poor'?'#f0a045':'#e05555'}55`, fontSize:13, color: raw.image_quality==='poor'?'#f0a045':'#e05555', lineHeight:1.5 }}>
-          <strong>⚠️ {raw.image_quality==='poor'?'Düşük kalite':'Kabul edilemez kalite'}</strong>: Lütfen manuel doğrulayın.
+          <strong>⚠️ {raw.image_quality==='poor'
+            ?(lang==='ar'?'جودة منخفضة':lang==='en'?'Low quality':'Düşük kalite')
+            :(lang==='ar'?'جودة غير مقبولة':lang==='en'?'Unacceptable quality':'Kabul edilemez kalite')
+          }</strong>: {lang==='ar'?'يرجى التحقق يدوياً.':lang==='en'?'Please verify manually.':'Lütfen manuel doğrulayın.'}
         </div>
       )}
 
       {/* Pedicle method notice */}
       {raw.measurement_method === 'pedicle' && (
         <div style={{ padding:'6px 12px', borderRadius:7, background:'rgba(240,160,69,.08)', border:'1px solid rgba(240,160,69,.3)', fontSize:12, color:'#f0a045' }}>
-          📐 Pedikül referans yöntemi kullanıldı (endplate görüntülenemiyor)
+          📐 {lang==='ar'?'تم استخدام طريقة السويقة (الصفائح النهائية غير مرئية)':lang==='en'?'Pedicle reference method used (endplates not visible)':'Pedikül referans yöntemi kullanıldı (endplate görüntülenemiyor)'}
         </div>
       )}
 
@@ -79,14 +83,14 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
                 </span>
                 {/* Per-curve edit button */}
                 <button onClick={() => onEditLines(i)}
-                  title="Bu eğrinin endplate çizgilerini düzenle"
+                  title={lang==='ar'?'تعديل خطوط الصفائح النهائية لهذا الانحناء':lang==='en'?'Edit endplate lines for this curve':'Bu eğrinin endplate çizgilerini düzenle'}
                   style={{ padding:'3px 8px', background:'rgba(255,255,255,.05)', border:`1px solid ${col}55`, borderRadius:6, color:col, fontSize:11, cursor:'pointer', fontWeight:700 }}>
                   ✏️
                 </button>
               </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-              <Metric val={`${c.cobb_angle}°`} lbl={t.cobb} col={col} />
+              <Metric val={`${c.cobb_angle.toFixed(1)}°`} lbl={t.cobb} col={col} />
               <Metric val={isL ? t.dL : t.dR} sub={t.conv} lbl="" col={col} />
               <Metric val={`${c.upper_vertebra_name??'?'}↓${c.lower_vertebra_name??'?'}`} lbl={t.vert} col="#eef2f7" small />
             </div>
@@ -94,7 +98,9 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
             {/* Local geometry warnings removed — AI measurement is primary */}
 
             {c.manually_corrected && (
-              <div style={{ marginTop:8, fontSize:11, color:'#f0a045' }}>✎ Hekim tarafından düzeltildi</div>
+              <div style={{ marginTop:8, fontSize:11, color:'#f0a045' }}>
+                ✎ {lang==='ar'?'صحَّحه الطبيب':lang==='en'?'Corrected by physician':'Hekim tarafından düzeltildi'}
+              </div>
             )}
           </div>
         );
@@ -103,7 +109,7 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
       {/* Coronal balance */}
       {raw.coronal_balance && raw.coronal_balance !== 'balanced' && (
         <div style={{ padding:'6px 12px', borderRadius:7, background:'rgba(240,160,69,.08)', border:'1px solid rgba(240,160,69,.25)', fontSize:13, color:'#f0a045' }}>
-          ⚖️ Koronal dengesizlik tespit edildi (C7 plumb hattı sapması)
+          ⚖️ {lang==='ar'?'تم اكتشاف عدم توازن إكليلي (انحراف خط شاقول C7)':lang==='en'?'Coronal imbalance detected (C7 plumb line deviation)':'Koronal dengesizlik tespit edildi (C7 plumb hattı sapması)'}
         </div>
       )}
 
@@ -115,7 +121,7 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
       )}
 
       {/* Growth prediction */}
-      <GrowthPrediction raw={raw} patientAge={patientAge} patientGender={patientGender} risser={risserStage} t={t} />
+      <GrowthPrediction raw={raw} patientAge={patientAge} patientGender={patientGender} risser={risserStage} lang={lang} t={t} />
 
       {/* Recommendations */}
       {(processed.ageBasedRecommendation || processed.treatmentPlan || processed.followupPlan) && (
@@ -160,16 +166,25 @@ const Metric: React.FC<{ val:string; lbl:string; sub?:string; col:string; small?
   </div>
 );
 
-const GrowthPrediction: React.FC<{ raw:SpineAnalysisResult; patientAge:string; patientGender:string; risser?:string; t:Translations }> = ({ raw, patientAge, patientGender, risser, t }) => {
+const GrowthPrediction: React.FC<{ raw:SpineAnalysisResult; patientAge:string; patientGender:string; risser?:string; lang:Lang; t:Translations }> = ({ raw, patientAge, patientGender, risser, lang, t }) => {
   if (!raw.curves?.length) return null;
   const cobb = raw.curves[0]?.cobb_angle;
   const age  = parseFloat(patientAge);
   if (!cobb || isNaN(age)) return null;
   const isFemale = patientGender?.toLowerCase().includes('female') || patientGender === 'Kadın';
   const risserN  = risser ? parseInt(risser) : undefined;
-  const pred = estimateProgressionRisk(cobb, age, isFemale, risserN);
+  const pred = estimateProgressionRisk(cobb, age, isFemale, risserN, lang);
   const col  = { low:'#00c853', medium:'#f0a045', high:'#e05555' }[pred.risk];
-  const riskLbl = { low:'Düşük Risk', medium:'Orta Risk', high:'Yüksek Risk' }[pred.risk];
+  const riskLbl = lang==='ar'
+    ? { low:'خطر منخفض', medium:'خطر متوسط', high:'خطر مرتفع' }[pred.risk]
+    : lang==='en'
+    ? { low:'Low Risk', medium:'Moderate Risk', high:'High Risk' }[pred.risk]
+    : { low:'Düşük Risk', medium:'Orta Risk', high:'Yüksek Risk' }[pred.risk];
+  const citation = lang==='ar'
+    ? 'Lonstein & Carlson (1992) · استناداً إلى العمر والجنس والمرحلة وزاوية كوب'
+    : lang==='en'
+    ? 'Lonstein & Carlson (1992) · Based on age, sex, stage and Cobb angle'
+    : 'Lonstein & Carlson (1992) · Yaş, cinsiyet, evre ve Cobb açısı baz alındı';
   return (
     <div style={{ background:`${col}08`, border:`1px solid ${col}22`, borderRadius:12, padding:14 }}>
       <div style={{ fontSize:10, letterSpacing:'1px', color:'#7a8fa0', fontWeight:700, marginBottom:8 }}>{t.growthTitle}</div>
@@ -178,7 +193,7 @@ const GrowthPrediction: React.FC<{ raw:SpineAnalysisResult; patientAge:string; p
         <span style={{ fontSize:15, color:col, fontWeight:600 }}>{riskLbl}</span>
       </div>
       <div style={{ fontSize:14, color:'#b0bec5', lineHeight:1.6 }}>{pred.recommendation}</div>
-      <div style={{ fontSize:11, color:'#4a5a6a', marginTop:6 }}>Lonstein & Carlson (1992) · Yaş, cinsiyet, evre ve Cobb açısı baz alındı</div>
+      <div style={{ fontSize:11, color:'#4a5a6a', marginTop:6 }}>{citation}</div>
     </div>
   );
 };

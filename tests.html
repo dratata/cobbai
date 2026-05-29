@@ -79,7 +79,7 @@ var passed=0, failed=0, results=[];
 function expect(name, actual, expected, tolerance) {
   tolerance = tolerance || 0;
   var ok;
-  if (typeof expected === 'boolean') ok = (actual === expected);
+  if (typeof expected === 'boolean' || typeof expected === 'string') ok = (actual === expected);
   else ok = Math.abs(actual - expected) <= tolerance;
   if(ok) passed++; else failed++;
   results.push({name, ok, actual, expected, tolerance});

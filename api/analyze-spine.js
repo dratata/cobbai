@@ -31,13 +31,17 @@ export default async function handler(req, res) {
     return res.status(413).json({ error: 'Image too large. Please resize to under 8 MB before uploading.' });
   }
 
+  // Sanitize user-supplied fields before prompt injection
+  const safeAge    = typeof patientAge    === 'string' ? patientAge.replace(/[^0-9.]/g, '').slice(0, 5)       : '';
+  const safeGender = typeof patientGender === 'string' ? patientGender.replace(/[^a-zA-Z]/g, '').slice(0, 10) : '';
+
   const isTR = lang === 'tr', isAR = lang === 'ar';
 
   // Measurement-only schema — NO long text fields (prevents literal newline JSON errors)
   const measureSchema = buildMeasureSchema(isTR, isAR);
   const invalidSchema  = buildInvalidSchema(isTR, isAR);
 
-  const prompt = buildPrompt(lang, patientAge, patientGender)
+  const prompt = buildPrompt(lang, safeAge, safeGender)
     + '\n\n⚠ CRITICAL INSTRUCTION: The JSON schema below shows field NAMES and TYPES only.'
     + ' All numeric values (coordinates, angles, counts) are ZERO PLACEHOLDERS.'
     + ' You MUST replace every 0.0 coordinate with the actual measured value from the X-ray image.'

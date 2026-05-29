@@ -145,10 +145,10 @@ function setLang(l){
   setText('tipsTitle',t.tipsTitle);
   document.getElementById('tipsList').innerHTML=t.tipsList.map(x=>`<li>${x}</li>`).join('');
   setText('footerText',t.footer);
-  localStorage.setItem('cobbai_lang',l);
+  try { localStorage.setItem('cobbai_lang',l); } catch(e) {}
 }
 const p=new URLSearchParams(window.location.search);
-const saved=localStorage.getItem('cobbai_lang');
+const saved=function(){try{return localStorage.getItem('cobbai_lang');}catch(e){return null;}}();
 const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';
 const initLang=p.get('lang')||saved||(tz.includes('Istanbul')?'tr':'en');
 setLang(initLang);
@@ -220,7 +220,7 @@ function getTrackData() {
 }
 
 function saveTrackData(d) {
-  localStorage.setItem(TRACK_KEY, JSON.stringify(d));
+  try { localStorage.setItem(TRACK_KEY, JSON.stringify(d)); } catch(e) { /* quota/ITP */ }
 }
 
 function todayStr() {
@@ -310,7 +310,7 @@ function renderTracking() {
 }
 
 // Lang support
-var pg_lang = localStorage.getItem('cobbai_lang') || new URLSearchParams(location.search).get('lang') || 'tr';
+var pg_lang = (function(){try{return localStorage.getItem('cobbai_lang');}catch(e){return null;}})() || new URLSearchParams(location.search).get('lang') || 'tr';
 function updateTrackLang(l) {
   if(l==='en') {
     var t=document.getElementById('track-title');if(t)t.textContent='📅 DAILY TRACKING';

@@ -138,6 +138,7 @@ export function cobbAngleFromLines(upperLine: NormLine, lowerLine: NormLine): nu
  * lowerSlopeDeg: inclination of inferior endplate of lower end vertebra (°)
  */
 export function cobbAngleFromSlopes(upperSlopeDeg: number, lowerSlopeDeg: number): number {
+  if (!isFinite(upperSlopeDeg) || !isFinite(lowerSlopeDeg)) return NaN;
   let diff = Math.abs(upperSlopeDeg - lowerSlopeDeg);
   if (diff > 180) diff = 360 - diff;
   if (diff > 90)  diff = 180 - diff;

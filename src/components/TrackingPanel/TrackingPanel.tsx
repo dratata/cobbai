@@ -1,15 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Lang } from '@/lib/i18n';
 import { getT } from '@/lib/i18n';
-
-interface TrackEntry {
-  date: string;
-  cobb?: number;
-  meary?: number;
-  source: 'ai' | 'manual';
-  ts: number;
-  note?: string;
-}
+import type { TrackEntry } from '@/lib/imageCache';
 
 interface TrackingPanelProps {
   modality: 'spine' | 'foot';
@@ -36,7 +28,7 @@ function loadEntries(key: string): TrackEntry[] {
 }
 
 function clearEntries(key: string): void {
-  localStorage.removeItem(key);
+  try { localStorage.removeItem(key); } catch { /* ITP */ }
 }
 
 function severityFromValue(modality: 'spine' | 'foot', value: number): { label: string; color: string } {
@@ -101,6 +93,7 @@ export const TrackingPanel: React.FC<TrackingPanelProps> = ({ modality, lang }) 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || values.length < 2) return;
+    if (canvas.offsetWidth === 0) return; // not yet laid out — avoid Infinity coords
 
     const dpr = window.devicePixelRatio || 1;
     const W = canvas.offsetWidth;

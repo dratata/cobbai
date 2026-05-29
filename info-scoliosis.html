@@ -374,7 +374,7 @@ footer{border-top:1px solid rgba(255,255,255,.08);padding:1.5rem 1rem;text-align
 </footer>
 
 <script>
-var LANG = localStorage.getItem('cobbai_lang') || (new URLSearchParams(location.search).get('lang')) || 'tr';
+var LANG = (function(){try{return localStorage.getItem('cobbai_lang');}catch(e){return null;}})() || (new URLSearchParams(location.search).get('lang')) || 'tr';
 var T = {
   tr:{
     dir:'ltr',title:'Skolyoz Nedir? — CobbAI',
@@ -506,7 +506,7 @@ var T = {
 function si(id,v){var e=document.getElementById(id);if(e)e.innerHTML=v;}
 function st(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
 function setLang(l){
-  LANG=l;localStorage.setItem('cobbai_lang',l);
+  LANG=l;try{localStorage.setItem('cobbai_lang',l);}catch(e){}
   var t=T[l]||T['en'];
   document.documentElement.lang=l;
   document.documentElement.dir=t.dir;

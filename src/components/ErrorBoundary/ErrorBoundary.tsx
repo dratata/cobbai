@@ -27,6 +27,11 @@ export class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
+      let lang = 'tr';
+      try { lang = localStorage.getItem('cobbai_lang') ?? 'tr'; } catch { /* ITP / private */ }
+      const title  = lang === 'ar' ? '⚠ تعذّر تحميل المكوّن'       : lang === 'en' ? '⚠ Component failed to load'    : '⚠ Bileşen yüklenemedi';
+      const unknown= lang === 'ar' ? 'خطأ غير معروف'                : lang === 'en' ? 'Unknown error'                 : 'Bilinmeyen hata';
+      const retry  = lang === 'ar' ? '🔄 إعادة المحاولة'           : lang === 'en' ? '🔄 Retry'                      : '🔄 Tekrar dene';
       return (
         <div style={{
           padding: '1rem 1.5rem',
@@ -34,9 +39,9 @@ export class ErrorBoundary extends React.Component<
           border: '1px solid rgba(224,85,85,.3)',
           borderRadius: 10, color: '#e05555', fontSize: 14, lineHeight: 1.7,
         }}>
-          <strong>⚠ Bileşen yüklenemedi</strong>
+          <strong>{title}</strong>
           <p style={{ fontSize: 12, color: '#7a8fa0', marginTop: 6 }}>
-            {this.state.error?.message ?? 'Bilinmeyen hata'}
+            {this.state.error?.message ?? unknown}
           </p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
@@ -44,7 +49,7 @@ export class ErrorBoundary extends React.Component<
               border: '1px solid #e05555', borderRadius: 6, color: '#e05555',
               fontSize: 12, cursor: 'pointer' }}
           >
-            🔄 Tekrar dene
+            {retry}
           </button>
         </div>
       );
@@ -65,13 +70,18 @@ export const SafeSuspense: React.FC<{
   </ErrorBoundary>
 );
 
-const ChunkSpinner = () => (
-  <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px', color:'#7a8fa0', fontSize:13 }}>
-    <div style={{ width:16, height:16, border:'2px solid rgba(0,200,83,.2)', borderTopColor:'#00c853',
-      borderRadius:'50%', animation:'_espin .7s linear infinite', flexShrink:0 }}/>
-    Yükleniyor...
-    <style>{`@keyframes _espin{to{transform:rotate(360deg)}}`}</style>
-  </div>
-);
+const ChunkSpinner = () => {
+  let lang = 'tr';
+  try { lang = localStorage.getItem('cobbai_lang') ?? 'tr'; } catch { /* ITP */ }
+  const label = lang === 'ar' ? 'جارٍ التحميل…' : lang === 'en' ? 'Loading…' : 'Yükleniyor…';
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px', color:'#7a8fa0', fontSize:13 }}>
+      <div style={{ width:16, height:16, border:'2px solid rgba(0,200,83,.2)', borderTopColor:'#00c853',
+        borderRadius:'50%', animation:'_espin .7s linear infinite', flexShrink:0 }}/>
+      {label}
+      <style>{`@keyframes _espin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+};
 
 export default ErrorBoundary;

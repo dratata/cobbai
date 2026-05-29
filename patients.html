@@ -176,7 +176,7 @@ const T = {
 };
 
 function setLang(l) {
-  localStorage.setItem('cobbai_lang', l);
+  try { localStorage.setItem('cobbai_lang', l); } catch(e) {}
   document.documentElement.lang = l;
   document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
   ['lbTR','lbEN','lbAR'].forEach(id => document.getElementById(id).classList.remove('on'));
@@ -194,7 +194,7 @@ function setLang(l) {
 }
 
 (function(){
-  const saved = localStorage.getItem('cobbai_lang') || 'tr';
+  const saved = (function(){try{return localStorage.getItem('cobbai_lang');}catch(e){return null;}})() || 'tr';
   setLang(saved);
 })();
 </script>

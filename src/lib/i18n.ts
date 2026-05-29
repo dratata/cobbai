@@ -602,9 +602,19 @@ const ar: Translations = {
   <li>تحسين جودة المنصة (إحصاءات مجمعة مجهولة الهوية)</li>
 </ul>
 <h4>3. خدمات الطرف الثالث</h4>
-<p>يتم إجراء تحليل الصور عبر Google Gemini API. تنطبق سياسة خصوصية Google: <em>policies.google.com/privacy</em>.</p>
-<h4>4. إقرار المسؤولية المهنية</h4>
-<p>باستخدام هذه المنصة، تُقر بأنك طبيب أو أخصائي علاج طبيعي مرخص ومؤهل. CobbAI هي <strong>أداة دعم القرار السريري</strong> وليست أداة تشخيص.</p>
+<p>يتم إجراء تحليل الصور عبر Google Gemini API. تنطبق سياسة خصوصية Google: <em>policies.google.com/privacy</em>. لا تُستخدم بيانات الصور من قِبل Google لتدريب النماذج.</p>
+<h4>4. أمان البيانات</h4>
+<p>تُشفَّر جميع الاتصالات بـ TLS 1.3. تُرسَل الصور إلى واجهة برمجة التطبيقات بصيغة base64 ولا تُحتجز في الذاكرة بعد المعالجة.</p>
+<h4>5. حقوقك</h4>
+<ul>
+  <li>الحق في معرفة ما إذا كانت بياناتك الشخصية تُعالَج</li>
+  <li>الحق في طلب معلومات حول المعالجة</li>
+  <li>الحق في معرفة غرض المعالجة</li>
+  <li>الحق في تصحيح البيانات غير الدقيقة أو الناقصة</li>
+  <li>الحق في حذف البيانات أو إتلافها</li>
+</ul>
+<h4>6. إقرار المسؤولية المهنية</h4>
+<p>باستخدام هذه المنصة، تُقر بأنك طبيب أو أخصائي علاج طبيعي مرخص ومؤهل. CobbAI هي <strong>أداة دعم القرار السريري</strong> وليست أداة تشخيص. جميع القرارات السريرية يجب أن يتخذها متخصص رعاية صحية مؤهل.</p>
 <p><em>آخر تحديث: 2025</em></p>`,
   iosMsg: 'Safari → مشاركة □↑ → "إضافة إلى الشاشة الرئيسية"',
   sevS: {
@@ -700,7 +710,7 @@ export function getT(lang: Lang): Translations {
 // ── React hook ────────────────────────────────────────────────
 
 export function useT(lang?: Lang): Translations {
-  const stored = (typeof window !== 'undefined' ? localStorage.getItem('cobbai_lang') : null) as Lang | null;
+  const stored = (typeof window !== 'undefined' ? (() => { try { return localStorage.getItem('cobbai_lang'); } catch { return null; } })() : null) as Lang | null;
   const resolved: Lang = lang ?? stored ?? 'tr';
   return T[resolved] ?? T['tr'];
 }
