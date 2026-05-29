@@ -25,6 +25,7 @@ export default async function handler(req, res) {
   }
 
   const isTR = lang === 'tr';
+  const isAR = lang === 'ar';
 
   const prompt = isTR
     ? `Sen deneyimli bir kas-iskelet radyologusun. Bu yuk tasimali lateral ayak rontgenini pes planus acisindan analiz et.
@@ -39,6 +40,18 @@ OLCUMLER:
 6. overall_description, age_based_recommendation, treatment_plan, followup_plan, imaging_indications, orthotic_recommendations alanlarini MUTLAKA detayli Turkce doldur.
 
 Asagidaki JSON semasinа tam uy, baska hicbir sey yazma:`
+    : isAR
+    ? `أنت طبيب أشعة متخصص في الجهاز العضلي الهيكلي. حلل هذه الأشعة الجانبية للقدم أثناء حمل الوزن لتشخيص القدم المسطحة.
+${patientAge ? 'العمر: ' + patientAge : ''} ${patientGender ? 'الجنس: ' + patientGender : ''}
+
+القياسات:
+1. زاوية ميري: بين محور الكاحل ومحور عظم مشط القدم الأول. طبيعي 0-4 درجات.
+2. انحدار العقب: السطح السفلي للكاحل مقابل الأفقي. طبيعي 17-32 درجة.
+3. انحدار الكاحل: محور الكاحل مقابل الأفقي. طبيعي 17-21 درجة.
+4. الإحداثيات: أعلى يسار(0,0) أسفل يمين(1,1).
+5. الشدة: طبيعي 0-4، خفيف 4-15، متوسط 15-30، شديد>30 درجة زاوية ميري.
+
+aتبع هذا المخطط JSON بدقة:`
     : `You are an expert musculoskeletal radiologist. Analyze this weight-bearing lateral foot X-ray for pes planus.
 ${patientAge ? 'Patient age: ' + patientAge : ''} ${patientGender ? 'Gender: ' + patientGender : ''}
 
@@ -52,26 +65,31 @@ MEASUREMENTS:
 
 Follow this exact JSON schema, write nothing else:`;
 
+  // ⚠ CRITICAL INSTRUCTION: The JSON schema below shows field NAMES and TYPES only.
+  // ALL numeric values (coordinates, angles) are ZERO PLACEHOLDERS.
+  // You MUST replace every 0.0 coordinate and every 0 angle with the actual measured
+  // value from the X-ray image. Do NOT return 0.0 or any placeholder value in your answer.
+  // Returning the placeholder values will produce a clinically wrong result.
   const schema = {
     is_valid_xray: true,
     foot_side: "right",
     measurement_confidence: "high",
-    meary_angle: 12.5,
+    meary_angle: 0.0,            // replace with actual measurement
     meary_direction: "plantar",
-    calcaneal_pitch: 15.0,
-    talar_declination: 24.0,
+    calcaneal_pitch: 0.0,        // replace with actual measurement
+    talar_declination: 0.0,      // replace with actual measurement
     severity: "mild",
-    severity_label: isTR ? "Hafif Pes Planus" : "Mild Flatfoot",
+    severity_label: isTR ? "Hafif Pes Planus" : isAR ? "قدم مسطحة خفيفة" : "Mild Flatfoot",
     flexibility: "flexible",
-    talus_line: { x1: 0.35, y1: 0.38, x2: 0.62, y2: 0.52 },
-    metatarsal_line: { x1: 0.58, y1: 0.50, x2: 0.88, y2: 0.57 },
-    calcaneus_line: { x1: 0.16, y1: 0.74, x2: 0.42, y2: 0.70 },
-    overall_description: isTR ? "Klinik deger." : "Clinical assessment.",
-    age_based_recommendation: isTR ? "Oner." : "Recommendation.",
-    treatment_plan: isTR ? "Tedavi." : "Plan.",
-    followup_plan: isTR ? "Takip." : "Followup.",
-    imaging_indications: isTR ? "Tetkik." : "Imaging.",
-    orthotic_recommendations: isTR ? "Ortez." : "Orthotics."
+    talus_line:      { x1: 0.0, y1: 0.0, x2: 0.0, y2: 0.0 },  // replace with actual
+    metatarsal_line: { x1: 0.0, y1: 0.0, x2: 0.0, y2: 0.0 },  // replace with actual
+    calcaneus_line:  { x1: 0.0, y1: 0.0, x2: 0.0, y2: 0.0 },  // replace with actual
+    overall_description: isTR ? "Klinik deger." : isAR ? "التقييم السريري." : "Clinical assessment.",
+    age_based_recommendation: isTR ? "Oner." : isAR ? "التوصية." : "Recommendation.",
+    treatment_plan: isTR ? "Tedavi." : isAR ? "خطة العلاج." : "Plan.",
+    followup_plan: isTR ? "Takip." : isAR ? "المتابعة." : "Followup.",
+    imaging_indications: isTR ? "Tetkik." : isAR ? "مؤشرات التصوير." : "Imaging.",
+    orthotic_recommendations: isTR ? "Ortez." : isAR ? "توصيات الدعامة." : "Orthotics."
   };
 
   const invalidSchema = {
@@ -83,12 +101,12 @@ Follow this exact JSON schema, write nothing else:`;
     calcaneal_pitch: -1,
     talar_declination: -1,
     severity: "invalid",
-    severity_label: isTR ? "Gecersiz" : "Invalid",
+    severity_label: isTR ? "Gecersiz" : isAR ? "غير صالح" : "Invalid",
     flexibility: "unknown",
     talus_line: { x1: 0.3, y1: 0.4, x2: 0.6, y2: 0.4 },
     metatarsal_line: { x1: 0.55, y1: 0.4, x2: 0.88, y2: 0.44 },
     calcaneus_line: { x1: 0.15, y1: 0.72, x2: 0.42, y2: 0.70 },
-    overall_description: isTR ? "Gecerli lateral ayak rontgeni degil." : "Not a valid lateral foot X-ray.",
+    overall_description: isTR ? "Gecerli lateral ayak rontgeni degil." : isAR ? "ليست صورة أشعة جانبية صحيحة للقدم." : "Not a valid lateral foot X-ray.",
     age_based_recommendation: "",
     treatment_plan: "",
     followup_plan: "",
@@ -96,8 +114,14 @@ Follow this exact JSON schema, write nothing else:`;
     orthotic_recommendations: ""
   };
 
-  const fullPrompt = prompt + '\nOutput ONLY this JSON:\n' + JSON.stringify(schema) +
-    '\n' + (isTR ? 'Geçerli ayak röntgeni değilse:' : 'If not a foot X-ray:') + '\n' + JSON.stringify(invalidSchema);
+  const fullPrompt = prompt
+    + '\n\n⚠ CRITICAL INSTRUCTION: The JSON schema below shows field NAMES and TYPES only.'
+    + ' All numeric values (coordinates, angles) are ZERO PLACEHOLDERS.'
+    + ' You MUST replace every 0.0 coordinate and every 0 angle with the actual measured value from the X-ray image.'
+    + ' Do NOT return 0.0 or any placeholder value in your answer.'
+    + ' Returning the placeholder coordinates will produce a clinically wrong result.\n'
+    + '\nOutput ONLY this JSON:\n' + JSON.stringify(schema)
+    + '\n' + (isTR ? 'Geçerli ayak röntgeni değilse:' : isAR ? 'إذا لم تكن صورة أشعة القدم صحيحة:' : 'If not a foot X-ray:') + '\n' + JSON.stringify(invalidSchema);
 
   const model  = (process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -161,7 +185,15 @@ Follow this exact JSON schema, write nothing else:`;
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
       if (clientClosed) return; // Fix 1: client gone — exit silently
-      if (!res.headersSent) return res.status(504).json({ error: 'Google AI did not respond within 8 seconds. Please try again.' });
+      if (!res.headersSent) {
+        return res.status(504).json({
+          error: lang === 'tr'
+            ? 'Google AI 8 saniye içinde yanıt vermedi. Lütfen tekrar deneyin.'
+            : lang === 'ar'
+            ? 'لم يستجب Google AI خلال 8 ثوانٍ. يرجى المحاولة مرة أخرى.'
+            : 'Google AI did not respond within 8 seconds. Please try again.',
+        });
+      }
       return;
     }
     if (!res.headersSent) return res.status(500).json({ error: 'Server error: ' + err.message });
@@ -187,7 +219,16 @@ function sanitizeJSON(str) {
 }
 function recoverJSON(raw, finishReason) {
   try { return { result: JSON.parse(raw) }; } catch {}
-  let clean = raw.replace(/^```json\s*/im,'').replace(/^```\s*/im,'').replace(/```\s*$/im,'').trim();
+  let clean = raw
+    .replace(/```json[\s\S]*?```/gi, s => s.replace(/```json\s*/i,'').replace(/```\s*$/,''))
+    .replace(/^```[\w]*\s*/m, '')
+    .replace(/\s*```$/m, '')
+    .trim();
+  const firstBrace = clean.indexOf('{');
+  const lastBrace  = clean.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    clean = clean.slice(firstBrace, lastBrace + 1);
+  }
   try { return { result: JSON.parse(clean) }; } catch {}
   const sanitized = sanitizeJSON(clean);
   try { return { result: JSON.parse(sanitized) }; } catch {}
@@ -202,8 +243,18 @@ function recoverJSON(raw, finishReason) {
     const ob=(fixed.match(/\{/g)||[]).length-(fixed.match(/\}/g)||[]).length;
     for(let i=0;i<ab;i++) fixed+=']'; for(let i=0;i<ob;i++) fixed+='}';
     try { return { result: JSON.parse(fixed) }; } catch {}
+    // Level 5: trim to last complete key-value pair
+    const lastComma = fixed.lastIndexOf(',');
+    if (lastComma > s + 10) {
+      let trimmed = fixed.slice(0, lastComma);
+      const ob2 = (trimmed.match(/\{/g)||[]).length - (trimmed.match(/\}/g)||[]).length;
+      const ab2 = (trimmed.match(/\[/g)||[]).length - (trimmed.match(/\]/g)||[]).length;
+      for(let i=0;i<ab2;i++) trimmed+=']';
+      for(let i=0;i<ob2;i++) trimmed+='}';
+      try { return { result: JSON.parse(trimmed) }; } catch {}
+    }
   }
-  return { error: 'AI response could not be parsed. Please try again. ('+finishReason+')' };
+  return { error: 'AI response could not be parsed. Please try again. (' + finishReason + ')' };
 }
 
 async function getRawBody(req) {
