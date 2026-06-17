@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kozmik Fabrika - Idle Game</title>
+<style>
+  :root {
+    --bg: #0a0a1a;
+    --panel: #12122a;
+    --panel2: #1a1a35;
+    --border: #2a2a55;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --gold: #ffd700;
+    --green: #00e676;
+    --text: #e0e0ff;
+    --muted: #7777aa;
+    --shadow: 0 4px 20px rgba(108,99,255,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    background: linear-gradient(135deg, #1a1a40, #0d0d2b);
+    border-bottom: 2px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .stat-badge {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stat-badge .val { color: var(--gold); font-weight: 700; font-size: 1rem; }
+  .stat-badge .lbl { color: var(--muted); font-size: 0.75rem; }
+
+  .main-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 66px);
+  }
+
+  /* LEFT PANEL - Click area */
+  .left-panel {
+    width: 280px;
+    min-width: 240px;
+    border-right: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px;
+    gap: 16px;
+    overflow-y: auto;
+  }
+
+  .energy-display {
+    text-align: center;
+    width: 100%;
+  }
+
+  .energy-display .big-num {
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 20px rgba(255,215,0,0.5);
+    display: block;
+  }
+
+  .energy-display .per-sec {
+    color: var(--green);
+    font-size: 0.9rem;
+    margin-top: 4px;
+  }
+
+  .click-btn {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 4px solid var(--accent);
+    background: radial-gradient(circle at 35% 35%, #3d3a8a, #1a183a);
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.08s, box-shadow 0.08s;
+    box-shadow: 0 0 30px rgba(108,99,255,0.4), inset 0 0 30px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .click-btn:hover {
+    box-shadow: 0 0 50px rgba(108,99,255,0.7), inset 0 0 30px rgba(0,0,0,0.3);
+  }
+
+  .click-btn:active {
+    transform: scale(0.93);
+    box-shadow: 0 0 20px rgba(108,99,255,0.3);
+  }
+
+  .click-power {
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .prestige-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    border: 2px solid var(--accent2);
+    background: transparent;
+    color: var(--accent2);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+  }
+
+  .prestige-btn:hover:not(:disabled) {
+    background: var(--accent2);
+    color: white;
+  }
+
+  .prestige-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .prestige-info {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  .prestige-mult {
+    color: var(--accent2);
+    font-weight: 700;
+  }
+
+  /* MIDDLE - Buildings */
+  .mid-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .section-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  .building-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .building-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(108,99,255,0.05));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .building-card:hover:not(.locked)::before { opacity: 1; }
+  .building-card:hover:not(.locked) { border-color: var(--accent); }
+  .building-card.locked { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.5); }
+  .building-card.affordable { border-color: rgba(108,99,255,0.5); }
+
+  .building-icon { font-size: 2.2rem; flex-shrink: 0; }
+
+  .building-info { flex: 1; min-width: 0; }
+  .building-name { font-weight: 700; font-size: 0.95rem; }
+  .building-desc { font-size: 0.72rem; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .building-prod { font-size: 0.78rem; color: var(--green); margin-top: 3px; }
+
+  .building-right { text-align: right; flex-shrink: 0; }
+  .building-cost { color: var(--gold); font-weight: 700; font-size: 0.9rem; }
+  .building-count {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--accent);
+    display: block;
+    text-align: right;
+  }
+
+  /* RIGHT - Upgrades */
+  .right-panel {
+    width: 280px;
+    min-width: 240px;
+    border-left: 2px solid var(--border);
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .upgrade-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .upgrade-card:hover:not(.locked):not(.bought) { border-color: var(--gold); background: var(--panel2); }
+  .upgrade-card.bought { opacity: 0.45; cursor: default; border-color: var(--green); background: rgba(0,230,118,0.05); }
+  .upgrade-card.locked { opacity: 0.2; cursor: not-allowed; }
+  .upgrade-card.affordable { border-color: rgba(255,215,0,0.5); }
+
+  .upgrade-icon { font-size: 1.6rem; flex-shrink: 0; }
+  .upgrade-info { flex: 1; min-width: 0; }
+  .upgrade-name { font-size: 0.85rem; font-weight: 700; }
+  .upgrade-desc { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+  .upgrade-cost { font-size: 0.78rem; color: var(--gold); margin-top: 4px; font-weight: 700; }
+  .upgrade-bought-label { font-size: 0.7rem; color: var(--green); margin-top: 4px; }
+
+  /* Floating +number animation */
+  .float-text {
+    position: fixed;
+    pointer-events: none;
+    font-weight: 900;
+    color: var(--gold);
+    font-size: 1.1rem;
+    text-shadow: 0 0 10px rgba(255,215,0,0.8);
+    animation: floatUp 0.9s ease-out forwards;
+    z-index: 9999;
+  }
+
+  @keyframes floatUp {
+    0%   { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-70px) scale(0.7); }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  /* Tabs for mobile */
+  .tab-bar {
+    display: none;
+    background: var(--panel);
+    border-bottom: 2px solid var(--border);
+  }
+
+  .tab-bar button {
+    flex: 1;
+    padding: 10px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+  }
+
+  .tab-bar button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .milestone-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    box-shadow: 0 8px 30px rgba(108,99,255,0.5);
+    z-index: 9999;
+    animation: toastIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    white-space: nowrap;
+  }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.9); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  }
+
+  .stars-bg {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    animation: twinkle var(--dur, 3s) ease-in-out infinite;
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: var(--min-op, 0.1); transform: scale(1); }
+    50% { opacity: var(--max-op, 0.8); transform: scale(1.3); }
+  }
+
+  @media (max-width: 768px) {
+    .tab-bar { display: flex; }
+    .main-layout {
+      flex-direction: column;
+      height: auto;
+      overflow: visible;
+    }
+    .left-panel, .mid-panel, .right-panel {
+      width: 100%;
+      border: none;
+      min-width: 0;
+      max-height: none;
+      overflow: visible;
+    }
+    .left-panel { padding: 16px; }
+    .mid-panel, .right-panel { padding: 12px; }
+    [data-tab]:not(.active-tab) { display: none; }
+  }
+
+  .notification-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--accent2);
+    border-radius: 50%;
+    margin-left: 4px;
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.7; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Stars background -->
+<div class="stars-bg" id="starsBg"></div>
+
+<header>
+  <h1>🚀 Kozmik Fabrika</h1>
+  <div class="header-stats">
+    <div class="stat-badge">
+      <div>
+        <div class="val" id="totalEnergy">0</div>
+        <div class="lbl">Toplam Enerji</div>
+      </div>
+    </div>
+    <div class="stat-badge">
+      <div>
+        <div class="val" id="prestigeCount">0</div>
+        <div class="lbl">Prestij ✨</div>
+      </div>
+    </div>
+    <div class="stat-badge">
+      <div>
+        <div class="val" id="playTime">00:00:00</div>
+        <div class="lbl">Süre</div>
+      </div>
+    </div>
+    <button onclick="resetSave()" style="background:none;border:1px solid #444;color:#777;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:0.75rem;">🗑 Sıfırla</button>
+  </div>
+</header>
+
+<div class="tab-bar">
+  <button class="active" onclick="switchTab('click')">⚡ Fabrika</button>
+  <button onclick="switchTab('buildings')">🏗 Binalar</button>
+  <button onclick="switchTab('upgrades')">⬆️ Yükselt <span id="upgradeNotif"></span></button>
+</div>
+
+<div class="main-layout">
+
+  <!-- LEFT: click panel -->
+  <div class="left-panel" data-tab="click" style="">
+    <div class="energy-display">
+      <span class="big-num" id="energyDisplay">0</span>
+      <div class="per-sec"><span id="perSecDisplay">0</span> enerji/sn</div>
+    </div>
+
+    <button class="click-btn" id="clickBtn" onclick="handleClick(event)">⚡</button>
+
+    <div class="click-power" id="clickPowerDisplay">Tıklama: +1 enerji</div>
+
+    <div style="width:100%;border-top:1px solid var(--border);padding-top:12px;">
+      <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">Prestij</div>
+      <button class="prestige-btn" id="prestigeBtn" onclick="doPrestige()" disabled>
+        ✨ Prestij Yap
+      </button>
+      <div class="prestige-info" style="margin-top:8px;" id="prestigeInfo">
+        1.000.000 enerji üret → Prestij hakkı kazan
+      </div>
+      <div style="margin-top:6px;font-size:0.72rem;color:var(--muted);">
+        Mevcut çarpan: <span class="prestige-mult" id="prestigeMult">×1.00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MIDDLE: buildings -->
+  <div class="mid-panel active-tab" data-tab="buildings" style="">
+    <div class="section-title">Üretim Binaları <span style="color:var(--muted);font-size:0.7rem;">(satın almak için tıkla)</span></div>
+    <div id="buildingList"></div>
+  </div>
+
+  <!-- RIGHT: upgrades -->
+  <div class="right-panel active-tab" data-tab="upgrades" style="">
+    <div class="section-title">Yükseltmeler</div>
+    <div id="upgradeList"></div>
+  </div>
+
+</div>
+
+<script>
+// ─── Game Data ───────────────────────────────────────────────────────────────
+
+const BUILDINGS = [
+  {
+    id: 'solar',
+    icon: '☀️',
+    name: 'Güneş Toplayıcı',
+    desc: 'Güneş ışığından kozmik enerji üretir',
+    baseCost: 10,
+    baseProduction: 0.1,
+    unlockAt: 0,
+  },
+  {
+    id: 'asteroid',
+    icon: '☄️',
+    name: 'Asteroid Madencisi',
+    desc: 'Asteroitlerden ham enerji çıkarır',
+    baseCost: 100,
+    baseProduction: 0.5,
+    unlockAt: 0,
+  },
+  {
+    id: 'nebula',
+    icon: '🌌',
+    name: 'Bulutsu Toplayıcı',
+    desc: 'Bulutsu gazından enerji damıtır',
+    baseCost: 1_100,
+    baseProduction: 4,
+    unlockAt: 0,
+  },
+  {
+    id: 'blackhole',
+    icon: '🕳️',
+    name: 'Kara Delik Tapı',
+    desc: 'Kara deliğin kütle çekiminden güç alır',
+    baseCost: 12_000,
+    baseProduction: 25,
+    unlockAt: 0,
+  },
+  {
+    id: 'quasar',
+    icon: '💫',
+    name: 'Quasar Motoru',
+    desc: 'Quasar jetlerini yakıt olarak kullanır',
+    baseCost: 130_000,
+    baseProduction: 160,
+    unlockAt: 0,
+  },
+  {
+    id: 'galaxy',
+    icon: '🌀',
+    name: 'Galaksi Dönüştürücü',
+    desc: 'Galaksi boyutunda enerji alanı oluşturur',
+    baseCost: 1_400_000,
+    baseProduction: 1_000,
+    unlockAt: 0,
+  },
+  {
+    id: 'multiverse',
+    icon: '🔮',
+    name: 'Çoklu Evren Kapısı',
+    desc: 'Paralel evrenlerden enerji sızdırır',
+    baseCost: 20_000_000,
+    baseProduction: 8_000,
+    unlockAt: 0,
+  },
+];
+
+const UPGRADES = [
+  // Click upgrades
+  { id: 'c1', icon: '👆', name: 'Güçlü Parmak', desc: 'Tıklama gücü ×2', cost: 50, type: 'click', mult: 2, req: () => true },
+  { id: 'c2', icon: '🖐️', name: 'Beş Parmak', desc: 'Tıklama gücü ×3', cost: 5_000, type: 'click', mult: 3, req: () => state.totalClicks >= 100 },
+  { id: 'c3', icon: '🤜', name: 'Kozmik Yumruk', desc: 'Tıklama gücü ×5', cost: 100_000, type: 'click', mult: 5, req: () => state.totalClicks >= 1000 },
+  { id: 'c4', icon: '💥', name: 'Süpernova Tokadı', desc: 'Tıklama gücü ×10', cost: 10_000_000, type: 'click', mult: 10, req: () => state.totalClicks >= 5000 },
+
+  // Building upgrades
+  { id: 's1', icon: '🌤️', name: 'Daha İyi Panel', desc: 'Güneş Toplayıcı ×2', cost: 100, type: 'building', buildingId: 'solar', mult: 2, req: () => getBuildingCount('solar') >= 1 },
+  { id: 's2', icon: '☀️', name: 'Titan Paneller', desc: 'Güneş Toplayıcı ×3', cost: 2_000, type: 'building', buildingId: 'solar', mult: 3, req: () => getBuildingCount('solar') >= 5 },
+  { id: 's3', icon: '🌞', name: 'Dyson Küre', desc: 'Güneş Toplayıcı ×5', cost: 50_000, type: 'building', buildingId: 'solar', mult: 5, req: () => getBuildingCount('solar') >= 15 },
+
+  { id: 'a1', icon: '⛏️', name: 'Lazer Burgu', desc: 'Asteroid Madencisi ×2', cost: 1_000, type: 'building', buildingId: 'asteroid', mult: 2, req: () => getBuildingCount('asteroid') >= 1 },
+  { id: 'a2', icon: '🤖', name: 'Nano-Robotlar', desc: 'Asteroid Madencisi ×3', cost: 20_000, type: 'building', buildingId: 'asteroid', mult: 3, req: () => getBuildingCount('asteroid') >= 5 },
+  { id: 'a3', icon: '🚀', name: 'Filolu Madencilik', desc: 'Asteroid Madencisi ×5', cost: 500_000, type: 'building', buildingId: 'asteroid', mult: 5, req: () => getBuildingCount('asteroid') >= 15 },
+
+  { id: 'n1', icon: '🌫️', name: 'İyonlama Pompası', desc: 'Bulutsu Toplayıcı ×2', cost: 10_000, type: 'building', buildingId: 'nebula', mult: 2, req: () => getBuildingCount('nebula') >= 1 },
+  { id: 'n2', icon: '🌠', name: 'Kuantum Filtresi', desc: 'Bulutsu Toplayıcı ×3', cost: 200_000, type: 'building', buildingId: 'nebula', mult: 3, req: () => getBuildingCount('nebula') >= 5 },
+  { id: 'n3', icon: '🌌', name: 'Galaktik Huni', desc: 'Bulutsu Toplayıcı ×5', cost: 5_000_000, type: 'building', buildingId: 'nebula', mult: 5, req: () => getBuildingCount('nebula') >= 15 },
+
+  { id: 'b1', icon: '🌑', name: 'Hawking Radyasyonu', desc: 'Kara Delik Tapı ×2', cost: 100_000, type: 'building', buildingId: 'blackhole', mult: 2, req: () => getBuildingCount('blackhole') >= 1 },
+  { id: 'b2', icon: '🕳️', name: 'Olay Ufku Genişletici', desc: 'Kara Delik Tapı ×3', cost: 2_000_000, type: 'building', buildingId: 'blackhole', mult: 3, req: () => getBuildingCount('blackhole') >= 5 },
+  { id: 'b3', icon: '🌪️', name: 'Ergosfer Motoru', desc: 'Kara Delik Tapı ×5', cost: 50_000_000, type: 'building', buildingId: 'blackhole', mult: 5, req: () => getBuildingCount('blackhole') >= 15 },
+
+  { id: 'q1', icon: '✨', name: 'Plazma Injektör', desc: 'Quasar Motoru ×2', cost: 1_000_000, type: 'building', buildingId: 'quasar', mult: 2, req: () => getBuildingCount('quasar') >= 1 },
+  { id: 'q2', icon: '💫', name: 'Relativistik Jet', desc: 'Quasar Motoru ×3', cost: 20_000_000, type: 'building', buildingId: 'quasar', mult: 3, req: () => getBuildingCount('quasar') >= 5 },
+
+  { id: 'g1', icon: '🌀', name: 'Sarmal Rezonans', desc: 'Galaksi Dönüştürücü ×2', cost: 10_000_000, type: 'building', buildingId: 'galaxy', mult: 2, req: () => getBuildingCount('galaxy') >= 1 },
+  { id: 'g2', icon: '🎇', name: 'Karanlık Madde Katalizörü', desc: 'Galaksi Dönüştürücü ×5', cost: 200_000_000, type: 'building', buildingId: 'galaxy', mult: 5, req: () => getBuildingCount('galaxy') >= 5 },
+
+  { id: 'm1', icon: '🔮', name: 'Boyutlar Arası Köprü', desc: 'Çoklu Evren Kapısı ×2', cost: 100_000_000, type: 'building', buildingId: 'multiverse', mult: 2, req: () => getBuildingCount('multiverse') >= 1 },
+  { id: 'm2', icon: '♾️', name: 'Sonsuz Döngü', desc: 'Çoklu Evren Kapısı ×10', cost: 2_000_000_000, type: 'building', buildingId: 'multiverse', mult: 10, req: () => getBuildingCount('multiverse') >= 5 },
+
+  // Global
+  { id: 'gl1', icon: '⚡', name: 'Enerji Verimliliği', desc: 'Tüm üretim ×1.5', cost: 50_000, type: 'global', mult: 1.5, req: () => state.totalEnergyEarned >= 10_000 },
+  { id: 'gl2', icon: '🔋', name: 'Kozmik Kondansatör', desc: 'Tüm üretim ×2', cost: 5_000_000, type: 'global', mult: 2, req: () => state.totalEnergyEarned >= 1_000_000 },
+  { id: 'gl3', icon: '🌟', name: 'Yıldız Çekirdeği', desc: 'Tüm üretim ×3', cost: 500_000_000, type: 'global', mult: 3, req: () => state.totalEnergyEarned >= 100_000_000 },
+];
+
+const MILESTONES = [
+  { val: 100, msg: '🎉 İlk 100 enerji!' },
+  { val: 1_000, msg: '💫 1.000 enerjiye ulaştın!' },
+  { val: 10_000, msg: '⚡ 10.000 — Harika gidiyorsun!' },
+  { val: 100_000, msg: '🚀 100.000 enerji — Uzaya çıkıyoruz!' },
+  { val: 1_000_000, msg: '🌌 1 Milyon! Prestij zamanı!' },
+  { val: 10_000_000, msg: '💎 10 Milyon — Efsane!' },
+  { val: 1_000_000_000, msg: '♾️ 1 Milyar — Sen tanrısın!' },
+];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+
+const defaultState = () => ({
+  energy: 0,
+  totalEnergyEarned: 0,
+  totalClicks: 0,
+  prestigeCount: 0,
+  prestigeMult: 1,
+  startTime: Date.now(),
+  buildings: {},   // { id: count }
+  boughtUpgrades: [], // [id, ...]
+  milestoneSeen: [],
+});
+
+let state = defaultState();
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getBuildingCount(id) {
+  return state.buildings[id] || 0;
+}
+
+function buildingCost(b, count) {
+  return Math.floor(b.baseCost * Math.pow(1.15, count));
+}
+
+function clickPower() {
+  let power = 1;
+  for (const u of UPGRADES) {
+    if (u.type === 'click' && state.boughtUpgrades.includes(u.id)) power *= u.mult;
+  }
+  return power * state.prestigeMult;
+}
+
+function productionPerSec() {
+  let total = 0;
+  for (const b of BUILDINGS) {
+    const count = getBuildingCount(b.id);
+    if (!count) continue;
+    let prod = b.baseProduction * count;
+    for (const u of UPGRADES) {
+      if (!state.boughtUpgrades.includes(u.id)) continue;
+      if (u.type === 'building' && u.buildingId === b.id) prod *= u.mult;
+      if (u.type === 'global') prod *= u.mult;
+    }
+    total += prod;
+  }
+  return total * state.prestigeMult;
+}
+
+function formatNum(n) {
+  if (n < 1_000) return n.toFixed(n < 10 ? 1 : 0);
+  if (n < 1_000_000) return (n / 1_000).toFixed(2) + 'B';
+  if (n < 1_000_000_000) return (n / 1_000_000).toFixed(2) + 'Mn';
+  if (n < 1_000_000_000_000) return (n / 1_000_000_000).toFixed(2) + 'Mr';
+  if (n < 1e15) return (n / 1_000_000_000_000).toFixed(2) + 'T';
+  return n.toExponential(2);
+}
+
+function formatTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600).toString().padStart(2, '0');
+  const m = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
+  const sec = (s % 60).toString().padStart(2, '0');
+  return `${h}:${m}:${sec}`;
+}
+
+// ─── Save / Load ──────────────────────────────────────────────────────────────
+
+function saveGame() {
+  localStorage.setItem('kozmikFabrika_v2', JSON.stringify(state));
+}
+
+function loadGame() {
+  const raw = localStorage.getItem('kozmikFabrika_v2');
+  if (!raw) return;
+  try {
+    const saved = JSON.parse(raw);
+    state = { ...defaultState(), ...saved };
+    // Offline earnings
+    const offline = Math.min((Date.now() - (saved._savedAt || Date.now())) / 1000, 3600);
+    const offlineEnergy = productionPerSec() * offline;
+    if (offlineEnergy > 0) {
+      state.energy += offlineEnergy;
+      state.totalEnergyEarned += offlineEnergy;
+      if (offline > 30) showToast(`⏰ Çevrimdışı: +${formatNum(offlineEnergy)} enerji kazandın!`);
+    }
+  } catch(e) { state = defaultState(); }
+}
+
+function resetSave() {
+  if (!confirm('Tüm ilerleme silinecek. Emin misin?')) return;
+  localStorage.removeItem('kozmikFabrika_v2');
+  location.reload();
+}
+
+// ─── Prestige ─────────────────────────────────────────────────────────────────
+
+function prestigeThreshold() {
+  return 1_000_000 * Math.pow(5, state.prestigeCount);
+}
+
+function doPrestige() {
+  if (state.totalEnergyEarned < prestigeThreshold()) return;
+  state.prestigeCount++;
+  state.prestigeMult = 1 + state.prestigeCount * 0.5;
+  state.energy = 0;
+  state.totalEnergyEarned = 0;
+  state.buildings = {};
+  state.boughtUpgrades = [];
+  state.milestoneSeen = [];
+  showToast(`✨ Prestij ${state.prestigeCount}! Çarpan: ×${state.prestigeMult.toFixed(2)}`);
+  render();
+}
+
+// ─── Click ────────────────────────────────────────────────────────────────────
+
+function handleClick(e) {
+  const power = clickPower();
+  state.energy += power;
+  state.totalEnergyEarned += power;
+  state.totalClicks++;
+  spawnFloatText(e.clientX, e.clientY, `+${formatNum(power)}`);
+  checkMilestones();
+}
+
+function spawnFloatText(x, y, txt) {
+  const el = document.createElement('div');
+  el.className = 'float-text';
+  el.textContent = txt;
+  el.style.left = (x - 20 + (Math.random() - 0.5) * 40) + 'px';
+  el.style.top = (y - 10) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+// ─── Buy Building ─────────────────────────────────────────────────────────────
+
+function buyBuilding(id) {
+  const b = BUILDINGS.find(x => x.id === id);
+  if (!b) return;
+  const count = getBuildingCount(id);
+  const cost = buildingCost(b, count);
+  if (state.energy < cost) return;
+  state.energy -= cost;
+  state.buildings[id] = (state.buildings[id] || 0) + 1;
+  render();
+}
+
+// ─── Buy Upgrade ──────────────────────────────────────────────────────────────
+
+function buyUpgrade(id) {
+  const u = UPGRADES.find(x => x.id === id);
+  if (!u || state.boughtUpgrades.includes(id)) return;
+  if (state.energy < u.cost) return;
+  state.energy -= u.cost;
+  state.boughtUpgrades.push(id);
+  showToast(`⬆️ ${u.name} satın alındı!`);
+  render();
+}
+
+// ─── Milestones ───────────────────────────────────────────────────────────────
+
+function checkMilestones() {
+  for (const m of MILESTONES) {
+    if (state.totalEnergyEarned >= m.val && !state.milestoneSeen.includes(m.val)) {
+      state.milestoneSeen.push(m.val);
+      showToast(m.msg);
+    }
+  }
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const existing = document.querySelector('.milestone-toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'milestone-toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.remove(), 3500);
+}
+
+// ─── Stars ────────────────────────────────────────────────────────────────────
+
+function initStars() {
+  const bg = document.getElementById('starsBg');
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2.5 + 0.5;
+    s.style.cssText = `
+      width:${size}px;height:${size}px;
+      left:${Math.random()*100}%;top:${Math.random()*100}%;
+      --dur:${(Math.random()*3+2).toFixed(1)}s;
+      --min-op:${(Math.random()*0.15+0.05).toFixed(2)};
+      --max-op:${(Math.random()*0.5+0.3).toFixed(2)};
+      animation-delay:${(Math.random()*3).toFixed(1)}s;
+    `;
+    bg.appendChild(s);
+  }
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+
+let lastRender = 0;
+function render() {
+  const now = Date.now();
+
+  // Energy display
+  document.getElementById('energyDisplay').textContent = formatNum(state.energy);
+  document.getElementById('perSecDisplay').textContent = formatNum(productionPerSec());
+  document.getElementById('totalEnergy').textContent = formatNum(state.totalEnergyEarned);
+  document.getElementById('prestigeCount').textContent = state.prestigeCount;
+  document.getElementById('playTime').textContent = formatTime(now - state.startTime);
+  document.getElementById('clickPowerDisplay').textContent = `Tıklama: +${formatNum(clickPower())} enerji`;
+
+  // Prestige button
+  const threshold = prestigeThreshold();
+  const canPrestige = state.totalEnergyEarned >= threshold;
+  document.getElementById('prestigeBtn').disabled = !canPrestige;
+  document.getElementById('prestigeInfo').textContent = canPrestige
+    ? `✅ Prestij yapabilirsin! (${formatNum(state.totalEnergyEarned)} / ${formatNum(threshold)})`
+    : `${formatNum(state.totalEnergyEarned)} / ${formatNum(threshold)} enerji gerekli`;
+  document.getElementById('prestigeMult').textContent = `×${state.prestigeMult.toFixed(2)}`;
+
+  // Buildings
+  const bList = document.getElementById('buildingList');
+  bList.innerHTML = '';
+  for (const b of BUILDINGS) {
+    const count = getBuildingCount(b.id);
+    const cost = buildingCost(b, count);
+    const affordable = state.energy >= cost;
+    let bProd = b.baseProduction * count;
+    for (const u of UPGRADES) {
+      if (!state.boughtUpgrades.includes(u.id)) continue;
+      if (u.type === 'building' && u.buildingId === b.id) bProd *= u.mult;
+      if (u.type === 'global') bProd *= u.mult;
+    }
+    bProd *= state.prestigeMult;
+
+    const card = document.createElement('div');
+    card.className = `building-card${affordable ? ' affordable' : ''}`;
+    card.onclick = () => buyBuilding(b.id);
+    card.innerHTML = `
+      <div class="building-icon">${b.icon}</div>
+      <div class="building-info">
+        <div class="building-name">${b.name}</div>
+        <div class="building-desc">${b.desc}</div>
+        <div class="building-prod">${count > 0 ? `${formatNum(bProd)}/sn üretiyor` : `${formatNum(b.baseProduction * state.prestigeMult)}/sn/adet`}</div>
+      </div>
+      <div class="building-right">
+        <span class="building-count">${count}</span>
+        <div class="building-cost">${formatNum(cost)} ⚡</div>
+      </div>
+    `;
+    bList.appendChild(card);
+  }
+
+  // Upgrades
+  const uList = document.getElementById('upgradeList');
+  uList.innerHTML = '';
+  let availableCount = 0;
+  for (const u of UPGRADES) {
+    const bought = state.boughtUpgrades.includes(u.id);
+    const visible = bought || u.req();
+    if (!visible) continue;
+    const affordable = !bought && state.energy >= u.cost;
+    if (affordable) availableCount++;
+
+    const card = document.createElement('div');
+    card.className = `upgrade-card${bought ? ' bought' : (affordable ? ' affordable' : '')}`;
+    if (!bought) card.onclick = () => buyUpgrade(u.id);
+    card.innerHTML = `
+      <div class="upgrade-icon">${u.icon}</div>
+      <div class="upgrade-info">
+        <div class="upgrade-name">${u.name}</div>
+        <div class="upgrade-desc">${u.desc}</div>
+        ${bought
+          ? `<div class="upgrade-bought-label">✅ Satın alındı</div>`
+          : `<div class="upgrade-cost">${formatNum(u.cost)} ⚡</div>`
+        }
+      </div>
+    `;
+    uList.appendChild(card);
+  }
+
+  // Notif dot
+  const dot = document.getElementById('upgradeNotif');
+  dot.innerHTML = availableCount > 0 ? `<span class="notification-dot"></span>` : '';
+
+  lastRender = now;
+}
+
+// ─── Game Loop ────────────────────────────────────────────────────────────────
+
+let lastTick = Date.now();
+
+function gameTick() {
+  const now = Date.now();
+  const dt = (now - lastTick) / 1000;
+  lastTick = now;
+
+  const pps = productionPerSec();
+  const gained = pps * dt;
+  state.energy += gained;
+  state.totalEnergyEarned += gained;
+
+  checkMilestones();
+
+  render();
+  requestAnimationFrame(gameTick);
+}
+
+// Save every 5s
+setInterval(() => {
+  state._savedAt = Date.now();
+  saveGame();
+}, 5000);
+
+// ─── Tab (mobile) ─────────────────────────────────────────────────────────────
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-bar button').forEach((b, i) => {
+    const tabs = ['click', 'buildings', 'upgrades'];
+    b.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('[data-tab]').forEach(el => {
+    el.classList.toggle('active-tab', el.dataset.tab === tab);
+    if (window.innerWidth <= 768) {
+      el.style.display = el.dataset.tab === tab ? '' : 'none';
+    }
+  });
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+initStars();
+loadGame();
+render();
+requestAnimationFrame(gameTick);
+</script>
+</body>
+</html>
