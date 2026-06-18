@@ -275,42 +275,51 @@ function buildPrompt(lang, age, gender) {
   const pg = gender ? (lang==='tr'?' | Cinsiyet: '+gender:lang==='ar'?' | الجنس: '+gender:' | Sex: '+gender) : '';
 
   if (lang === 'tr') return `Sen SRS/SOSORT 2024 omurga radyologusun. ${pa}${pg}
-
-COBB 1948 PROTOKOLÜ (Caesarendra 2022 ICC=0.995 + Maeda 2023 ICC=0.973):
+Bu ayakta PA/AP omurga röntgenindeki TÜM skolyoz eğrilerini Cobb 1948 yöntemiyle ölç.
 
 ADIM 1 — GÖRÜNTÜ KALİTESİ
   Ayakta PA/AP tam omurga? image_quality: good / poor / unacceptable
 
 ADIM 2 — KOORDİNAT SİSTEMİ
-  Sol-üst=(0.0, 0.0) | Sağ-alt=(1.0, 1.0)
+  Sol-üst=(0.0, 0.0) | Sağ-alt=(1.0, 1.0). Vertebraları say: C1-7, T1-12 (kostalı), L1-5.
 
-ADIM 3 — ÜÇ VERTEBRAYI BELİRLE
-  A) APEKS: Orta çizgiden en fazla sapan vertebra → apex_x, apex_y
-  B) ÜST UÇ: Apeks üstünde üst endplate eğimi komşulardan >=5° fazla olan
-     upper_corners: ul, ur (üst endplate) + ll, lr (alt kenar) — GERÇEK KEMIK
-  C) ALT UÇ: Apeks altında alt endplate eğimi komşulardan >=5° fazla olan
-     lower_corners: ul, ur + ll, lr — GERÇEK KEMIK
+ADIM 3 — TÜM EĞRİLERİ BELİRLE
+  Skolyozda genelde BİRDEN FAZLA eğri vardır:
+    • PRİMER (majör) eğri — en büyük, yapısal eğri. Her zaman var.
+    • SEKONDER (kompansatuar) eğri — ters yöne kıvrılır. Cobb ≥ 10° ise dahil et.
+    • TERSİYER eğri — sadece belirgin ve ≥ 10° ise.
+  "curves" dizisine HER eğri için bir nesne ekle (1-3 adet). Büyükten küçüğe sırala.
 
-ADIM 4 — COBB AÇISI HESAPLA
-  Üst uç vertebranın üst endplate eğimi = upper_slope_deg
-  Alt uç vertebranın alt endplate eğimi = lower_slope_deg
-  cobb_angle = |upper_slope_deg − lower_slope_deg| (tam sayıya yuvarla)
+  HER EĞRİ İÇİN:
+  (a) APEKS: Bu eğrinin orta çizgiden en fazla sapan vertebrası → apex_x, apex_y
+  (b) ÜST UÇ: Apeks üstünde üst endplate eğimi bu eğriye en fazla giren vertebra
+      upper_vertebra_name (örn "T5") + upper_corners (ul,ur üst kenar | ll,lr alt kenar)
+  (c) ALT UÇ: Apeks altında alt endplate eğimi bu eğriye en fazla giren vertebra
+      lower_vertebra_name (örn "T12") + lower_corners
+  (d) upper_slope_deg, lower_slope_deg, cobb_angle = |upper_slope − lower_slope|
+  (e) convexity_direction: right/left | curve_location: thoracic/thoracolumbar/lumbar
 
-ADIM 5 — GENEL
-  convexity_direction: right/left | curve_location: thoracic/thoracolumbar/lumbar
-  coronal_balance: balanced/left_shift/right_shift`;
+  KRİTİK: Köşeler GÖRÜNÜR BEYAZ KORTEKS kenarında olsun, vertebra ortasında DEĞİL.
+  Komşu eğriler bir geçiş vertebrasını PAYLAŞIR.
+
+ADIM 4 — GENEL
+  coronal_balance: balanced/left_shift/right_shift | curve_type: single/double/triple`;
 
   if (lang === 'ar') return `أنت طبيب أشعة متخصص (SRS/SOSORT 2024). ${pa}${pg}
+قِس كل انحناءات الجنف في صورة العمود الفقري هذه بطريقة Cobb 1948.
 
-بروتوكول Cobb 1948:
 1. image_quality: good/poor/unacceptable
 2. إحداثيات: (0,0) أعلى يسار، (1,1) أسفل يمين
-3. حدد: الذروة (apex_x,y) + الفقرة العلوية (upper_corners) + السفلية (lower_corners)
-4. upper_slope_deg, lower_slope_deg, cobb_angle = |upper-lower|
-5. convexity_direction, curve_location, coronal_balance`;
+3. حدد كل الانحناءات (1-3): الأساسي + الثانوي (إذا ≥10°). لكل انحناء أضف كائناً في "curves":
+   - الذروة (apex_x,y) + الفقرة العلوية (upper_vertebra_name, upper_corners)
+     + الفقرة السفلية (lower_vertebra_name, lower_corners)
+   - upper_slope_deg, lower_slope_deg, cobb_angle = |upper-lower|
+   - convexity_direction, curve_location
+   ضع الزوايا على حافة العظم القشري المرئية.
+4. coronal_balance, curve_type: single/double/triple`;
 
   return `You are an expert radiologist specializing in spinal deformity (SRS/SOSORT 2024). ${pa}${pg}
-Measure Cobb angle from this standing PA/AP spine X-ray using the standard Cobb 1948 method.
+Measure ALL scoliotic curves from this standing PA/AP spine X-ray using the Cobb 1948 method.
 
 ─── IMAGE COORDINATES ───────────────────────────────────────────────────────
 Origin (0,0) = TOP-LEFT of image. (1,1) = BOTTOM-RIGHT. All coordinates in [0,1].
@@ -321,121 +330,81 @@ image_quality: good / poor / unacceptable
 
 ─── STEP 2: LOCATE THE SPINE ───────────────────────────────────────────────
 The spine runs vertically near the center. Count vertebrae from top:
-  C1-C7 (cervical, 7 vertebrae), T1-T12 (thoracic, 12), L1-L5 (lumbar, 5).
-  Thoracic vertebrae have visible rib attachments.
-  Lumbar vertebrae are larger, rectangular, near the bottom.
+  C1-C7 (cervical, 7), T1-T12 (thoracic, 12, with rib attachments), L1-L5 (lumbar, 5, larger).
 
-─── STEP 3: FIND THE APEX VERTEBRA ────────────────────────────────────────
-The APEX is the vertebra with the greatest lateral (sideways) displacement
-from the vertical midline of the image.
-Set apex_x, apex_y to the CENTER of this vertebra.
+─── STEP 3: IDENTIFY ALL CURVES ─────────────────────────────────────────────
+Scoliosis often has MORE THAN ONE curve:
+  • PRIMARY (major) curve — the largest, most structural curve. Always present.
+  • SECONDARY (compensatory) curve — bends the OPPOSITE direction, above or below
+    the primary. Include it if its Cobb angle is ≥ 10°.
+  • TERTIARY curve — only if clearly present and ≥ 10°.
+Return one object in the "curves" array for EACH curve (1 to 3 objects).
+Order them by size: largest Cobb angle first.
 
-─── STEP 4: FIND THE TWO END VERTEBRAE ─────────────────────────────────────
-SUPERIOR END VERTEBRA (above apex):
-  • Scan upward from the apex
-  • Find the highest vertebra still tilting INTO the curve
-  • Its SUPERIOR (top) endplate has the MAXIMUM tilt compared to its neighbors
-  • This is where the curve begins at the top
-  upper_vertebra_name: e.g. "T5"
+─── FOR EACH CURVE, DO THE FOLLOWING ────────────────────────────────────────
 
-INFERIOR END VERTEBRA (below apex):
-  • Scan downward from the apex
-  • Find the lowest vertebra still tilting INTO the curve
-  • Its INFERIOR (bottom) endplate has the MAXIMUM tilt compared to its neighbors
-  • This is where the curve ends at the bottom
-  lower_vertebra_name: e.g. "T12"
+  (a) APEX — the vertebra of THIS curve most laterally displaced from the
+      midline. Set apex_x, apex_y to its center.
 
-─── STEP 5: MARK CORNERS ON BONE SURFACES ─────────────────────────────────
-For SUPERIOR END VERTEBRA → upper_corners:
-  ul = [x,y] upper-LEFT corner  (top edge, left side)  ← on the cortical bone
-  ur = [x,y] upper-RIGHT corner (top edge, right side) ← on the cortical bone
-  ll = [x,y] lower-LEFT corner  (bottom edge, left side)
-  lr = [x,y] lower-RIGHT corner (bottom edge, right side)
-  NOTE: ul[1] and ur[1] (Y values) must be LESS THAN ll[1] and lr[1]
-        (top edge is higher on image = smaller Y coordinate)
+  (b) SUPERIOR END VERTEBRA — scanning up from the apex, the highest vertebra
+      whose SUPERIOR (top) endplate tilts maximally INTO this curve.
+      upper_vertebra_name: e.g. "T5"
+      upper_corners: 4 corners of THIS vertebra on the cortical bone edge:
+        ul=[x,y] top-left   ur=[x,y] top-right
+        ll=[x,y] bottom-left lr=[x,y] bottom-right
+      (ul/ur Y-values < ll/lr Y-values)
 
-For INFERIOR END VERTEBRA → lower_corners:
-  Same format. ll[1] and lr[1] must be GREATER THAN ul[1] and ur[1].
+  (c) INFERIOR END VERTEBRA — scanning down from the apex, the lowest vertebra
+      whose INFERIOR (bottom) endplate tilts maximally INTO this curve.
+      lower_vertebra_name: e.g. "T12"
+      lower_corners: same 4-corner format on cortical bone.
 
-IMPORTANT: Place ALL corners on the visible white cortical bone edge.
-Do NOT place in the center of the vertebral body. Do NOT guess.
+  (d) SLOPES + COBB:
+      upper_slope_deg: tilt of the superior end vertebra's TOP endplate
+                       (right-down = positive, right-up = negative)
+      lower_slope_deg: tilt of the inferior end vertebra's BOTTOM endplate
+      cobb_angle: |upper_slope_deg − lower_slope_deg| (1 decimal)
 
-─── STEP 6: MEASURE SLOPES AND COBB ANGLE ──────────────────────────────────
-upper_slope_deg: angle of the top endplate of the SUPERIOR end vertebra
-  (right-down = positive, right-up = negative)
-lower_slope_deg: angle of the bottom endplate of the INFERIOR end vertebra
-cobb_angle: |upper_slope_deg − lower_slope_deg|  (round to 1 decimal)
+  (e) convexity_direction: right / left (side the curve bulges toward)
+      curve_location: thoracic / thoracolumbar / lumbar
 
-─── STEP 7: CURVE DIRECTION ────────────────────────────────────────────────
-convexity_direction: which side the curve bulges toward (right / left)
-curve_location: thoracic / thoracolumbar / lumbar
+CRITICAL: Place ALL corners on the visible WHITE cortical bone edge — never the
+center of the vertebral body. Adjacent curves SHARE a transitional vertebra: the
+inferior end vertebra of the upper curve is usually the superior end vertebra of
+the curve below it.
+
+─── STEP 4: OVERALL ─────────────────────────────────────────────────────────
 coronal_balance: balanced / left_shift / right_shift
-
-STEP 5 — CLASSIFY
-  convexity_direction: right / left
-  curve_location: thoracic / thoracolumbar / lumbar
-  coronal_balance: balanced / left_shift / right_shift
-
-STEP 1 — IMAGE QUALITY
-  Is this a standing PA/AP full-spine X-ray?
-  image_quality: good / poor / unacceptable
-
-STEP 2 — COORDINATE SYSTEM
-  Origin (0,0) = TOP-LEFT of image. (1,1) = BOTTOM-RIGHT. All values in [0,1].
-
-STEP 3 — IDENTIFY AND MARK 3 VERTEBRAE
-
-  A) APEX VERTEBRA — most laterally displaced from the mid-sagittal line.
-     Set apex_x, apex_y to its center coordinates.
-
-  B) SUPERIOR END VERTEBRA — most cranial vertebra in the curve whose SUPERIOR
-     (top) endplate tilts ≥5° more than any vertebra above it in the curve.
-     Provide upper_corners: the 4 corners of THIS vertebra:
-       ul = [upper-left x, y]    ur = [upper-right x, y]
-       ll = [lower-left x, y]    lr = [lower-right x, y]
-     CRITICAL: ul/ur must be on the actual TOP bone edge of this vertebra.
-
-  C) INFERIOR END VERTEBRA — most caudal vertebra in the curve whose INFERIOR
-     (bottom) endplate tilts ≥5° more than any vertebra below it in the curve.
-     Provide lower_corners: the 4 corners of THIS vertebra:
-       ul = [upper-left x, y]    ur = [upper-right x, y]
-       ll = [lower-left x, y]    lr = [lower-right x, y]
-     CRITICAL: ll/lr must be on the actual BOTTOM bone edge of this vertebra.
-
-  COORDINATE PRECISION: Place corners on the visible cortical bone surface.
-  Superior end corners (ul/ur of upper_corners) MUST have smaller Y values than
-  inferior end corners (ll/lr of lower_corners).
-
-STEP 4 — CURVE CHARACTERISTICS
-  convexity_direction: right / left
-  curve_location: thoracic / thoracolumbar / lumbar
-  coronal_balance: balanced / left_shift / right_shift`;
+curve_type: single (1 curve) / double (2) / triple (3)`;
 }
 
 // ─── Schema ──────────────────────────────────────────────────────────────
 // ⚠ ALL NUMERIC VALUES ARE ZERO PLACEHOLDERS.
 //   Replace every 0.0 with actual measurements from the X-ray image.
+//   "curves" is an ARRAY: return 1 object per curve (1-3), largest Cobb first.
 function buildMeasureSchema(isTR, isAR) {
+  const curveTemplate = {
+    upper_vertebra_name: 'T0',   // real name, e.g. "T5"
+    lower_vertebra_name: 'T0',   // real name, e.g. "T12"
+    apical_vertebra_name: 'T0',  // real name, e.g. "T9"
+    convexity_direction: 'right',
+    curve_location: 'thoracic',
+    upper_corners: { ul:[0.0,0.0], ur:[0.0,0.0], ll:[0.0,0.0], lr:[0.0,0.0] },
+    lower_corners: { ul:[0.0,0.0], ur:[0.0,0.0], ll:[0.0,0.0], lr:[0.0,0.0] },
+    upper_slope_deg: 0,   // endplate slope in degrees (right-down = positive)
+    lower_slope_deg: 0,
+    cobb_angle: 0,        // |upper_slope_deg − lower_slope_deg|
+    apex_x: 0.0,
+    apex_y: 0.0
+  };
   return {
     is_valid_xray: true,
     image_quality: 'good',
     view_type: 'PA',
-    curve_type: 'single',
+    curve_type: 'single',          // single / double / triple
     measurement_confidence: 'high',
-    curves: [{
-      upper_vertebra_name: 'T0',   // replace with real name, e.g. "T5"
-      lower_vertebra_name: 'T0',   // replace with real name, e.g. "T12"
-      apical_vertebra_name: 'T0',  // replace with real name, e.g. "T9"
-      convexity_direction: 'right',
-      curve_location: 'thoracic',
-      upper_corners: { ul:[0.0,0.0], ur:[0.0,0.0], ll:[0.0,0.0], lr:[0.0,0.0] },
-      lower_corners: { ul:[0.0,0.0], ur:[0.0,0.0], ll:[0.0,0.0], lr:[0.0,0.0] },
-      upper_slope_deg: 0,   // endplate slope in degrees (right-down = positive)
-      lower_slope_deg: 0,
-      cobb_angle: 0,        // |upper_slope_deg − lower_slope_deg|
-      apex_x: 0.0,
-      apex_y: 0.0
-    }],
+    // Return one entry PER CURVE found (1-3). Example shows the structure for one.
+    curves: [curveTemplate],
     coronal_balance: 'balanced'
   };
 }
