@@ -634,7 +634,7 @@ const App: React.FC = () => {
             <button
               className="cobb-hamburger"
               onClick={() => setSidebarOpen(o => !o)}
-              aria-label="Menü"
+              aria-label={store.language === 'tr' ? 'Menü' : store.language === 'ar' ? 'القائمة' : 'Menu'}
               style={{ width:36, height:36, border:'1px solid rgba(255,255,255,.15)', borderRadius:8, background:'transparent', color:'#7a8fa0', fontSize:20, cursor:'pointer', flexShrink:0, alignItems:'center', justifyContent:'center' }}
             >☰</button>
           )}

@@ -54,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           className="cobb-hamburger"
           onClick={onClose}
-          aria-label="Kapat"
+          aria-label={lang === 'tr' ? 'Kapat' : lang === 'ar' ? 'إغلاق' : 'Close'}
           style={{
             position: 'absolute', top: 10, insetInlineEnd: 10,
             background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.12)',
