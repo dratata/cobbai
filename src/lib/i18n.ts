@@ -130,6 +130,8 @@ export interface Translations {
   obNote: string;
   // History
   histTitle: string;
+  srcAI:     string;
+  srcManual: string;
   // Comparison
   prevXrayLbl: string;
   currXrayLbl: string;
@@ -323,6 +325,8 @@ const tr: Translations = {
   obBtn: 'Başla →',
   obNote: '⚕ Tıbbi tanı yerine geçmez. FTR Uzman Hekimine danışın.',
   histTitle: 'SON ÖLÇÜMLER',
+  srcAI:     'YZ',
+  srcManual: 'ELLE',
   prevXrayLbl: 'ÖNCEKİ X-RAY',
   currXrayLbl: 'GÜNCEL ANALİZ',
   prevUTitle: 'Önceki röntgeni seç',
@@ -508,6 +512,8 @@ const en: Translations = {
   obBtn: 'Start →',
   obNote: '⚕ Not a substitute for clinical diagnosis. Consult a PMR specialist.',
   histTitle: 'RECENT MEASUREMENTS',
+  srcAI:     'AI',
+  srcManual: 'MANUAL',
   prevXrayLbl: 'PREVIOUS X-RAY',
   currXrayLbl: 'CURRENT ANALYSIS',
   prevUTitle: 'Select previous X-ray',
@@ -693,6 +699,8 @@ const ar: Translations = {
   obBtn: 'ابدأ →',
   obNote: '⚕ لا يحل محل التشخيص السريري. استشر أخصائي الطب الطبيعي.',
   histTitle: 'آخر القياسات',
+  srcAI:     'الذكاء الاصطناعي',
+  srcManual: 'يدوي',
   prevXrayLbl: 'الأشعة السابقة',
   currXrayLbl: 'التحليل الحالي',
   prevUTitle: 'اختر الأشعة السابقة',
