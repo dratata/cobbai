@@ -27,6 +27,9 @@ const L = {
   lower:       { tr:'Alt',              en:'Lower',               ar:'السفلي' },
   editBtn:     { tr:'Endplate düzelt',  en:'Edit endplate',       ar:'تحرير الصفيحة' },
   coronal:     { tr:'Koronal denge',    en:'Coronal balance',     ar:'التوازن التاجي' },
+  balanced:    { tr:'Dengeli',          en:'Balanced',            ar:'متوازن' },
+  leftShift:   { tr:'Sola kaymış',      en:'Left shift',          ar:'انحراف يساري' },
+  rightShift:  { tr:'Sağa kaymış',      en:'Right shift',         ar:'انحراف يميني' },
   sagittal:    { tr:'Sagittal modül',   en:'Sagittal module',     ar:'الوحدة السهمية' },
   sagittalVal: { tr:'Lateral grafiyle manuel TK/LL/SVA',
                  en:'Manual TK/LL/SVA with lateral X-ray',
@@ -72,7 +75,7 @@ export const SurgimapLitePanel: React.FC<Props> = ({ processed, onEditCurve, lan
       })}
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:7, marginTop:8 }}>
-        <Mini title={t('coronal', lang)}  value={processed.raw.coronal_balance || 'balanced'} />
+        <Mini title={t('coronal', lang)}  value={t(processed.raw.coronal_balance === 'left_shift' ? 'leftShift' : processed.raw.coronal_balance === 'right_shift' ? 'rightShift' : 'balanced', lang)} />
         <Mini title={t('sagittal', lang)} value={t('sagittalVal', lang)} />
         <Mini title={t('dicom', lang)}    value={t('dicomVal', lang)} />
       </div>
