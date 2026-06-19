@@ -148,11 +148,14 @@ Follow this exact JSON schema, write nothing else:`;
     }
   };
 
-  // Fix 1 + Fix 3: same abort controller pattern as analyze-spine.js
+  // Fix 1 + Fix 3: same abort controller pattern as analyze-spine.js.
+  // Timeout raised from 8s to 28s — multimodal Gemini calls routinely exceed
+  // 8s, causing false-positive timeouts. vercel.json sets maxDuration:30 for
+  // this function, so 28s leaves slack for JSON parsing/response writing.
   const geminiCtrl   = new AbortController();
   let   clientClosed = false;
   req.on('close', () => { clientClosed = true; geminiCtrl.abort(new Error('CLIENT_DISCONNECTED')); });
-  const timeoutId = setTimeout(() => geminiCtrl.abort(new Error('GEMINI_TIMEOUT')), 8_000);
+  const timeoutId = setTimeout(() => geminiCtrl.abort(new Error('GEMINI_TIMEOUT')), 28_000);
 
   async function callGemini() {
     return fetch(apiUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(reqBody), signal: geminiCtrl.signal });
@@ -196,10 +199,10 @@ Follow this exact JSON schema, write nothing else:`;
       if (clientClosed) return; // Fix 1: client gone — exit silently
       if (!res.headersSent) return res.status(504).json({
         error: isTR
-          ? 'Google AI 8 saniye içinde yanıt vermedi. Lütfen tekrar deneyin.'
+          ? 'Google AI zamanında yanıt vermedi. Lütfen tekrar deneyin.'
           : isAR
-          ? 'لم يستجب Google AI خلال 8 ثوانٍ. يرجى المحاولة مرة أخرى.'
-          : 'Google AI did not respond within 8 seconds. Please try again.',
+          ? 'لم يستجب Google AI في الوقت المحدد. يرجى المحاولة مرة أخرى.'
+          : 'Google AI did not respond in time. Please try again.',
       });
       return;
     }

@@ -249,8 +249,9 @@ function getFootRecsEN(meary: number, sev: string, flexible: boolean, isChild: b
 }
 
 function getFootRecsTR(meary: number, sev: string, flexible: boolean, isChild: boolean, _age: number): FootClinicalRec {
+  const sevTR = { normal:'normal', mild:'hafif', moderate:'orta', severe:'şiddetli' }[sev] ?? sev;
   return {
-    overallDescription: `Meary açısı ${meary}° — ${sev==='normal'?'normal kemer':sev+' pes planus'} tespit edildi. ${flexible?'Esnek tip: parmak ucunda kemer oluşuyor.':'Rijit tip: parmak ucunda kemer oluşmuyor.'} ${isChild?'8 yaş altı çocuklarda fizyolojik düz taban sık görülür ve çoğunlukla kendiliğinden düzelir.':''} Klinik korelasyon gereklidir.`,
+    overallDescription: `Meary açısı ${meary}° — ${sev==='normal'?'normal kemer':sevTR+' pes planus'} tespit edildi. ${flexible?'Esnek tip: parmak ucunda kemer oluşuyor.':'Rijit tip: parmak ucunda kemer oluşmuyor.'} ${isChild?'8 yaş altı çocuklarda fizyolojik düz taban sık görülür ve çoğunlukla kendiliğinden düzelir.':''} Klinik korelasyon gereklidir.`,
     treatmentPlan:
       sev==='normal'   ? 'Müdahale gerekmez. Uygun ayakkabı önerilir.' :
       sev==='mild'     ? 'Kısa ayak egzersizi (SFE), tibialis posterior güçlendirme. Hazır tabanlık düşünülebilir.' :
@@ -267,10 +268,11 @@ function getFootRecsTR(meary: number, sev: string, flexible: boolean, isChild: b
 }
 
 function getFootRecsAR(meary: number, sev: string, flexible: boolean, isChild: boolean, _age: number): FootClinicalRec {
+  const sevAR = { normal:'طبيعي', mild:'خفيف', moderate:'متوسط', severe:'شديد' }[sev] ?? sev;
   return {
-    overallDescription: `زاوية ميري ${meary}° — ${sev==='normal'?'قوس طبيعي':sev+' قدم مسطحة'} تم تشخيصه. ${flexible?'مرن: القوس يتشكل على أطراف الأصابع.':'صلب: القوس لا يتشكل.'} ${isChild?'عند الأطفال دون 8 سنوات، القدم المسطحة الفسيولوجية شائعة وتحسن تلقائياً.':''} التقييم السريري ضروري.`,
+    overallDescription: `زاوية ميري ${meary}° — ${sev==='normal'?'قوس طبيعي':sevAR+' قدم مسطحة'} تم تشخيصه. ${flexible?'مرن: القوس يتشكل على أطراف الأصابع.':'صلب: القوس لا يتشكل.'} ${isChild?'عند الأطفال دون 8 سنوات، القدم المسطحة الفسيولوجية شائعة وتحسن تلقائياً.':''} التقييم السريري ضروري.`,
     treatmentPlan: sev==='normal'?'لا تدخل. حذاء مناسب.':sev==='mild'?'تمارين القدم القصيرة (SFE). نعل طبي.':sev==='moderate'?(flexible?'جبيرة UCBL مخصصة + تمارين.':'UCBL + علاج طبيعي. استشارة جراحية إن لزم.'):' استشارة جراحية. AFO/UCBL.',
-    followupPlan: sev==='normal'?'سنوياً إن وجدت أعراض.':sev==='mild'?'كل 6 أشهر.':'كل 3-4 أشهر.',
+    followupPlan: sev==='normal'?'سنوياً إن وجدت أعراض.':sev==='mild'?'كل 6 أشهر.':sev==='moderate'?'كل 3-4 أشهر.':'وفق جدول الفريق الجراحي.',
     imagingIndications: meary>20?'MRI/CT للتخطيط الجراحي إن فشل العلاج التحفظي.':'صورة جانبية واقفة دورية.',
     orthoticRecommendation: sev==='normal'?'حذاء بدعم للقوس.':sev==='mild'?'نعل طبي جاهز.':sev==='moderate'?'UCBL مخصص.':'AFO أو UCBL مخصص.',
   };

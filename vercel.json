@@ -6,6 +6,10 @@
     { "source": "/api/analyze-foot",  "destination": "/api/analyze-foot.js"  },
     { "source": "/((?!api/).*)",      "destination": "/index.html"            }
   ],
+  "functions": {
+    "api/analyze-spine.js": { "maxDuration": 30 },
+    "api/analyze-foot.js":  { "maxDuration": 30 }
+  },
   "headers": [
     {
       "source": "/(.*)",

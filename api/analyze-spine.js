@@ -92,13 +92,13 @@ export default async function handler(req, res) {
   // Gemini fetch. When the client disconnects, req emits 'close' and we abort
   // the in-flight Gemini request before it generates any more tokens.
   //
-  // ── Fix 3: Hard 8-second timeout on the Gemini fetch ─────────────────────
+  // ── Fix 3: Hard timeout on the Gemini fetch ───────────────────────────────
   // Problem: Gemini occasionally stalls (no headers, no body) and the Vercel
   // function hits its max execution time, producing an opaque 504 gateway error.
-  //
-  // Fix: the same AbortController is armed with an 8-second timeout. If Gemini
-  // doesn't respond within 8 s we abort and return a clean 504 message.
-  // Vercel Hobby limit is 10 s; 8 s gives us 2 s of slack for JSON parsing.
+  // An earlier 8 s timeout was too aggressive — multimodal (image) Gemini
+  // calls routinely take longer than 8 s, causing frequent false-positive
+  // timeouts. vercel.json now sets maxDuration:30 for this function, so the
+  // abort timeout is raised to match, with slack for JSON parsing/response writing.
   const geminiCtrl    = new AbortController();
   let   clientClosed  = false;
 
@@ -108,8 +108,8 @@ export default async function handler(req, res) {
     geminiCtrl.abort(new Error('CLIENT_DISCONNECTED'));
   });
 
-  // Fix 3: 8 s hard timeout
-  const GEMINI_TIMEOUT_MS = 8_000;
+  // Fix 3: hard timeout — keep below vercel.json's maxDuration:30 for this function
+  const GEMINI_TIMEOUT_MS = 28_000;
   const timeoutId = setTimeout(
     () => geminiCtrl.abort(new Error('GEMINI_TIMEOUT')),
     GEMINI_TIMEOUT_MS
@@ -171,10 +171,10 @@ export default async function handler(req, res) {
       if (!res.headersSent) {
         return res.status(504).json({
           error: lang === 'tr'
-            ? 'Google AI 8 saniye içinde yanıt vermedi. Lütfen tekrar deneyin.'
+            ? 'Google AI zamanında yanıt vermedi. Lütfen tekrar deneyin.'
             : lang === 'ar'
-            ? 'لم يستجب Google AI خلال 8 ثوانٍ. يرجى المحاولة مرة أخرى.'
-            : 'Google AI did not respond within 8 seconds. Please try again.',
+            ? 'لم يستجب Google AI في الوقت المحدد. يرجى المحاولة مرة أخرى.'
+            : 'Google AI did not respond in time. Please try again.',
         });
       }
       return;
