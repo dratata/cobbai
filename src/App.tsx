@@ -276,7 +276,7 @@ const App: React.FC = () => {
       window.removeEventListener('dragover', stop);
       window.removeEventListener('drop',     onDrop);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — intentionally empty
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally empty
 
   // ── Analysis with caching + debounce ─────────────────────────
   const runAnalysis = useCallback(async (forceRefresh = false, _isAutoRetry = false) => {
