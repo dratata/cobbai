@@ -37,7 +37,7 @@ function severityFromValue(modality: 'spine' | 'foot', value: number, t: Transla
   if (modality === 'spine') {
     if (value < 10) return { label: sevTable.normal,   color: 'var(--c-green, #4caf50)' };
     if (value < 25) return { label: sevTable.mild,     color: 'var(--c-blue, #2196f3)' };
-    if (value < 40) return { label: sevTable.moderate, color: 'var(--c-orange, #ff9800)' };
+    if (value < 45) return { label: sevTable.moderate, color: 'var(--c-orange, #ff9800)' };
     return { label: sevTable.severe, color: 'var(--c-red, #f44336)' };
   } else {
     if (value <= 4)  return { label: sevTable.normal,   color: 'var(--c-green, #4caf50)' };
