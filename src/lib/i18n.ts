@@ -92,6 +92,7 @@ export interface Translations {
   sevS: Record<string, string>;
   sevF: Record<string, string>;
   flex: Record<string, string>;
+  mearyDir: Record<string, string>;
   conf: Record<string, string>;
   // Curve labels
   curveP: string;
@@ -274,6 +275,11 @@ const tr: Translations = {
     rigid: 'Rijit',
     unknown: 'Bilinmiyor',
   },
+  mearyDir: {
+    plantar: 'Plantar yönde',
+    dorsal:  'Dorsal yönde',
+    neutral: 'Nötr',
+  },
   conf: {
     high: 'Yüksek Güven · SRS',
     medium: 'Orta Güven',
@@ -454,6 +460,11 @@ const en: Translations = {
     rigid: 'Rigid',
     unknown: 'Unknown',
   },
+  mearyDir: {
+    plantar: 'Plantar direction',
+    dorsal:  'Dorsal direction',
+    neutral: 'Neutral',
+  },
   conf: {
     high: 'High Confidence · SRS',
     medium: 'Medium Confidence',
@@ -633,6 +644,11 @@ const ar: Translations = {
     flexible: 'مرن',
     rigid: 'صلب',
     unknown: 'غير معروف',
+  },
+  mearyDir: {
+    plantar: 'اتجاه أخمصي',
+    dorsal:  'اتجاه ظهري',
+    neutral: 'محايد',
   },
   conf: {
     high: 'ثقة عالية · SRS',
