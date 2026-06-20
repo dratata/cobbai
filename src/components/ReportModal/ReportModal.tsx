@@ -96,6 +96,23 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       : '⚕ Bu rapor CobbAI yapay zeka analizi ile oluşturulmuştur. Tıbbi tanı yerine geçmez. Kesin tanı ve tedavi için lisanslı FTR Uzman Hekimine başvurunuz.',
   };
 
+  // ── Localized value lookups (raw AI enum strings must never be rendered as-is) ──
+  const imgQualLbl: Record<string, string> = {
+    good:         lang==='ar'?'جيدة':lang==='en'?'Good':'İyi',
+    poor:         lang==='ar'?'ضعيفة':lang==='en'?'Poor':'Zayıf',
+    unacceptable: lang==='ar'?'غير مقبولة':lang==='en'?'Unacceptable':'Kabul Edilemez',
+  };
+  const viewLbl: Record<string, string> = {
+    PA:      'PA',
+    AP:      'AP',
+    unknown: lang==='ar'?'غير معروف':lang==='en'?'Unknown':'Bilinmiyor',
+  };
+  const footSideLbl: Record<string, string> = {
+    left:    lang==='ar'?'يسار':lang==='en'?'Left':'Sol',
+    right:   lang==='ar'?'يمين':lang==='en'?'Right':'Sağ',
+    unknown: lang==='ar'?'غير معروف':lang==='en'?'Unknown':'Bilinmiyor',
+  };
+
   // ── Browser print (quick path) ────────────────────────────────
   const handlePrint = () => {
     const content = contentRef.current?.innerHTML ?? '';
@@ -210,8 +227,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       <h2>${lbl.ptInfo}</h2>
       <table>
         <tr><th>${lbl.age}</th><td>${esc(patientAge)||'—'}</td><th>${lbl.gender}</th><td>${esc(patientGender)||'—'}</td></tr>
-        <tr><th>${lbl.imgQual}</th><td>${esc(spineResult.image_quality)}</td><th>${lbl.conf}</th><td>${esc(spineResult.measurement_confidence)}</td></tr>
-        <tr><th>${lbl.vertCount}</th><td>${esc(spineResult.vertebrae_detected)}</td><th>${lbl.view}</th><td>${esc(spineResult.view_type)}</td></tr>
+        <tr><th>${lbl.imgQual}</th><td>${esc(imgQualLbl[spineResult.image_quality] ?? spineResult.image_quality)}</td><th>${lbl.conf}</th><td>${esc(t.conf[spineResult.measurement_confidence] ?? spineResult.measurement_confidence)}</td></tr>
+        <tr><th>${lbl.vertCount}</th><td>${esc(spineResult.vertebrae_detected)}</td><th>${lbl.view}</th><td>${esc(viewLbl[spineResult.view_type] ?? spineResult.view_type)}</td></tr>
       </table>
       <h2>${lbl.meas}</h2>
       <table>
@@ -221,7 +238,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             <td>${i+1}</td>
             <td>${esc(c.label)}</td>
             <td><strong>${esc(c.cobb_angle)}°</strong></td>
-            <td><span class="pill" style="background:${sevBg(c.severity)};color:${sevCol(c.severity)}">${esc(c.severity)}</span></td>
+            <td><span class="pill" style="background:${sevBg(c.severity)};color:${sevCol(c.severity)}">${esc(t.sevS[c.severity] ?? c.severity)}</span></td>
             <td>${esc(c.curve_location)}</td>
             <td>${esc(c.upper_vertebra_name)||'—'}</td>
             <td>${esc(c.lower_vertebra_name)||'—'}</td>
@@ -250,13 +267,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       <h2>${lbl.ptInfo}</h2>
       <table>
         <tr><th>${lbl.age}</th><td>${esc(patientAge)||'—'}</td><th>${lbl.gender}</th><td>${esc(patientGender)||'—'}</td></tr>
-        <tr><th>${lbl.foot}</th><td>${esc(footResult.foot_side)}</td><th>${lbl.conf}</th><td>${esc(footResult.measurement_confidence)}</td></tr>
+        <tr><th>${lbl.foot}</th><td>${esc(footSideLbl[footResult.foot_side] ?? footResult.foot_side)}</td><th>${lbl.conf}</th><td>${esc(t.conf[footResult.measurement_confidence] ?? footResult.measurement_confidence)}</td></tr>
       </table>
       <h2>${lbl.meas}</h2>
       <table>
-        <tr><th>${t.flM}</th><td><strong>${footResult.meary_angle != null ? esc(footResult.meary_angle) + '°' : '—'}</strong></td><th>${lbl.dir}</th><td>${esc(footResult.meary_direction)}</td></tr>
+        <tr><th>${t.flM}</th><td><strong>${footResult.meary_angle != null ? esc(footResult.meary_angle) + '°' : '—'}</strong></td><th>${lbl.dir}</th><td>${esc(t.mearyDir[footResult.meary_direction] ?? footResult.meary_direction)}</td></tr>
         <tr><th>${t.flC}</th><td>${footResult.calcaneal_pitch != null ? esc(footResult.calcaneal_pitch) + '°' : '—'}</td><th>${t.flT}</th><td>${footResult.talar_declination != null ? esc(footResult.talar_declination) + '°' : '—'}</td></tr>
-        <tr><th>${lbl.sev}</th><td>${esc(footResult.severity)}</td><th>${lbl.flex}</th><td>${esc(footResult.flexibility)}</td></tr>
+        <tr><th>${lbl.sev}</th><td>${esc(t.sevF[footResult.severity] ?? footResult.severity)}</td><th>${lbl.flex}</th><td>${esc(t.flex[footResult.flexibility] ?? footResult.flexibility)}</td></tr>
       </table>
       <h2>${lbl.clinEval}</h2>
       <p>${esc(footResult.overall_description)||'—'}</p>

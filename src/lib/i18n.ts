@@ -92,6 +92,7 @@ export interface Translations {
   sevS: Record<string, string>;
   sevF: Record<string, string>;
   flex: Record<string, string>;
+  mearyDir: Record<string, string>;
   conf: Record<string, string>;
   // Curve labels
   curveP: string;
@@ -129,6 +130,8 @@ export interface Translations {
   obNote: string;
   // History
   histTitle: string;
+  srcAI:     string;
+  srcManual: string;
   // Comparison
   prevXrayLbl: string;
   currXrayLbl: string;
@@ -274,6 +277,11 @@ const tr: Translations = {
     rigid: 'Rijit',
     unknown: 'Bilinmiyor',
   },
+  mearyDir: {
+    plantar: 'Plantar yönde',
+    dorsal:  'Dorsal yönde',
+    neutral: 'Nötr',
+  },
   conf: {
     high: 'Yüksek Güven · SRS',
     medium: 'Orta Güven',
@@ -317,6 +325,8 @@ const tr: Translations = {
   obBtn: 'Başla →',
   obNote: '⚕ Tıbbi tanı yerine geçmez. FTR Uzman Hekimine danışın.',
   histTitle: 'SON ÖLÇÜMLER',
+  srcAI:     'YZ',
+  srcManual: 'ELLE',
   prevXrayLbl: 'ÖNCEKİ X-RAY',
   currXrayLbl: 'GÜNCEL ANALİZ',
   prevUTitle: 'Önceki röntgeni seç',
@@ -454,6 +464,11 @@ const en: Translations = {
     rigid: 'Rigid',
     unknown: 'Unknown',
   },
+  mearyDir: {
+    plantar: 'Plantar direction',
+    dorsal:  'Dorsal direction',
+    neutral: 'Neutral',
+  },
   conf: {
     high: 'High Confidence · SRS',
     medium: 'Medium Confidence',
@@ -497,6 +512,8 @@ const en: Translations = {
   obBtn: 'Start →',
   obNote: '⚕ Not a substitute for clinical diagnosis. Consult a PMR specialist.',
   histTitle: 'RECENT MEASUREMENTS',
+  srcAI:     'AI',
+  srcManual: 'MANUAL',
   prevXrayLbl: 'PREVIOUS X-RAY',
   currXrayLbl: 'CURRENT ANALYSIS',
   prevUTitle: 'Select previous X-ray',
@@ -634,6 +651,11 @@ const ar: Translations = {
     rigid: 'صلب',
     unknown: 'غير معروف',
   },
+  mearyDir: {
+    plantar: 'اتجاه أخمصي',
+    dorsal:  'اتجاه ظهري',
+    neutral: 'محايد',
+  },
   conf: {
     high: 'ثقة عالية · SRS',
     medium: 'ثقة متوسطة',
@@ -677,6 +699,8 @@ const ar: Translations = {
   obBtn: 'ابدأ →',
   obNote: '⚕ لا يحل محل التشخيص السريري. استشر أخصائي الطب الطبيعي.',
   histTitle: 'آخر القياسات',
+  srcAI:     'الذكاء الاصطناعي',
+  srcManual: 'يدوي',
   prevXrayLbl: 'الأشعة السابقة',
   currXrayLbl: 'التحليل الحالي',
   prevUTitle: 'اختر الأشعة السابقة',

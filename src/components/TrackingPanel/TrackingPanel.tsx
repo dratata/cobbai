@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Lang } from '@/lib/i18n';
 import { getT } from '@/lib/i18n';
 import type { TrackEntry } from '@/lib/imageCache';
+import type { Translations } from '@/lib/i18n';
 
 interface TrackingPanelProps {
   modality: 'spine' | 'foot';
@@ -31,17 +32,18 @@ function clearEntries(key: string): void {
   try { localStorage.removeItem(key); } catch { /* ITP */ }
 }
 
-function severityFromValue(modality: 'spine' | 'foot', value: number): { label: string; color: string } {
+function severityFromValue(modality: 'spine' | 'foot', value: number, t: Translations): { label: string; color: string } {
+  const sevTable = modality === 'spine' ? t.sevS : t.sevF;
   if (modality === 'spine') {
-    if (value < 10) return { label: 'Normal', color: 'var(--c-green, #4caf50)' };
-    if (value < 25) return { label: 'Mild', color: 'var(--c-blue, #2196f3)' };
-    if (value < 40) return { label: 'Moderate', color: 'var(--c-orange, #ff9800)' };
-    return { label: 'Severe', color: 'var(--c-red, #f44336)' };
+    if (value < 10) return { label: sevTable.normal,   color: 'var(--c-green, #4caf50)' };
+    if (value < 25) return { label: sevTable.mild,     color: 'var(--c-blue, #2196f3)' };
+    if (value < 45) return { label: sevTable.moderate, color: 'var(--c-orange, #ff9800)' };
+    return { label: sevTable.severe, color: 'var(--c-red, #f44336)' };
   } else {
-    if (value <= 4) return { label: 'Normal', color: 'var(--c-green, #4caf50)' };
-    if (value <= 15) return { label: 'Mild', color: 'var(--c-blue, #2196f3)' };
-    if (value <= 30) return { label: 'Moderate', color: 'var(--c-orange, #ff9800)' };
-    return { label: 'Severe', color: 'var(--c-red, #f44336)' };
+    if (value <= 4)  return { label: sevTable.normal,   color: 'var(--c-green, #4caf50)' };
+    if (value <= 15) return { label: sevTable.mild,     color: 'var(--c-blue, #2196f3)' };
+    if (value <= 30) return { label: sevTable.moderate, color: 'var(--c-orange, #ff9800)' };
+    return { label: sevTable.severe, color: 'var(--c-red, #f44336)' };
   }
 }
 
@@ -306,7 +308,7 @@ export const TrackingPanel: React.FC<TrackingPanelProps> = ({ modality, lang }) 
               .sort((a, b) => b.ts - a.ts)
               .map((entry, idx) => {
                 const val = getValue(entry);
-                const sev = val !== undefined ? severityFromValue(modality, val) : null;
+                const sev = val !== undefined ? severityFromValue(modality, val, t) : null;
                 return (
                   <div
                     key={`${entry.ts}-${idx}`}
@@ -371,7 +373,7 @@ export const TrackingPanel: React.FC<TrackingPanelProps> = ({ modality, lang }) 
                         textTransform: 'uppercase',
                       }}
                     >
-                      {entry.source}
+                      {entry.source === 'manual' ? t.srcManual : t.srcAI}
                     </span>
                   </div>
                 );

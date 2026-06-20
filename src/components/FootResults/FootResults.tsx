@@ -25,6 +25,7 @@ export const FootResults: React.FC<FootResultsProps> = ({ result, lang }) => {
   const color = severityColor(result.severity);
   const severityLabel = t.sevF[result.severity] ?? result.severity;
   const flexLabel = t.flex[result.flexibility] ?? result.flexibility;
+  const mearyDirLabel = t.mearyDir[result.meary_direction] ?? result.meary_direction;
 
   const sectionTitle: React.CSSProperties = {
     fontSize: 10,
@@ -155,7 +156,7 @@ export const FootResults: React.FC<FootResultsProps> = ({ result, lang }) => {
             {result.meary_angle != null ? result.meary_angle.toFixed(1) : 'N/A'}
           </div>
           <div style={{ fontSize: 10, color: 'var(--c-muted, rgba(200,220,200,0.45))', marginTop: 2 }}>
-            {result.meary_direction}
+            {mearyDirLabel}
           </div>
         </div>
 

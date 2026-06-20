@@ -18,6 +18,13 @@ interface SpineResultsProps {
   onEditLines: (curveIndex: number) => void;
 }
 
+// RecCard.body can fall back to raw AI-generated text (cobbCalculation.ts's
+// localRecs.X || raw.X) when no curve is detected, so it must be escaped
+// before injection — unlike local clinicalRules.ts text, it isn't trusted.
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 const SEV_BG:  Record<string,string> = { normal:'rgba(0,214,143,.1)',   mild:'rgba(240,160,69,.1)',  moderate:'rgba(240,120,50,.1)', severe:'rgba(224,85,85,.1)' };
 const SEV_COL: Record<string,string> = { normal:'#00d68f',              mild:'#f0a045',             moderate:'#f07832',            severe:'#e05555' };
 const PAL = ['#00c853','#e53935','#2196f3'];
@@ -226,7 +233,7 @@ const RecCard: React.FC<{ ico:string; title:string; body:string }> = ({ ico, tit
   <div style={{ background:'#0e1419', padding:'1.1rem' }}>
     <div style={{ fontSize:18, marginBottom:6 }}>{ico}</div>
     <div style={{ fontSize:10, letterSpacing:'1px', color:'#00c853', marginBottom:7, fontWeight:700 }}>{title}</div>
-    <div style={{ fontSize:14, color:'#7a8fa0', lineHeight:1.65 }} dangerouslySetInnerHTML={{ __html: (body||'—').replace(/\n/g,'<br/>') }}/>
+    <div style={{ fontSize:14, color:'#7a8fa0', lineHeight:1.65 }} dangerouslySetInnerHTML={{ __html: escHtml(body||'—').replace(/\n/g,'<br/>') }}/>
   </div>
 );
 
