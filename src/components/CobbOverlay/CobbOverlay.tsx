@@ -488,7 +488,8 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
           });
           // Audit fix: show "Inferred labels — verify numbering" warning when confidence is low
           if (hasLowConfidence) {
-            drawLabelBox(ctx, '⚠ Verify label numbering', '#f0a045', cssW / 2, cssH - 18, 10, 'center', cssW, cssH);
+            const verifyLabel = lang==='tr' ? '⚠ Numaralandırmayı doğrulayın' : lang==='ar' ? '⚠ يرجى التحقق من ترقيم الفقرات' : '⚠ Verify label numbering';
+            drawLabelBox(ctx, verifyLabel, '#f0a045', cssW / 2, cssH - 18, 10, 'center', cssW, cssH);
           }
         }
       }
@@ -496,7 +497,8 @@ export const CobbOverlay: React.FC<CobbOverlayProps> = ({
 
     // ── 8. Coronal balance ────────────────────────────────────
     if (result.raw.coronal_balance !== 'balanced') {
-      drawLabelBox(ctx, '⚖ Coronal imbalance', '#f0a045', cssW - 14, 14, 11, 'right');
+      const imbalanceLabel = lang==='tr' ? '⚖ Koronal dengesizlik' : lang==='ar' ? '⚖ عدم توازن إكليلي' : '⚖ Coronal imbalance';
+      drawLabelBox(ctx, imbalanceLabel, '#f0a045', cssW - 14, 14, 11, 'right');
     }
 
     // Restore DPR transform

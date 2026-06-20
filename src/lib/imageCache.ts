@@ -150,6 +150,7 @@ export function clearAllLocalData(): void {
   clearTrackingHistory();
   clearAllCache();
   try { sessionStorage.removeItem('cobbai_role'); } catch { /* ITP */ }
-  // cobbai_onboard lives in localStorage (not sessionStorage)
+  // cobbai_onboard / cobbai_kvkk live in localStorage (not sessionStorage)
   try { localStorage.removeItem('cobbai_onboard'); } catch { /* ITP */ }
+  try { localStorage.removeItem('cobbai_kvkk'); } catch { /* ITP */ }
 }
