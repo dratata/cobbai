@@ -9,6 +9,12 @@
  */
 
 const CACHE_KEY_PREFIX = 'cobbai_cache_';
+// Cache-format version sentinel (written by App.tsx on mount). It shares the
+// CACHE_KEY_PREFIX, so it MUST be excluded from result-eviction/clearing — its
+// value is a plain version string, not a JSON {result, ts} entry. Including it
+// made eviction parse-fail (ts=0) and always evict the sentinel first, which
+// triggered a spurious full-cache wipe on the next page load.
+export const CACHE_VERSION_KEY = 'cobbai_cache_ver';
 
 // ── Tracking history ──────────────────────────────────────────
 
@@ -119,7 +125,7 @@ export function setCachedResult<T>(
 ): void {
   try {
     // Evict oldest entries if over limit
-    const keys = Object.keys(sessionStorage).filter(k => k.startsWith(CACHE_KEY_PREFIX));
+    const keys = Object.keys(sessionStorage).filter(k => k.startsWith(CACHE_KEY_PREFIX) && k !== CACHE_VERSION_KEY);
     if (keys.length >= MAX_ENTRIES) {
       const sorted = keys.map(k => {
         try { return { k, ts: (JSON.parse(sessionStorage.getItem(k)!) as { ts: number }).ts }; }
@@ -136,7 +142,7 @@ export function setCachedResult<T>(
 
 export function clearAllCache(): void {
   Object.keys(sessionStorage)
-    .filter(k => k.startsWith(CACHE_KEY_PREFIX))
+    .filter(k => k.startsWith(CACHE_KEY_PREFIX) && k !== CACHE_VERSION_KEY)
     .forEach(k => sessionStorage.removeItem(k));
 }
 

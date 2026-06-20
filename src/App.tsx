@@ -9,7 +9,7 @@ import { useMeasurementStore, selectCanAnalyze } from '@/store/measurementStore'
 import { processSpineResult } from '@/lib/cobbCalculation';
 import { safeParseSpineResult, safeParseFootResult } from '@/lib/validateAIResponse';
 import { analyseImageQuality, preprocessXray, autoCropBlackBorders, normalizeExifOrientation } from '@/lib/imagePreprocessing';
-import { hashBase64, getCachedResult, setCachedResult, saveTrackEntry, clearAllCache, clearTrackingHistory, clearAllLocalData } from '@/lib/imageCache';
+import { hashBase64, getCachedResult, setCachedResult, saveTrackEntry, clearAllCache, clearTrackingHistory, clearAllLocalData, CACHE_VERSION_KEY } from '@/lib/imageCache';
 import { getT } from '@/lib/i18n';
 import { SafeSuspense } from '@/components/ErrorBoundary/ErrorBoundary';
 import CobbAILogo    from '@/components/CobbAILogo';
@@ -156,11 +156,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const CACHE_VERSION = 'v4'; // bump when cache format/hash changes
     try {
-      if (sessionStorage.getItem('cobbai_cache_ver') !== CACHE_VERSION) {
+      if (sessionStorage.getItem(CACHE_VERSION_KEY) !== CACHE_VERSION) {
         Object.keys(sessionStorage)
           .filter(k => k.startsWith('cobbai_cache_'))
           .forEach(k => sessionStorage.removeItem(k));
-        sessionStorage.setItem('cobbai_cache_ver', CACHE_VERSION);
+        sessionStorage.setItem(CACHE_VERSION_KEY, CACHE_VERSION);
       }
     } catch { /* iOS Safari private browsing */ }
   }, []);
