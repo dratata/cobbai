@@ -369,47 +369,7 @@ cobb_angle: |upper_slope_deg − lower_slope_deg|  (round to 1 decimal)
 ─── STEP 7: CURVE DIRECTION ────────────────────────────────────────────────
 convexity_direction: which side the curve bulges toward (right / left)
 curve_location: thoracic / thoracolumbar / lumbar
-coronal_balance: balanced / left_shift / right_shift
-
-STEP 5 — CLASSIFY
-  convexity_direction: right / left
-  curve_location: thoracic / thoracolumbar / lumbar
-  coronal_balance: balanced / left_shift / right_shift
-
-STEP 1 — IMAGE QUALITY
-  Is this a standing PA/AP full-spine X-ray?
-  image_quality: good / poor / unacceptable
-
-STEP 2 — COORDINATE SYSTEM
-  Origin (0,0) = TOP-LEFT of image. (1,1) = BOTTOM-RIGHT. All values in [0,1].
-
-STEP 3 — IDENTIFY AND MARK 3 VERTEBRAE
-
-  A) APEX VERTEBRA — most laterally displaced from the mid-sagittal line.
-     Set apex_x, apex_y to its center coordinates.
-
-  B) SUPERIOR END VERTEBRA — most cranial vertebra in the curve whose SUPERIOR
-     (top) endplate tilts ≥5° more than any vertebra above it in the curve.
-     Provide upper_corners: the 4 corners of THIS vertebra:
-       ul = [upper-left x, y]    ur = [upper-right x, y]
-       ll = [lower-left x, y]    lr = [lower-right x, y]
-     CRITICAL: ul/ur must be on the actual TOP bone edge of this vertebra.
-
-  C) INFERIOR END VERTEBRA — most caudal vertebra in the curve whose INFERIOR
-     (bottom) endplate tilts ≥5° more than any vertebra below it in the curve.
-     Provide lower_corners: the 4 corners of THIS vertebra:
-       ul = [upper-left x, y]    ur = [upper-right x, y]
-       ll = [lower-left x, y]    lr = [lower-right x, y]
-     CRITICAL: ll/lr must be on the actual BOTTOM bone edge of this vertebra.
-
-  COORDINATE PRECISION: Place corners on the visible cortical bone surface.
-  Superior end corners (ul/ur of upper_corners) MUST have smaller Y values than
-  inferior end corners (ll/lr of lower_corners).
-
-STEP 4 — CURVE CHARACTERISTICS
-  convexity_direction: right / left
-  curve_location: thoracic / thoracolumbar / lumbar
-  coronal_balance: balanced / left_shift / right_shift`;
+coronal_balance: balanced / left_shift / right_shift`;
 }
 
 // ─── Schema ──────────────────────────────────────────────────────────────
