@@ -433,14 +433,15 @@ const App: React.FC = () => {
         } catch (qe) {
           console.warn('[CobbAI] localStorage quota exceeded — result not cached', qe);
         }
-        store.setSpineResult(
-          parsed.result,
-          processSpineResult(parsed.result, store.language, store.patientAge, store.patientGender, store.risserStage),
-          parsed.outcome
-        );
+        const processed = processSpineResult(parsed.result, store.language, store.patientAge, store.patientGender, store.risserStage);
+        store.setSpineResult(parsed.result, processed, parsed.outcome);
         store.addToHistory({ id: Date.now().toString(), timestamp: new Date().toISOString(), modality:'spine', result: parsed.result, patientAge: store.patientAge, patientGender: store.patientGender });
-        // Save to persistent tracking history
-        const primaryCobb = parsed.result.curves?.[0]?.cobb_angle;
+        // Save to persistent tracking history — must use the validated/geometry-corrected
+        // cobb_angle (same value SpineResults.tsx displays), not the raw AI cobb_angle.
+        // The AI is no longer required to report cobb_angle (computed locally from
+        // corners when missing), so parsed.result.curves[0].cobb_angle can be 0 even
+        // when a real curve was measured and displayed.
+        const primaryCobb = processed.processedCurves?.[0]?.cobb_angle;
         if (primaryCobb != null) {
           saveTrackEntry('spine', { date: new Date().toISOString(), cobb: primaryCobb, source: 'ai', ts: Date.now() });
         }
@@ -764,7 +765,7 @@ const App: React.FC = () => {
                       onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.2)';}}
                     >
                       <div style={{ fontSize:26, opacity:.5 }}>{store.modality==='spine' ? t.uIcoS : t.uIcoF}</div>
-                      <div style={{ fontSize:18, fontWeight:500 }}>{isPreproc ? 'İşleniyor...' : (store.modality==='spine' ? t.uTitleS : t.uTitleF)}</div>
+                      <div style={{ fontSize:18, fontWeight:500 }}>{isPreproc ? (store.language==='tr'?'İşleniyor...':store.language==='ar'?'قيد المعالجة...':'Processing...') : (store.modality==='spine' ? t.uTitleS : t.uTitleF)}</div>
                       <div style={{ fontSize:14, color:'#7a8fa0', textAlign:'center', lineHeight:1.5 }}>{store.modality==='spine' ? t.uHintS : t.uHintF}</div>
                       <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); }}/>
                     </div>
@@ -777,9 +778,11 @@ const App: React.FC = () => {
                       {/* ── Manual mode toggle button ── */}
                       <button
                         onClick={() => { setIsManualMode(m => !m); setManualCobb(null); }}
-                        title={isManualMode ? (store.language==='tr'?'Normal moda dön':'Back to AI view') : (store.language==='tr'?'Manuel Cobb ölçümü (API yok)':'Manual Cobb tool (zero API)')}
+                        title={isManualMode
+                          ? (store.language==='tr'?'Normal moda dön':store.language==='ar'?'العودة إلى وضع الذكاء الاصطناعي':'Back to AI view')
+                          : (store.language==='tr'?'Manuel Cobb ölçümü (API yok)':store.language==='ar'?'قياس كوب اليدوي (بدون API)':'Manual Cobb tool (zero API)')}
                         style={{ position:'absolute', top:8, left:8, zIndex:10, background: isManualMode ? 'rgba(0,200,83,.25)' : 'rgba(0,0,0,.75)', color: isManualMode ? '#00c853' : '#fff', border: `1px solid ${isManualMode ? '#00c853' : 'rgba(255,255,255,.25)'}`, borderRadius:6, padding:'5px 10px', fontSize:12, cursor:'pointer', fontWeight:700 }}>
-                        ✏️ {isManualMode ? 'Manual ON' : 'Manual'}
+                        ✏️ {isManualMode ? (store.language==='tr'?'Manuel AÇIK':store.language==='ar'?'يدوي مُفعّل':'Manual ON') : (store.language==='tr'?'Manuel':store.language==='ar'?'يدوي':'Manual')}
                       </button>
 
                       {/* ── Manual Cobb result badge ── */}
@@ -1001,11 +1004,11 @@ const App: React.FC = () => {
                     </span>
                     {showResult && (
                       <div style={{ display:'flex', gap:5 }}>
-                        <IcoBtn title="PDF Rapor" onClick={() => store.setShowReport(true)}>📋</IcoBtn>
-                        <IcoBtn title="Geçmiş" onClick={() => store.setShowHistory(!store.showHistory)}>🕐</IcoBtn>
-                        <IcoBtn title="Validation Dashboard" onClick={() => setShowValidation(v => !v)}>📊</IcoBtn>
-                        <IcoBtn title="Karşılaştır" onClick={() => store.setShowComparison(!store.showComparison)}>🔄</IcoBtn>
-                        {hasSpine && <IcoBtn title="Endplate Düzenle" onClick={() => store.setShowCorrection(true)}>✏️</IcoBtn>}
+                        <IcoBtn title={store.language==='tr'?'PDF Rapor':store.language==='ar'?'تقرير PDF':'PDF Report'} onClick={() => store.setShowReport(true)}>📋</IcoBtn>
+                        <IcoBtn title={store.language==='tr'?'Geçmiş':store.language==='ar'?'السجل':'History'} onClick={() => store.setShowHistory(!store.showHistory)}>🕐</IcoBtn>
+                        <IcoBtn title={store.language==='tr'?'Doğrulama Paneli':store.language==='ar'?'لوحة التحقق':'Validation Dashboard'} onClick={() => setShowValidation(v => !v)}>📊</IcoBtn>
+                        <IcoBtn title={store.language==='tr'?'Karşılaştır':store.language==='ar'?'مقارنة':'Compare'} onClick={() => store.setShowComparison(!store.showComparison)}>🔄</IcoBtn>
+                        {hasSpine && <IcoBtn title={store.language==='tr'?'Endplate Düzenle':store.language==='ar'?'تعديل الصفائح النهائية':'Edit Endplates'} onClick={() => store.setShowCorrection(true)}>✏️</IcoBtn>}
                       </div>
                     )}
                   </div>
@@ -1172,8 +1175,8 @@ const App: React.FC = () => {
                   <button onClick={() => setShowPrivacy(!showPrivacy)} style={{ padding:'4px 10px', background:'transparent', border:'1px solid rgba(255,255,255,.1)', borderRadius:20, color:'#4a5a6a', fontSize:11, cursor:'pointer' }}>
                     🔒 {store.language==='tr'?'Gizlilik':store.language==='ar'?'الخصوصية':'Privacy'}
                   </button>
-                  <button onClick={() => { clearAllCache(); alert(store.language==='tr'?'AI önbelleği temizlendi.':'AI cache cleared.'); }} style={{ padding:'4px 10px', background:'transparent', border:'1px solid rgba(255,255,255,.1)', borderRadius:20, color:'#4a5a6a', fontSize:11, cursor:'pointer' }}>
-                    🗑 {store.language==='tr'?'AI Önbelleğini Temizle':'Clear AI Cache'}
+                  <button onClick={() => { clearAllCache(); alert(store.language==='tr'?'AI önbelleği temizlendi.':store.language==='ar'?'تم مسح ذاكرة التخزين المؤقت للذكاء الاصطناعي.':'AI cache cleared.'); }} style={{ padding:'4px 10px', background:'transparent', border:'1px solid rgba(255,255,255,.1)', borderRadius:20, color:'#4a5a6a', fontSize:11, cursor:'pointer' }}>
+                    🗑 {store.language==='tr'?'AI Önbelleğini Temizle':store.language==='ar'?'مسح ذاكرة الذكاء الاصطناعي':'Clear AI Cache'}
                   </button>
                   <button onClick={() => { clearTrackingHistory(); alert(store.language==='tr'?'Takip geçmişi silindi.':store.language==='ar'?'تم مسح سجل التتبع.':'History cleared.'); }} style={{ padding:'4px 10px', background:'transparent', border:'1px solid rgba(255,255,255,.1)', borderRadius:20, color:'#4a5a6a', fontSize:11, cursor:'pointer' }}>
                     🗑 {store.language==='tr'?'Geçmişi Sil':store.language==='ar'?'مسح السجل':'Clear History'}
@@ -1183,10 +1186,12 @@ const App: React.FC = () => {
                   </button>
                 </div>
                 {showPrivacy && (
-                  <div style={{ marginTop:12, padding:'12px 16px', background:'rgba(0,200,83,.05)', border:'1px solid rgba(0,200,83,.2)', borderRadius:8, fontSize:12, color:'#7a8fa0', textAlign:'left', lineHeight:1.7 }}>
-                    <strong style={{ color:'#00c853' }}>🔒 {store.language==='tr'?'Veri Gizliliği':'Data Privacy'}</strong><br/>
+                  <div style={{ marginTop:12, padding:'12px 16px', background:'rgba(0,200,83,.05)', border:'1px solid rgba(0,200,83,.2)', borderRadius:8, fontSize:12, color:'#7a8fa0', textAlign:'left', lineHeight:1.7, whiteSpace:'pre-line' }}>
+                    <strong style={{ color:'#00c853' }}>🔒 {store.language==='tr'?'Veri Gizliliği':store.language==='ar'?'خصوصية البيانات':'Data Privacy'}</strong><br/>
                     {store.language==='tr'
                       ? '• Yüklenen görüntüler sunucularımızda kalıcı olarak saklanmaz.\n• Analiz sonuçları oturum süresince (sekme kapanana kadar) tarayıcı önbelleğinde tutulur.\n• Takip geçmişi yalnızca bu cihazın yerel deposunda saklanır.\n• Görüntüler yalnızca anlık analiz için Google Gemini API\'ye iletilir.'
+                      : store.language==='ar'
+                      ? '• لا تُخزَّن الصور المرفوعة بشكل دائم على خوادمنا.\n• تُحفظ نتائج التحليل في ذاكرة التخزين المؤقت للمتصفح لهذه الجلسة فقط (تُحذف عند إغلاق التبويب).\n• يُخزَّن سجل التتبع محلياً على هذا الجهاز فقط.\n• تُرسَل الصور إلى Google Gemini API لغرض التحليل اللحظي فقط.'
                       : '• Uploaded images are NOT permanently stored on our servers.\n• Analysis results are cached in your browser for this session only (cleared on tab close).\n• Tracking history is stored locally on this device only.\n• Images are transmitted to Google Gemini API solely for real-time analysis.'}
                   </div>
                 )}
