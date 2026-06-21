@@ -61,8 +61,12 @@ export interface CobbValidationResult {
  * Validates and finalises the Cobb angle for a single curve.
  *
  * Priority order for the displayed value:
- * 1. Geometry-computed Cobb (most reliable — derived from coordinate math)
- * 2. AI-reported Cobb (fallback if coords are invalid)
+ * 1. AI-reported Cobb (the radiologist-style visual measurement)
+ * 2. Geometry-computed Cobb (fallback when AI returns 0/missing, only if reliable)
+ *
+ * Geometry is always computed and cross-checked against the AI value —
+ * discrepancies > 5° surface a manual-verification warning — but it does not
+ * override a non-zero AI value. See Step 5 below.
  *
  * This function NEVER silently returns a wrong value.
  */

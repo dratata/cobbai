@@ -270,7 +270,7 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           onClick={onZoomOut}
           onMouseEnter={(e) => hoverBtn(e)}
           onMouseLeave={(e) => unhoverBtn(e)}
-          title="Zoom out"
+          title={lang==='tr'?'Uzaklaştır':lang==='ar'?'تصغير':'Zoom out'}
         >
           🔍−
         </button>
@@ -279,7 +279,7 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           onClick={onResetZoom}
           onMouseEnter={(e) => hoverBtn(e)}
           onMouseLeave={(e) => unhoverBtn(e)}
-          title="Reset zoom"
+          title={lang==='tr'?'Yakınlaştırmayı sıfırla':lang==='ar'?'إعادة ضبط التكبير':'Reset zoom'}
         >
           1:1
         </button>
@@ -288,7 +288,7 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           onClick={onZoomIn}
           onMouseEnter={(e) => hoverBtn(e)}
           onMouseLeave={(e) => unhoverBtn(e)}
-          title="Zoom in"
+          title={lang==='tr'?'Yakınlaştır':lang==='ar'?'تكبير':'Zoom in'}
         >
           🔍+
         </button>
@@ -306,7 +306,7 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           onClick={onToggleOverlay}
           onMouseEnter={(e) => hoverBtn(e, showOverlay)}
           onMouseLeave={(e) => unhoverBtn(e, showOverlay)}
-          title={lang === 'tr' ? 'Overlay\'i göster/gizle' : 'Show/hide overlay'}
+          title={lang === 'tr' ? 'Overlay\'i göster/gizle' : lang === 'ar' ? 'إظهار/إخفاء التراكب' : 'Show/hide overlay'}
         >
           {t.ctrlBA}
         </button>
@@ -317,7 +317,7 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           onClick={onToggleVertebraLabels}
           onMouseEnter={(e) => hoverBtn(e, showVertebraLabels)}
           onMouseLeave={(e) => unhoverBtn(e, showVertebraLabels)}
-          title={lang === 'tr' ? 'Ara vertebra etiketleri (T6, T7…)' : 'Intermediate vertebra labels (T6, T7…)'}
+          title={lang === 'tr' ? 'Ara vertebra etiketleri (T6, T7…)' : lang === 'ar' ? 'تسميات الفقرات الوسيطة (T6, T7…)' : 'Intermediate vertebra labels (T6, T7…)'}
         >
           T▪
         </button>
@@ -328,7 +328,7 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           onClick={onToggleApexLabel}
           onMouseEnter={(e) => hoverBtn(e, showApexLabel)}
           onMouseLeave={(e) => unhoverBtn(e, showApexLabel)}
-          title={lang === 'tr' ? 'Apeks vertebra etiketini göster/gizle' : 'Show/hide apex label'}
+          title={lang === 'tr' ? 'Apeks vertebra etiketini göster/gizle' : lang === 'ar' ? 'إظهار/إخفاء تسمية الفقرة القمية' : 'Show/hide apex label'}
         >
           ◇
         </button>
@@ -340,7 +340,7 @@ export const ImageControls: React.FC<ImageControlsProps> = ({
           onMouseEnter={(e) => hoverBtn(e)}
           onMouseLeave={(e) => unhoverBtn(e)}
         >
-          ✨ Auto
+          {t.ctrlAuto}
         </button>
 
         {/* Reset */}

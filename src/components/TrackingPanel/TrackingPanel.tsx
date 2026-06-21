@@ -279,7 +279,7 @@ export const TrackingPanel: React.FC<TrackingPanelProps> = ({ modality, lang }) 
               (e.currentTarget as HTMLButtonElement).style.color = 'rgba(244,67,54,0.7)';
             }}
           >
-            ✕ Clear
+            {t.clearBtn}
           </button>
         )}
       </div>

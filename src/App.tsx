@@ -1108,6 +1108,7 @@ const App: React.FC = () => {
                       <ComparisonPanel
                         modality={store.modality}
                         currentSpine={store.spineResult}
+                        currentProcessedSpine={store.processedSpine}
                         currentFoot={store.footResult}
                         lang={store.language} t={t}
                         consentGiven={store.consentGiven}
@@ -1208,6 +1209,7 @@ const App: React.FC = () => {
           onClose={() => store.setShowReport(false)}
           modality={store.modality}
           spineResult={store.spineResult}
+          processedSpine={store.processedSpine}
           footResult={store.footResult}
           patientAge={store.patientAge}
           patientGender={store.patientGender}

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { SpineAnalysisResult, FootAnalysisResult } from '@/types';
 import type { Translations, Lang } from '@/lib/i18n';
+import type { ProcessedSpineResult } from '@/lib/cobbCalculation';
 
 function esc(s: unknown): string {
   return String(s ?? '')
@@ -16,6 +17,7 @@ interface ReportModalProps {
   onClose: () => void;
   modality: 'spine' | 'foot';
   spineResult?: SpineAnalysisResult | null;
+  processedSpine?: ProcessedSpineResult | null;
   footResult?: FootAnalysisResult | null;
   patientAge: string;
   patientGender: string;
@@ -25,7 +27,7 @@ interface ReportModalProps {
 }
 
 export const ReportModal: React.FC<ReportModalProps> = ({
-  open, onClose, modality, spineResult, footResult, patientAge, patientGender, notes, lang, t
+  open, onClose, modality, spineResult, processedSpine, footResult, patientAge, patientGender, notes, lang, t
 }) => {
   const contentRef    = useRef<HTMLDivElement>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -220,7 +222,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   const buildSpineReport = () => {
     if (!spineResult) return '';
-    const curves = spineResult.curves ?? [];
+    // Use the geometry-validated curves/clinical text (same as on-screen
+    // SpineResults.tsx) — not the raw, unvalidated AI fields — so the PDF/print
+    // report always matches what the physician sees on screen.
+    const curves = processedSpine?.processedCurves ?? spineResult.curves ?? [];
+    const overallDescription     = processedSpine?.overallDescription     || spineResult.overall_description;
+    const ageBasedRecommendation = processedSpine?.ageBasedRecommendation || spineResult.age_based_recommendation;
+    const treatmentPlan          = processedSpine?.treatmentPlan          || spineResult.treatment_plan;
+    const followupPlan           = processedSpine?.followupPlan          || spineResult.followup_plan;
+    const imagingIndications     = processedSpine?.imagingIndications    || spineResult.imaging_indications;
     return `
       <h1>📋 CobbAI — ${lbl.scoTitle}</h1>
       <p style="color:#555;font-size:12px">${date} · ${time} · cobbai.vercel.app</p>
@@ -246,14 +256,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           </tr>`).join('')}
       </table>
       <h2>${lbl.clinEval}</h2>
-      <p>${esc(spineResult.overall_description)||'—'}</p>
+      <p>${esc(overallDescription)||'—'}</p>
       <h2>${lbl.ageRec}</h2>
-      <p>${esc(spineResult.age_based_recommendation||'—').replace(/\n/g,'<br>')}</p>
+      <p>${esc(ageBasedRecommendation||'—').replace(/\n/g,'<br>')}</p>
       <h2>${lbl.treatPlan}</h2>
-      <p>${esc(spineResult.treatment_plan||'—').replace(/\n/g,'<br>')}</p>
+      <p>${esc(treatmentPlan||'—').replace(/\n/g,'<br>')}</p>
       <h2>${lbl.followUp}</h2>
-      <p>${esc(spineResult.followup_plan)||'—'}</p>
-      ${spineResult.imaging_indications && spineResult.imaging_indications!=='None' ? `<h2>${lbl.imaging}</h2><p>${esc(spineResult.imaging_indications)}</p>` : ''}
+      <p>${esc(followupPlan)||'—'}</p>
+      ${imagingIndications && imagingIndications!=='None' ? `<h2>${lbl.imaging}</h2><p>${esc(imagingIndications)}</p>` : ''}
       ${notes ? `<h2>${lbl.docNotes}</h2><p>${esc(notes).replace(/\n/g,'<br>')}</p>` : ''}
       <div class="disclaimer">${lbl.disc}</div>
     `;
@@ -300,8 +310,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               disabled={pdfLoading}
               style={{ padding:'7px 14px', background: pdfLoading ? '#065a2a' : '#00c853', color:'#000', border:'none', borderRadius:7, fontSize:13, fontWeight:700, cursor: pdfLoading ? 'wait' : 'pointer', minWidth:110, display:'flex', alignItems:'center', gap:6 }}>
               {pdfLoading
-                ? <><span style={{ width:12, height:12, border:'2px solid rgba(0,0,0,.3)', borderTopColor:'#000', borderRadius:'50%', animation:'_spin .7s linear infinite', flexShrink:0 }}/>İndiriliyor…</>
-                : '⬇ PDF İndir'}
+                ? <><span style={{ width:12, height:12, border:'2px solid rgba(0,0,0,.3)', borderTopColor:'#000', borderRadius:'50%', animation:'_spin .7s linear infinite', flexShrink:0 }}/>{lang==='ar'?'جاري التحميل…':lang==='en'?'Downloading…':'İndiriliyor…'}</>
+                : (lang==='ar'?'⬇ تحميل PDF':lang==='en'?'⬇ Download PDF':'⬇ PDF İndir')}
             </button>
             {/* Browser print */}
             <button onClick={handlePrint} style={{ padding:'7px 14px', background:'transparent', color:'#7a8fa0', border:'1px solid rgba(255,255,255,.15)', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer' }}>

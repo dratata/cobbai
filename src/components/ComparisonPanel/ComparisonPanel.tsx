@@ -4,10 +4,12 @@ import type { Translations } from '@/lib/i18n';
 import type { SpineAnalysisResult, FootAnalysisResult } from '@/types';
 import { preprocessXray } from '@/lib/imagePreprocessing';
 import { safeParseSpineResult, safeParseFootResult } from '@/lib/validateAIResponse';
+import { processSpineResult, type ProcessedSpineResult } from '@/lib/cobbCalculation';
 
 interface ComparisonPanelProps {
   modality: 'spine' | 'foot';
   currentSpine?: SpineAnalysisResult | null;
+  currentProcessedSpine?: ProcessedSpineResult | null;
   currentFoot?: FootAnalysisResult | null;
   lang: Lang;
   t: Translations;
@@ -17,12 +19,13 @@ interface ComparisonPanelProps {
 }
 
 export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
-  modality, currentSpine, currentFoot, lang, t, consentGiven, patientAge, patientGender
+  modality, currentSpine, currentProcessedSpine, currentFoot, lang, t, consentGiven, patientAge, patientGender
 }) => {
   const [prevB64, setPrevB64]   = useState<string|null>(null);
   const [prevMime, setPrevMime] = useState('image/jpeg');
   const [prevSrc, setPrevSrc]   = useState<string|null>(null);
-  const [prevRes, setPrevRes]   = useState<SpineAnalysisResult|FootAnalysisResult|null>(null);
+  const [prevRes, setPrevRes]         = useState<SpineAnalysisResult|FootAnalysisResult|null>(null);
+  const [prevProcessed, setPrevProcessed] = useState<ProcessedSpineResult|null>(null);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string|null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -40,6 +43,7 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
       setPrevMime(processed.mimeType);
       setPrevSrc(src);
       setPrevRes(null);
+      setPrevProcessed(null);
       setError(null);
     } catch(e) { setError((e as Error).message); }
   };
@@ -58,6 +62,9 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
       if (modality === 'spine') {
         const p = safeParseSpineResult(raw);
         setPrevRes(p?.result ?? null);
+        // Use the same geometry-validated Cobb value as the live analysis flow
+        // (App.tsx) and on-screen SpineResults.tsx — not the raw AI cobb_angle.
+        setPrevProcessed(p ? processSpineResult(p.result, lang, patientAge, patientGender) : null);
       } else {
         setPrevRes(safeParseFootResult(raw));
       }
@@ -65,8 +72,8 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
     finally { setLoading(false); }
   };
 
-  const getCurrCobb  = () => currentSpine?.curves?.[0]?.cobb_angle ?? null;
-  const getPrevCobb  = () => modality==='spine' ? (prevRes as SpineAnalysisResult|null)?.curves?.[0]?.cobb_angle ?? null : null;
+  const getCurrCobb  = () => currentProcessedSpine?.processedCurves?.[0]?.cobb_angle ?? currentSpine?.curves?.[0]?.cobb_angle ?? null;
+  const getPrevCobb  = () => modality==='spine' ? (prevProcessed?.processedCurves?.[0]?.cobb_angle ?? null) : null;
   const getCurrMeary = () => (currentFoot as FootAnalysisResult|null)?.meary_angle ?? null;
   const getPrevMeary = () => modality==='foot' ? (prevRes as FootAnalysisResult|null)?.meary_angle ?? null : null;
 

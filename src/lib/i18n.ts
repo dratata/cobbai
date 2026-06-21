@@ -132,6 +132,7 @@ export interface Translations {
   histTitle: string;
   srcAI:     string;
   srcManual: string;
+  clearBtn:  string;
   // Comparison
   prevXrayLbl: string;
   currXrayLbl: string;
@@ -147,6 +148,7 @@ export interface Translations {
   ctrlBA: string;
   ctrlReset: string;
   ctrlPng: string;
+  ctrlAuto: string;
   // Misc
   notes: string;
   notesPlaceholder: string;
@@ -327,6 +329,7 @@ const tr: Translations = {
   histTitle: 'SON ÖLÇÜMLER',
   srcAI:     'YZ',
   srcManual: 'ELLE',
+  clearBtn:  '✕ Temizle',
   prevXrayLbl: 'ÖNCEKİ X-RAY',
   currXrayLbl: 'GÜNCEL ANALİZ',
   prevUTitle: 'Önceki röntgeni seç',
@@ -340,6 +343,7 @@ const tr: Translations = {
   ctrlBA: '🔃 Önce/Sonra',
   ctrlReset: '↺ Sıfırla',
   ctrlPng: '💾 PNG İndir',
+  ctrlAuto: '✨ Otomatik',
   notes: 'HEKİM NOTU',
   notesPlaceholder: 'Klinik notunuzu buraya girin...',
   editLines: '⊹ Endplate Düzenle',
@@ -514,6 +518,7 @@ const en: Translations = {
   histTitle: 'RECENT MEASUREMENTS',
   srcAI:     'AI',
   srcManual: 'MANUAL',
+  clearBtn:  '✕ Clear',
   prevXrayLbl: 'PREVIOUS X-RAY',
   currXrayLbl: 'CURRENT ANALYSIS',
   prevUTitle: 'Select previous X-ray',
@@ -527,6 +532,7 @@ const en: Translations = {
   ctrlBA: '🔃 Before/After',
   ctrlReset: '↺ Reset',
   ctrlPng: '💾 Download PNG',
+  ctrlAuto: '✨ Auto',
   notes: 'PHYSICIAN NOTES',
   notesPlaceholder: 'Enter your clinical notes here...',
   editLines: '⊹ Edit Endplates',
@@ -701,6 +707,7 @@ const ar: Translations = {
   histTitle: 'آخر القياسات',
   srcAI:     'الذكاء الاصطناعي',
   srcManual: 'يدوي',
+  clearBtn:  '✕ مسح',
   prevXrayLbl: 'الأشعة السابقة',
   currXrayLbl: 'التحليل الحالي',
   prevUTitle: 'اختر الأشعة السابقة',
@@ -714,6 +721,7 @@ const ar: Translations = {
   ctrlBA: '🔃 قبل/بعد',
   ctrlReset: '↺ إعادة تعيين',
   ctrlPng: '💾 تنزيل PNG',
+  ctrlAuto: '✨ تلقائي',
   notes: 'ملاحظات الطبيب',
   notesPlaceholder: 'أدخل ملاحظاتك السريرية هنا...',
   editLines: '⊹ تعديل الصفائح النهائية',
