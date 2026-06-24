@@ -219,7 +219,7 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
 
     // Restore DPR scale transform
     ctx.restore();
-  }, [img2cvs, lang, naturalW, naturalH]);
+  }, [img2cvs, lang, naturalW, naturalH, brightness, contrast]);
 
   // Redraw on image load
   useEffect(() => { if (imgLoaded) draw(); }, [imgLoaded, draw]);
