@@ -152,8 +152,12 @@ export interface Translations {
   // Report
   reportTitle: string;
   printBtn: string;
+  pdfBtn: string;
+  pdfBtnLoading: string;
   // Growth
   growthTitle: string;
+  // Foot measurement direction enum (meary_direction etc.)
+  mearyDir: { plantar: string; dorsal: string; neutral: string };
 }
 
 // ── Turkish ───────────────────────────────────────────────────
@@ -336,7 +340,10 @@ const tr: Translations = {
   resetToAI: '↺ AI Ölçümüne Dön',
   reportTitle: '📋 Otomatik Klinik Rapor',
   printBtn: '🖨️ Yazdır / PDF',
+  pdfBtn: '⬇ PDF İndir',
+  pdfBtnLoading: 'İndiriliyor…',
   growthTitle: '📈 BÜYÜME TAHMİN ANALİZİ',
+  mearyDir: { plantar: 'Plantar', dorsal: 'Dorsal', neutral: 'Nötr' },
 };
 
 // ── English ───────────────────────────────────────────────────
@@ -516,7 +523,10 @@ const en: Translations = {
   resetToAI: '↺ Reset to AI Measurement',
   reportTitle: '📋 Automated Clinical Report',
   printBtn: '🖨️ Print / PDF',
+  pdfBtn: '⬇ Download PDF',
+  pdfBtnLoading: 'Downloading…',
   growthTitle: '📈 GROWTH PREDICTION ANALYSIS',
+  mearyDir: { plantar: 'Plantar', dorsal: 'Dorsal', neutral: 'Neutral' },
 };
 
 // ── Arabic ────────────────────────────────────────────────────
@@ -696,7 +706,10 @@ const ar: Translations = {
   resetToAI: '↺ العودة لقياس AI',
   reportTitle: '📋 تقرير سريري تلقائي',
   printBtn: '🖨️ طباعة / PDF',
+  pdfBtn: '⬇ تنزيل PDF',
+  pdfBtnLoading: 'جارٍ التنزيل…',
   growthTitle: '📈 تحليل توقعات النمو',
+  mearyDir: { plantar: 'أخمصي', dorsal: 'ظهري', neutral: 'محايد' },
 };
 
 // ── Exported T object ─────────────────────────────────────────

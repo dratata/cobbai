@@ -155,7 +155,7 @@ export const FootResults: React.FC<FootResultsProps> = ({ result, lang }) => {
             {result.meary_angle != null ? result.meary_angle.toFixed(1) : 'N/A'}
           </div>
           <div style={{ fontSize: 10, color: 'var(--c-muted, rgba(200,220,200,0.45))', marginTop: 2 }}>
-            {result.meary_direction}
+            {t.mearyDir[result.meary_direction as keyof typeof t.mearyDir] ?? result.meary_direction}
           </div>
         </div>
 
