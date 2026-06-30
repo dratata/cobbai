@@ -51,9 +51,13 @@ export function parseVertebraName(name: string): VertebralLevel | null {
 
 /**
  * Find the index in the canonical spine sequence.
+ * Uses parseVertebraName so zero-padded forms (e.g. "T05") still resolve —
+ * a raw uppercase/trim match would miss them and silently degrade labeling.
  */
 function seqIndex(name: string): number {
-  return SPINE_SEQUENCE.findIndex(v => v.name === name.trim().toUpperCase());
+  const parsed = parseVertebraName(name);
+  if (!parsed) return -1;
+  return SPINE_SEQUENCE.findIndex(v => v.name === parsed.name);
 }
 
 /**
