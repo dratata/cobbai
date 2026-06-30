@@ -152,7 +152,7 @@ function clampLine(line: unknown): { x1:number; y1:number; x2:number; y2:number 
  */
 function repairCurve(curve: CurveResult): { curve: CurveResult; warnings: string[] } {
   const warnings: string[] = [];
-  let c = { ...curve };
+  const c = { ...curve };
 
   // Ensure cobb_angle has a numeric default — local geometry will overwrite it
   // in processSpineResult. API no longer required to return this field.
