@@ -254,7 +254,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       </table>
       <h2>${lbl.meas}</h2>
       <table>
-        <tr><th>${t.flM}</th><td><strong>${footResult.meary_angle != null ? esc(footResult.meary_angle) + '°' : '—'}</strong></td><th>${lbl.dir}</th><td>${esc(footResult.meary_direction)}</td></tr>
+        <tr><th>${t.flM}</th><td><strong>${footResult.meary_angle != null ? esc(footResult.meary_angle) + '°' : '—'}</strong></td><th>${lbl.dir}</th><td>${esc(t.mearyDir[footResult.meary_direction as keyof typeof t.mearyDir] ?? footResult.meary_direction)}</td></tr>
         <tr><th>${t.flC}</th><td>${footResult.calcaneal_pitch != null ? esc(footResult.calcaneal_pitch) + '°' : '—'}</td><th>${t.flT}</th><td>${footResult.talar_declination != null ? esc(footResult.talar_declination) + '°' : '—'}</td></tr>
         <tr><th>${lbl.sev}</th><td>${esc(footResult.severity)}</td><th>${lbl.flex}</th><td>${esc(footResult.flexibility)}</td></tr>
       </table>
@@ -283,8 +283,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               disabled={pdfLoading}
               style={{ padding:'7px 14px', background: pdfLoading ? '#065a2a' : '#00c853', color:'#000', border:'none', borderRadius:7, fontSize:13, fontWeight:700, cursor: pdfLoading ? 'wait' : 'pointer', minWidth:110, display:'flex', alignItems:'center', gap:6 }}>
               {pdfLoading
-                ? <><span style={{ width:12, height:12, border:'2px solid rgba(0,0,0,.3)', borderTopColor:'#000', borderRadius:'50%', animation:'_spin .7s linear infinite', flexShrink:0 }}/>İndiriliyor…</>
-                : '⬇ PDF İndir'}
+                ? <><span style={{ width:12, height:12, border:'2px solid rgba(0,0,0,.3)', borderTopColor:'#000', borderRadius:'50%', animation:'_spin .7s linear infinite', flexShrink:0 }}/>{t.pdfBtnLoading}</>
+                : t.pdfBtn}
             </button>
             {/* Browser print */}
             <button onClick={handlePrint} style={{ padding:'7px 14px', background:'transparent', color:'#7a8fa0', border:'1px solid rgba(255,255,255,.15)', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer' }}>

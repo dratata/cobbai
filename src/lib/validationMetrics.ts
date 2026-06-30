@@ -33,6 +33,7 @@ function mean(arr: number[]): number {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 function sd(arr: number[], mu?: number): number {
+  if (arr.length < 2) return 0; // sample SD is undefined for n<2 — guard against NaN propagating into loa95/ms_e
   const m = mu ?? mean(arr);
   return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1));
 }
@@ -40,6 +41,18 @@ function sd(arr: number[], mu?: number): number {
 export function calculateMetrics(cases: ValidationCase[]): ValidationMetrics {
   const n = cases.length;
   if (n === 0) return { n:0, mae:0, rmse:0, icc:0, pearsonR:0, within5deg:0, within10deg:0, meanBias:0, loa95Upper:0, loa95Lower:0, sdDiff:0 };
+  // n=1: sample SD/ICC/Pearson r are statistically undefined (division by n-1=0).
+  // Return the well-defined point statistics (MAE/RMSE/bias/within-X%) and zero
+  // out the rest rather than letting NaN/Infinity leak into the dashboard charts.
+  if (n === 1) {
+    const d = cases[0].expertCobb - cases[0].aiCobb;
+    const absD = Math.abs(d);
+    return {
+      n: 1, mae: absD, rmse: absD, icc: 0, pearsonR: 0,
+      within5deg: absD <= 5 ? 100 : 0, within10deg: absD <= 10 ? 100 : 0,
+      meanBias: d, loa95Upper: d, loa95Lower: d, sdDiff: 0,
+    };
+  }
 
   const experts = cases.map(c => c.expertCobb);
   const ais     = cases.map(c => c.aiCobb);
@@ -85,19 +98,30 @@ export function parseValidationCSV(csv: string): ValidationCase[] {
   const lines = csv.trim().split('\n');
   if (lines.length < 2) return [];
   const header = lines[0].toLowerCase().split(',').map(h => h.trim());
-  const idIdx    = header.findIndex(h => h.includes('id'));
-  const expIdx   = header.findIndex(h => h.includes('expert') || h.includes('manual'));
-  const aiIdx    = header.findIndex(h => h.includes('ai') || h.includes('auto'));
+  const idIdx     = header.findIndex(h => h.includes('id'));
+  const expIdx    = header.findIndex(h => h.includes('expert') || h.includes('manual'));
+  const aiIdx     = header.findIndex(h => h.includes('ai') || h.includes('auto'));
+  const curveIdx  = header.findIndex(h => h.includes('curvetype') || h.includes('curve_type') || h.includes('curve'));
+  const qualIdx   = header.findIndex(h => h.includes('imagequality') || h.includes('image_quality') || h.includes('quality'));
+  const notesIdx  = header.findIndex(h => h.includes('notes') || h.includes('note'));
   if (expIdx < 0 || aiIdx < 0) return [];
-  return lines.slice(1).map((line, i) => {
+  const result: ValidationCase[] = [];
+  lines.slice(1).forEach((line, i) => {
     const cols = line.split(',').map(c => c.trim());
-    return {
+    const expRaw = cols[expIdx];
+    const aiRaw  = cols[aiIdx];
+    // A 0° Cobb angle is a valid (normal-spine) measurement, not a missing value —
+    // skip the row only if BOTH raw cells are absent/blank, so it isn't
+    // indistinguishable from a fully blank/unparsable line.
+    if ((expRaw === undefined || expRaw === '') && (aiRaw === undefined || aiRaw === '')) return;
+    result.push({
       id:           idIdx >= 0 ? (cols[idIdx] || `case_${i+1}`) : `case_${i+1}`,
-      expertCobb:   parseFloat(cols[expIdx]) || 0,
-      aiCobb:       parseFloat(cols[aiIdx])  || 0,
-      curveType:    cols[4] || '',
-      imageQuality: cols[5] || '',
-      notes:        cols[6] || '',
-    };
-  }).filter(c => c.expertCobb > 0 || c.aiCobb > 0);
+      expertCobb:   parseFloat(expRaw) || 0,
+      aiCobb:       parseFloat(aiRaw)  || 0,
+      curveType:    curveIdx >= 0 ? (cols[curveIdx] || '') : '',
+      imageQuality: qualIdx  >= 0 ? (cols[qualIdx]  || '') : '',
+      notes:        notesIdx >= 0 ? (cols[notesIdx] || '') : '',
+    });
+  });
+  return result;
 }

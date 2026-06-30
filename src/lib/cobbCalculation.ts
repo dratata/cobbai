@@ -6,7 +6,9 @@
  *
  * Key safety guarantee: every measurement displayed to a physician
  * is cross-validated between AI-reported value and geometry-computed value.
- * Discrepancies > 5° trigger a warning.
+ * The AI-reported value is shown (it reflects the radiologist-style visual
+ * read of the image), but discrepancies > 5° trigger a manual-verification
+ * warning rather than being silently displayed.
  */
 
 import {
@@ -61,10 +63,13 @@ export interface CobbValidationResult {
  * Validates and finalises the Cobb angle for a single curve.
  *
  * Priority order for the displayed value:
- * 1. Geometry-computed Cobb (most reliable — derived from coordinate math)
- * 2. AI-reported Cobb (fallback if coords are invalid)
+ * 1. AI-reported Cobb (the radiologist-style visual measurement) when nonzero
+ * 2. Geometry-computed Cobb (fallback when AI returns 0/placeholder, used
+ *    only if it is reliable)
  *
- * This function NEVER silently returns a wrong value.
+ * Geometry is always computed and cross-checked against the AI value; a
+ * discrepancy beyond CONSISTENCY_THRESHOLD_DEG surfaces a warning instead of
+ * silently overriding the displayed number — see Step 5 below.
  */
 export function validateAndFinaliseCobb(curve: CurveResult): CobbValidationResult {
   const warnings: string[] = [];
@@ -280,13 +285,17 @@ export function processSpineResult(
     const curve = normaliseCurveEndplates(rawCurve);
     const validation = validateAndFinaliseCobb(curve);
 
-    // Update display value to geometry-computed (safer than raw AI)
+    // Update display value to the validated value (AI-first, geometry fallback
+    // — see validateAndFinaliseCobb's Step 5 for the priority order).
     const corrected: CurveResult = {
       ...curve,
       cobb_angle:  validation.displayCobb,
       severity:    classifyCobb(validation.displayCobb),
-      slope_delta_deg: Math.abs(
-        (curve.upper_slope_deg ?? 0) - (curve.lower_slope_deg ?? 0)
+      // Use the same wraparound-normalised formula as the Step 4 cross-check
+      // (cobbAngleFromSlopes) instead of a raw subtraction, so this stored
+      // field can't disagree with the value already used for validation.
+      slope_delta_deg: cobbAngleFromSlopes(
+        curve.upper_slope_deg ?? 0, curve.lower_slope_deg ?? 0
       ),
     };
 

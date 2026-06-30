@@ -55,20 +55,33 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
 }) => {
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const xrayImgRef = useRef<HTMLImageElement | null>(null); // Fix #3: loaded X-ray
-  const curve      = processedResult.processedCurves[curveIndex];
-  const col        = CURVE_COLOURS[curveIndex % CURVE_COLOURS.length];
+  // Defensive clamp: curve is dereferenced unconditionally below (including inside
+  // useState initialisers, which run before any hook-safe early return is possible),
+  // so an out-of-range curveIndex must never reach here un-clamped — fall back to the
+  // first curve rather than throwing a TypeError on mount.
+  const safeCurveIndex = (curveIndex >= 0 && curveIndex < processedResult.processedCurves.length)
+    ? curveIndex
+    : 0;
+  const curve      = processedResult.processedCurves[safeCurveIndex];
+  const col        = CURVE_COLOURS[safeCurveIndex % CURVE_COLOURS.length];
 
   // Fix #3: Load X-ray image once so it can be drawn as canvas background.
   // Uses refs (not captured state) to avoid stale-closure issues.
+  // Stale-request guard: if imageSrc changes again before this load finishes,
+  // ignore the older onload so an out-of-order response can't clobber the
+  // background image with a stale X-ray.
   useEffect(() => {
     if (!imageSrc) return;
+    let cancelled = false;
     const img = new Image();
     img.onload = () => {
+      if (cancelled) return;
       xrayImgRef.current = img;
       // redrawRef always points to the latest redraw (updated after useCallback below)
       redrawRef.current(linesRef.current, activeRef.current, hoveredRef.current);
     };
     img.src = imageSrc;
+    return () => { cancelled = true; };
   }, [imageSrc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [lines, setLines]   = useState<EditLines>(() => ({
@@ -121,7 +134,7 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
     }
 
     // Draw original AI lines (faded dashed reference)
-    const origCurve = processedResult.processedCurves[curveIndex];
+    const origCurve = processedResult.processedCurves[safeCurveIndex];
     if (origCurve) {
       const ouExt = extendLine(origCurve.upper_line, 0.2);
       const olExt = extendLine(origCurve.lower_line, 0.2);
@@ -235,7 +248,7 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
     });
     // Restore DPR transform
     ctx.restore();
-  }, [naturalW, naturalH, col, curveIndex, processedResult]);
+  }, [naturalW, naturalH, col, safeCurveIndex, processedResult]);
 
   // Keep redrawRef pointing to the latest redraw so async callbacks can use it
   useEffect(() => { redrawRef.current = redraw; }, [redraw]);
