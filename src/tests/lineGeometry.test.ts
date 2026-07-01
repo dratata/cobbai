@@ -149,6 +149,50 @@ describe('cobbAngleFromLines — edge cases', () => {
   });
 });
 
+// ── cobbAngleFromLines — aspect-ratio (pixel-true) correction ─────────
+
+describe('cobbAngleFromLines — aspect correction on non-square images', () => {
+  // On a tall spine film, x and y are normalised against different pixel
+  // extents. A line whose endpoints span the full width but only a small
+  // height fraction is much steeper in true pixels than in normalised space.
+
+  it('default aspect=1 is unchanged (backwards compatible)', () => {
+    // A line rising 0.5 over the full width (normalised) → atan(0.5) ≈ 26.57°
+    const rising: NormLine = { x1:0, y1:0.7, x2:1, y2:0.2 };
+    expect(cobbAngleFromLines(hLine(0.3), rising)).toBeCloseTo(26.57, 1);
+  });
+
+  it('tall image (aspect 0.5) reports the true, larger pixel angle', () => {
+    // Same normalised line, but the image is twice as tall as wide (W/H=0.5).
+    // True pixel slope = (0.5·H)/(1·W) = 0.5/aspect = 1.0 → atan(1) = 45°.
+    const rising: NormLine = { x1:0, y1:0.7, x2:1, y2:0.2 };
+    const naive = cobbAngleFromLines(hLine(0.3), rising);        // ≈ 26.57°
+    const trueAngle = cobbAngleFromLines(hLine(0.3), rising, 0.5); // ≈ 45°
+    expect(trueAngle).toBeCloseTo(45, 1);
+    expect(trueAngle).toBeGreaterThan(naive);
+  });
+
+  it('wide image (aspect 2) reports a smaller pixel angle', () => {
+    const rising: NormLine = { x1:0, y1:0.7, x2:1, y2:0.2 };
+    // True pixel slope = 0.5 / 2 = 0.25 → atan(0.25) ≈ 14.04°
+    expect(cobbAngleFromLines(hLine(0.3), rising, 2)).toBeCloseTo(14.04, 1);
+  });
+
+  it('invalid aspect (0 / NaN) falls back to 1', () => {
+    const rising: NormLine = { x1:0, y1:0.7, x2:1, y2:0.2 };
+    const base = cobbAngleFromLines(hLine(0.3), rising);
+    expect(cobbAngleFromLines(hLine(0.3), rising, 0)).toBeCloseTo(base, 1);
+    expect(cobbAngleFromLines(hLine(0.3), rising, NaN)).toBeCloseTo(base, 1);
+  });
+
+  it('lineInclinationDeg honours aspect the same way', () => {
+    const rising: NormLine = { x1:0, y1:0.7, x2:1, y2:0.2 };
+    // atan2(-0.5, 1·aspect): aspect 1 → -26.57°, aspect 0.5 → -45°
+    expect(lineInclinationDeg(rising)).toBeCloseTo(-26.57, 1);
+    expect(lineInclinationDeg(rising, 0.5)).toBeCloseTo(-45, 1);
+  });
+});
+
 // ── cobbAngleFromSlopes ───────────────────────────────────────
 
 describe('cobbAngleFromSlopes', () => {

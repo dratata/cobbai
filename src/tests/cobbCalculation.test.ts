@@ -150,6 +150,37 @@ describe('processSpineResult', () => {
     const p = processSpineResult({ ...makeResult([]), is_valid_xray: true });
     expect(p.processedCurves).toHaveLength(0);
   });
+
+  it('manually corrected curve → keeps the dragged endplate lines verbatim', () => {
+    // Physician dragged the lines; stale AI corners/slopes still on the object.
+    // normaliseCurveEndplates must NOT rebuild lines from that stale data.
+    const dragUpper: NormLine = { x1:0.1, y1:0.25, x2:0.9, y2:0.30 };
+    const dragLower: NormLine = { x1:0.1, y1:0.68, x2:0.9, y2:0.60 };
+    const corrected = makeCurve({
+      upper_line: dragUpper,
+      lower_line: dragLower,
+      upper_corners: { ul:[0.1,0.2], ur:[0.9,0.15], ll:[0.1,0.24], lr:[0.9,0.19] },
+      lower_corners: { ul:[0.1,0.6], ur:[0.9,0.7], ll:[0.1,0.64], lr:[0.9,0.74] },
+      upper_slope_deg: -8, lower_slope_deg: 20,
+      manually_corrected: true,
+    });
+    const p = processSpineResult(makeResult([corrected]));
+    expect(p.processedCurves[0].upper_line).toEqual(dragUpper);
+    expect(p.processedCurves[0].lower_line).toEqual(dragLower);
+  });
+
+  it('aspect distortion: tall film reports a larger Cobb than naive normalised', () => {
+    // Corners-only curve (no slopes) so geometry drives the value.
+    const curve = makeCurve({
+      cobb_angle: 0,                       // AI omitted → geometry fallback
+      upper_slope_deg: undefined, lower_slope_deg: undefined,
+      upper_line: { x1:0, y1:0.30, x2:1, y2:0.30 },  // flat
+      lower_line: { x1:0, y1:0.70, x2:1, y2:0.40 },  // rises 0.30 over full width
+    });
+    const square = processSpineResult(makeResult([curve]), 'en', undefined, undefined, undefined, 1);
+    const tall   = processSpineResult(makeResult([curve]), 'en', undefined, undefined, undefined, 0.5);
+    expect(tall.processedCurves[0].cobb_angle).toBeGreaterThan(square.processedCurves[0].cobb_angle);
+  });
 });
 
 // ── computeLiveCobb ───────────────────────────────────────────

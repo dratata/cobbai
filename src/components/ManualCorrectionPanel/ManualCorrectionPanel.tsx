@@ -57,6 +57,9 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
   const xrayImgRef = useRef<HTMLImageElement | null>(null); // Fix #3: loaded X-ray
   const curve      = processedResult.processedCurves[curveIndex];
   const col        = CURVE_COLOURS[curveIndex % CURVE_COLOURS.length];
+  // Image aspect (W/H): endplate coords are normalised [0,1], so the Cobb angle
+  // must be computed in pixel-true space or it is compressed on tall spine films.
+  const aspect     = naturalW > 0 && naturalH > 0 ? naturalW / naturalH : 1;
 
   // Fix #3: Load X-ray image once so it can be drawn as canvas background.
   // Uses refs (not captured state) to avoid stale-closure issues.
@@ -192,7 +195,7 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
     }
 
     const fs = Math.max(14, Math.round(cssW * 0.038));
-    const cobb = computeLiveCobb(upper, lower);
+    const cobb = computeLiveCobb(upper, lower, aspect);
     ctx.save();
     ctx.font = `bold ${fs}px ui-monospace,monospace`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -235,16 +238,16 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
     });
     // Restore DPR transform
     ctx.restore();
-  }, [naturalW, naturalH, col, curveIndex, processedResult]);
+  }, [naturalW, naturalH, aspect, col, curveIndex, processedResult]);
 
   // Keep redrawRef pointing to the latest redraw so async callbacks can use it
   useEffect(() => { redrawRef.current = redraw; }, [redraw]);
 
   useEffect(() => {
-    const cobb = computeLiveCobb(lines.upper, lines.lower);
+    const cobb = computeLiveCobb(lines.upper, lines.lower, aspect);
     setLiveCobb(cobb);
     redraw(lines, activeHandle, hoveredHandle);
-  }, [lines, activeHandle, hoveredHandle, redraw]);
+  }, [lines, activeHandle, hoveredHandle, aspect, redraw]);
 
   // Fix #4: ResizeObserver — canvas backing store scaled by devicePixelRatio for
   // sharp rendering on Retina/HiDPI screens. CSS display size stays at logical px.
@@ -361,7 +364,7 @@ export const ManualCorrectionPanel: React.FC<ManualCorrectionPanelProps> = ({
   };
 
   const handleSave = () => {
-    const cobb = computeLiveCobb(lines.upper, lines.lower);
+    const cobb = computeLiveCobb(lines.upper, lines.lower, aspect);
     onSave({ upper: lines.upper, lower: lines.lower, cobb });
   };
 

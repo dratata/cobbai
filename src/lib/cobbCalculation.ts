@@ -69,8 +69,11 @@ export interface CobbValidationResult {
  * override a non-zero AI value. See Step 5 below.
  *
  * This function NEVER silently returns a wrong value.
+ *
+ * `aspect` = analyzed-image width/height. Required for pixel-true geometry on
+ * non-square images — see cobbAngleFromLines. Defaults to 1 (square).
  */
-export function validateAndFinaliseCobb(curve: CurveResult): CobbValidationResult {
+export function validateAndFinaliseCobb(curve: CurveResult, aspect = 1): CobbValidationResult {
   const warnings: string[] = [];
 
   // ── Step 1: Validate coordinate lines ──────────────────────
@@ -87,7 +90,7 @@ export function validateAndFinaliseCobb(curve: CurveResult): CobbValidationResul
   let geometryIsReliable = false;  // true only when valid lines produce a plausible angle
 
   if (upperValid && lowerValid) {
-    geometryCobb       = cobbAngleFromLines(curve.upper_line, curve.lower_line);
+    geometryCobb       = cobbAngleFromLines(curve.upper_line, curve.lower_line, aspect);
     // Only treat geometry as reliable if it gives a clinically non-trivial angle
     // OR the AI also reports a small angle (both agree the spine is near-straight)
     geometryIsReliable = geometryCobb > 0.5 || aiReportedCobb < 3;
@@ -197,22 +200,32 @@ export interface ProcessedSpineResult {
  *
  * Method: keep x1, x2 from the base line (corners); compute y1, y2 by
  * applying tan(slopeDeg) around the vertical midpoint of the line.
+ *
+ * `aspect` (imageW/imageH): the AI slope is measured in pixel space, but this
+ * line lives in normalised [0,1] space where dy_norm = dx_norm·tan(slope)·(W/H).
+ * Without the factor, the drawn endplate is too steep on tall images.
  */
-function applyAISlope(base: NormLine, slopeDeg: number): NormLine {
+function applyAISlope(base: NormLine, slopeDeg: number, aspect = 1): NormLine {
   const { x1, x2 } = base;
   const midY    = (base.y1 + base.y2) / 2;       // anchor at vertical midpoint
   const halfDx  = (x2 - x1) / 2;
   const rad     = slopeDeg * Math.PI / 180;
+  const asp     = isFinite(aspect) && aspect > 0 ? aspect : 1;
   return {
     x1,
-    y1: midY - halfDx * Math.tan(rad),
+    y1: midY - halfDx * Math.tan(rad) * asp,
     x2,
-    y2: midY + halfDx * Math.tan(rad),
+    y2: midY + halfDx * Math.tan(rad) * asp,
   };
 }
 
 
-export function normaliseCurveEndplates(curve: CurveResult): CurveResult {
+export function normaliseCurveEndplates(curve: CurveResult, aspect = 1): CurveResult {
+  // A manually corrected curve carries the physician's dragged endplate lines.
+  // The AI's original corners/slopes are stale for such a curve — re-deriving
+  // lines from them here would silently revert the doctor's correction.
+  if (curve.manually_corrected) return curve;
+
   // Build base lines from corner coordinates
   const upperFromCorners: NormLine | null = curve.upper_corners
     ? { x1: curve.upper_corners.ul[0], y1: curve.upper_corners.ul[1],
@@ -243,11 +256,11 @@ export function normaliseCurveEndplates(curve: CurveResult): CurveResult {
   // This ensures the displayed Cobb arc is geometrically consistent with the
   // AI's cobb_angle = |upper_slope - lower_slope|.
   const upper_line = upperBase
-    ? (hasSlopes ? applyAISlope(upperBase, curve.upper_slope_deg!) : upperBase)
+    ? (hasSlopes ? applyAISlope(upperBase, curve.upper_slope_deg!, aspect) : upperBase)
     : curve.upper_line;
 
   const lower_line = lowerBase
-    ? (hasSlopes ? applyAISlope(lowerBase, curve.lower_slope_deg!) : lowerBase)
+    ? (hasSlopes ? applyAISlope(lowerBase, curve.lower_slope_deg!, aspect) : lowerBase)
     : curve.lower_line;
 
   return { ...curve, upper_line, lower_line };
@@ -263,7 +276,10 @@ export function processSpineResult(
   lang: Lang = 'en',
   patientAge?: string,
   patientGender?: string,
-  risserStage?: string
+  risserStage?: string,
+  /** Analyzed-image width/height. Needed for pixel-true geometry angles on
+   *  non-square images (normalised-space angles are aspect-distorted). */
+  aspect = 1
 ): ProcessedSpineResult {
   const allWarnings: string[] = [];
   let isReliable = raw.is_valid_xray;
@@ -281,8 +297,8 @@ export function processSpineResult(
 
   // GPT patch: derive endplate lines from 4-corner data when available (reduces drift)
   const processedCurves = (raw.curves || []).map(rawCurve => {
-    const curve = normaliseCurveEndplates(rawCurve);
-    const validation = validateAndFinaliseCobb(curve);
+    const curve = normaliseCurveEndplates(rawCurve, aspect);
+    const validation = validateAndFinaliseCobb(curve, aspect);
 
     // Update display value to geometry-computed (safer than raw AI)
     const corrected: CurveResult = {
@@ -324,11 +340,13 @@ export function processSpineResult(
  * Compute live Cobb angle from manually adjusted endplate lines.
  * Used in the drag-correction workflow.
  */
-export function computeLiveCobb(upperLine: NormLine, lowerLine: NormLine): number {
+export function computeLiveCobb(upperLine: NormLine, lowerLine: NormLine, aspect = 1): number {
   // No bounds check here: this is called on every drag frame.
   // Coordinates come from canvasToNorm() which already clamps to [0,1].
   // We only guard against zero-length (degenerate) lines.
-  const result = cobbAngleFromLines(upperLine, lowerLine);
+  // `aspect` (imageW/imageH) is required for the pixel-true angle — without it
+  // the manually measured Cobb is compressed by ~W/H on tall spine films.
+  const result = cobbAngleFromLines(upperLine, lowerLine, aspect);
   return isNaN(result) ? 0 : result;
 }
 

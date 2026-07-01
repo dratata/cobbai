@@ -37,6 +37,11 @@ import { ImageControls } from '@/components/ImageControls/ImageControls';
 
 
 // ── Helpers ───────────────────────────────────────────────────
+/** Image width/height ratio — needed by processSpineResult for pixel-true
+ *  geometry angles on non-square films (normalised-space angles are distorted). */
+const imgAspect = (img: { naturalWidth: number; naturalHeight: number } | null): number =>
+  img && img.naturalWidth > 0 && img.naturalHeight > 0 ? img.naturalWidth / img.naturalHeight : 1;
+
 const Spinner: React.FC<{ label?: string }> = ({ label }) => {
   const lang = useMeasurementStore(s => s.language);
   const defaultLabel = lang === 'ar' ? 'جارٍ التحميل…' : lang === 'en' ? 'Loading…' : 'Yükleniyor…';
@@ -321,7 +326,7 @@ const App: React.FC = () => {
             const parsed = safeParseSpineResult(cached);
             if (parsed) {
               if (analysisIdRef.current !== analysisId) return; // race guard
-              store.setSpineResult(parsed.result, processSpineResult(parsed.result, store.language, store.patientAge, store.patientGender, store.risserStage), parsed.outcome);
+              store.setSpineResult(parsed.result, processSpineResult(parsed.result, store.language, store.patientAge, store.patientGender, store.risserStage, imgAspect(store.loadedImage)), parsed.outcome);
               store.setAnalyzing(false); analyzingRef.current = false;
               return;
             }
@@ -433,7 +438,7 @@ const App: React.FC = () => {
         } catch (qe) {
           console.warn('[CobbAI] localStorage quota exceeded — result not cached', qe);
         }
-        const processed = processSpineResult(parsed.result, store.language, store.patientAge, store.patientGender, store.risserStage);
+        const processed = processSpineResult(parsed.result, store.language, store.patientAge, store.patientGender, store.risserStage, imgAspect(store.loadedImage));
         store.setSpineResult(parsed.result, processed, parsed.outcome);
         store.addToHistory({ id: Date.now().toString(), timestamp: new Date().toISOString(), modality:'spine', result: parsed.result, patientAge: store.patientAge, patientGender: store.patientGender });
         // Save to persistent tracking history — must use the validated/geometry-corrected
@@ -1050,7 +1055,7 @@ const App: React.FC = () => {
                                 : c  // other curves unchanged
                             ),
                           };
-                          store.setSpineResult(updated, processSpineResult(updated, store.language, store.patientAge, store.patientGender, store.risserStage), store.validationOutcome);
+                          store.setSpineResult(updated, processSpineResult(updated, store.language, store.patientAge, store.patientGender, store.risserStage, imgAspect(store.loadedImage)), store.validationOutcome);
                           store.setShowCorrection(false);
                         }}
                         onCancel={() => store.setShowCorrection(false)}
@@ -1082,6 +1087,7 @@ const App: React.FC = () => {
                       <SurgimapLitePanel
                         processed={store.processedSpine}
                         lang={store.language}
+                        aspect={imgAspect(store.loadedImage)}
                         onEditCurve={(idx) => { setSelectedCurveIdx(idx); store.setShowCorrection(true); }}
                       />
                     </SafeSuspense>

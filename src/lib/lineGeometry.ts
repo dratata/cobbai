@@ -41,11 +41,18 @@ export function lineMidpoint(line: NormLine): NormPoint {
 /** Inclination of a line in degrees from the horizontal.
  *  Positive = right end lower than left end.
  *  Returns NaN for zero-length lines.
+ *
+ *  `aspect` = imageWidth / imageHeight of the image the normalised [0,1]
+ *  coordinates refer to. Normalised space is anisotropic: x is a fraction of
+ *  width, y a fraction of height, so tan(angle_norm) = tan(angle_pixel)·(W/H).
+ *  Passing the true aspect recovers the pixel-space (anatomically true) angle;
+ *  the default of 1 preserves the old square-image behaviour.
  */
-export function lineInclinationDeg(line: NormLine): number {
+export function lineInclinationDeg(line: NormLine, aspect = 1): number {
   const { dx, dy } = lineVector(line);
   if (vectorLength(dx, dy) < EPSILON) return NaN;
-  return Math.atan2(dy, dx) * RAD_TO_DEG;
+  const a = isFinite(aspect) && aspect > 0 ? aspect : 1;
+  return Math.atan2(dy, dx * a) * RAD_TO_DEG;
 }
 
 /** Unit normal (perpendicular) vector to a line, pointing upward */
@@ -108,14 +115,22 @@ export function extendLine(
  *
  * @param upperLine  Superior endplate of upper end vertebra
  * @param lowerLine  Inferior endplate of lower end vertebra
+ * @param aspect     imageWidth / imageHeight of the image the normalised
+ *                   coordinates refer to. Angles measured in normalised [0,1]
+ *                   space are distorted on non-square images
+ *                   (tan(angle_norm) = tan(angle_pixel)·W/H); on a typical tall
+ *                   spine film (W/H≈0.5) the naive result is ~half the true
+ *                   Cobb angle. Pass the real aspect for pixel-true angles.
  * @returns Cobb angle in degrees [0, 90], or NaN if either line is degenerate
  */
-export function cobbAngleFromLines(upperLine: NormLine, lowerLine: NormLine): number {
+export function cobbAngleFromLines(upperLine: NormLine, lowerLine: NormLine, aspect = 1): number {
   if (!isValidLine(upperLine) || !isValidLine(lowerLine)) return NaN;
 
-  // Compute inclinations (angle from horizontal)
-  const a1 = Math.atan2(upperLine.y2 - upperLine.y1, upperLine.x2 - upperLine.x1);
-  const a2 = Math.atan2(lowerLine.y2 - lowerLine.y1, lowerLine.x2 - lowerLine.x1);
+  const asp = isFinite(aspect) && aspect > 0 ? aspect : 1;
+  // Compute inclinations (angle from horizontal) in pixel-true space:
+  // dx is scaled by aspect so atan2(dy·H, dx·W) is evaluated as atan2(dy, dx·W/H)
+  const a1 = Math.atan2(upperLine.y2 - upperLine.y1, (upperLine.x2 - upperLine.x1) * asp);
+  const a2 = Math.atan2(lowerLine.y2 - lowerLine.y1, (lowerLine.x2 - lowerLine.x1) * asp);
 
   // Perpendicular directions
   const perp1 = a1 + Math.PI / 2;
@@ -157,9 +172,10 @@ export function validateCobbConsistency(
   reportedCobb: number,
   upperLine: NormLine,
   lowerLine: NormLine,
-  thresholdDeg = 5
+  thresholdDeg = 5,
+  aspect = 1
 ): { consistent: boolean; computedCobb: number; discrepancy: number } {
-  const computedCobb = cobbAngleFromLines(upperLine, lowerLine);
+  const computedCobb = cobbAngleFromLines(upperLine, lowerLine, aspect);
   const discrepancy  = Math.abs(reportedCobb - computedCobb);
   return {
     consistent:    discrepancy <= thresholdDeg,

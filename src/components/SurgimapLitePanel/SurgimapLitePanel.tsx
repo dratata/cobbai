@@ -7,6 +7,9 @@ interface Props {
   processed: ProcessedSpineResult;
   onEditCurve: (curveIndex: number) => void;
   lang?: Lang;
+  /** Image width/height — endplate coords are normalised, so the displayed
+   *  inclination must be de-distorted to pixel-true degrees. Defaults to 1. */
+  aspect?: number;
 }
 
 const row: React.CSSProperties = { display:'grid', gridTemplateColumns:'1.2fr .8fr .8fr .9fr', gap:8, alignItems:'center', fontSize:12 };
@@ -43,7 +46,7 @@ const L = {
 type LKey = keyof typeof L;
 function t(key: LKey, lang: Lang): string { return L[key][lang] ?? L[key]['en']; }
 
-export const SurgimapLitePanel: React.FC<Props> = ({ processed, onEditCurve, lang = 'tr' }) => {
+export const SurgimapLitePanel: React.FC<Props> = ({ processed, onEditCurve, lang = 'tr', aspect = 1 }) => {
   if (!processed.processedCurves.length) return null;
   const isRTL = lang === 'ar';
   return (
@@ -62,8 +65,8 @@ export const SurgimapLitePanel: React.FC<Props> = ({ processed, onEditCurve, lan
         <div>{t('hdrCurve', lang)}</div><div>{t('hdrCobb', lang)}</div><div>{t('hdrSlope', lang)}</div><div>{t('hdrAction', lang)}</div>
       </div>
       {processed.processedCurves.map((c, i) => {
-        const u = lineInclinationDeg(c.upper_line);
-        const l = lineInclinationDeg(c.lower_line);
+        const u = lineInclinationDeg(c.upper_line, aspect);
+        const l = lineInclinationDeg(c.lower_line, aspect);
         return (
           <div key={i} style={{ ...row, marginBottom:6 }}>
             <div style={cell}>#{i+1} · <span style={{ color:'#00e5ff' }}>{c.upper_vertebra_name || '?'}</span> → <span style={{ color:'#ff4fd8' }}>{c.lower_vertebra_name || '?'}</span>{c.apical_vertebra_name ? <span style={{ color:'#ffd166' }}> · Apex {c.apical_vertebra_name}</span> : null}</div>

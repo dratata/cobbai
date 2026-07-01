@@ -26,6 +26,7 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
   const [prevSrc, setPrevSrc]   = useState<string|null>(null);
   const [prevRes, setPrevRes]         = useState<SpineAnalysisResult|FootAnalysisResult|null>(null);
   const [prevProcessed, setPrevProcessed] = useState<ProcessedSpineResult|null>(null);
+  const [prevAspect, setPrevAspect] = useState(1);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string|null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -41,6 +42,7 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
       const processed = await preprocessXray(src, { resize:true, histogramStretch:false });
       setPrevB64(processed.base64);
       setPrevMime(processed.mimeType);
+      setPrevAspect(processed.height > 0 ? processed.width / processed.height : 1);
       setPrevSrc(src);
       setPrevRes(null);
       setPrevProcessed(null);
@@ -64,7 +66,7 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
         setPrevRes(p?.result ?? null);
         // Use the same geometry-validated Cobb value as the live analysis flow
         // (App.tsx) and on-screen SpineResults.tsx — not the raw AI cobb_angle.
-        setPrevProcessed(p ? processSpineResult(p.result, lang, patientAge, patientGender) : null);
+        setPrevProcessed(p ? processSpineResult(p.result, lang, patientAge, patientGender, undefined, prevAspect) : null);
       } else {
         setPrevRes(safeParseFootResult(raw));
       }
