@@ -46,6 +46,19 @@ function isSkeletallyImmature(age: number, risser?: number): boolean {
   return age < 16;
 }
 
+/**
+ * Classify Meary (talo–first-metatarsal) angle severity. Boundaries match the
+ * reference table shown in FootResults (≤4° normal · 4–15° mild · 15–30°
+ * moderate · >30° severe), so the severity pill, recommendations and the table
+ * always agree.
+ */
+export function classifyMeary(deg: number): SeverityLevel {
+  if (deg <= 4)  return 'normal';
+  if (deg <= 15) return 'mild';
+  if (deg <= 30) return 'moderate';
+  return 'severe';
+}
+
 // ── Spine recommendations ─────────────────────────────────────
 
 export function getSpineRecs(
@@ -290,10 +303,15 @@ function getFootRecsTR(meary: number, sev: string, flexible: boolean, isChild: b
 export function applyLocalFootRecs(
   foot: FootAnalysisResult, lang: Lang, ageStr?: string
 ): FootAnalysisResult {
-  const recs = getFootRecs(foot.meary_angle ?? 0, foot.severity, foot.flexibility, lang, ageStr);
   const hasMeary = foot.meary_angle != null;
+  // Derive severity from the measured Meary angle (when available) so the
+  // severity pill, recommendations and the reference table are consistent.
+  // Fall back to the AI-reported severity only when no angle was measured.
+  const severity = hasMeary ? classifyMeary(foot.meary_angle!) : foot.severity;
+  const recs = getFootRecs(foot.meary_angle ?? 0, severity, foot.flexibility, lang, ageStr);
   return {
     ...foot,
+    severity,
     // Only use the local description when a real Meary angle exists (it quotes
     // the angle); otherwise keep any AI description.
     overall_description:      (hasMeary ? recs.overallDescription : '') || foot.overall_description || '',

@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getSpineRecs, applyLocalFootRecs } from '@/lib/clinicalRules';
+import { getSpineRecs, applyLocalFootRecs, classifyMeary } from '@/lib/clinicalRules';
 import type { FootAnalysisResult } from '@/types';
 
 // ── Spine: normal (< 10°) must not be called scoliosis ────────────
@@ -66,7 +66,24 @@ function makeFoot(over: Partial<FootAnalysisResult> = {}): FootAnalysisResult {
   };
 }
 
+describe('classifyMeary — matches the reference table boundaries', () => {
+  it('≤4° → normal',    () => { expect(classifyMeary(0)).toBe('normal'); expect(classifyMeary(4)).toBe('normal'); });
+  it('4–15° → mild',    () => { expect(classifyMeary(5)).toBe('mild'); expect(classifyMeary(15)).toBe('mild'); });
+  it('15–30° → moderate', () => { expect(classifyMeary(16)).toBe('moderate'); expect(classifyMeary(30)).toBe('moderate'); });
+  it('>30° → severe',   () => expect(classifyMeary(31)).toBe('severe'));
+});
+
 describe('applyLocalFootRecs', () => {
+  it('reclassifies severity from the measured Meary angle', () => {
+    // AI claims "mild" but the measured angle is 25° → must become moderate.
+    const merged = applyLocalFootRecs(makeFoot({ meary_angle: 25, severity: 'mild' }), 'en');
+    expect(merged.severity).toBe('moderate');
+  });
+  it('keeps AI severity when no Meary angle was measured', () => {
+    const merged = applyLocalFootRecs(makeFoot({ meary_angle: null, severity: 'severe' }), 'en');
+    expect(merged.severity).toBe('severe');
+  });
+
   it('overrides AI treatment text with local deterministic recs', () => {
     const merged = applyLocalFootRecs(makeFoot(), 'en');
     expect(merged.treatment_plan).not.toBe('AI TREAT');
