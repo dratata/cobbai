@@ -7,6 +7,7 @@ import React, { lazy, useEffect, useRef, useCallback, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useMeasurementStore, selectCanAnalyze } from '@/store/measurementStore';
 import { processSpineResult } from '@/lib/cobbCalculation';
+import { applyLocalFootRecs } from '@/lib/clinicalRules';
 import { safeParseSpineResult, safeParseFootResult } from '@/lib/validateAIResponse';
 import { analyseImageQuality, preprocessXray, autoCropBlackBorders, normalizeExifOrientation } from '@/lib/imagePreprocessing';
 import { hashBase64, getCachedResult, setCachedResult, saveTrackEntry, clearAllCache, clearTrackingHistory, clearAllLocalData, CACHE_VERSION_KEY } from '@/lib/imageCache';
@@ -336,7 +337,7 @@ const App: React.FC = () => {
             const foot = safeParseFootResult(cached);
             if (foot) {
               if (analysisIdRef.current !== analysisId) return; // race guard
-              store.setFootResult(foot);
+              store.setFootResult(applyLocalFootRecs(foot, store.language, store.patientAge));
               store.setAnalyzing(false); analyzingRef.current = false;
               return;
             }
@@ -468,7 +469,7 @@ const App: React.FC = () => {
         } catch (qe) {
           console.warn('[CobbAI] localStorage quota exceeded — foot result not cached', qe);
         }
-        store.setFootResult(foot);
+        store.setFootResult(applyLocalFootRecs(foot, store.language, store.patientAge));
         // Save to persistent tracking history
         if (foot.meary_angle != null) {
           saveTrackEntry('foot', { date: new Date().toISOString(), meary: foot.meary_angle, source: 'ai', ts: Date.now() });

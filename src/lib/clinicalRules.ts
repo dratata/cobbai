@@ -11,6 +11,7 @@
  */
 
 import type { Lang } from '@/lib/i18n';
+import type { FootAnalysisResult } from '@/types';
 
 export type SeverityLevel = 'normal' | 'mild' | 'moderate' | 'severe';
 export type CurveLocation = 'thoracic' | 'thoracolumbar' | 'lumbar' | string;
@@ -76,8 +77,13 @@ function getSpineRecsEN(
 ): ClinicalRec {
   const loc_ = loc.charAt(0).toUpperCase() + loc.slice(1);
 
+  // A curve < 10° is NOT scoliosis (scoliosis is defined as Cobb ≥ 10°),
+  // so it must not be labelled as such in the clinical description.
+  const dx = sev === 'normal'
+    ? `${loc_} spine: Cobb angle ${cobb}° — within normal limits (below the 10° scoliosis threshold).`
+    : `${loc_} scoliosis with Cobb angle ${cobb}° (${sev}).`;
   const overallDescription =
-    `${loc_} scoliosis with Cobb angle ${cobb}° (${sev}). ` +
+    `${dx} ` +
     (immature ? `Patient is skeletally immature${risser != null ? ` (Risser ${risser})` : ''} — progressive risk elevated. ` : '') +
     `Clinical correlation with physical examination is required.`;
 
@@ -177,8 +183,14 @@ function getSpineRecsAR(
   _age: number, immature: boolean, _isFemale: boolean, risser?: number
 ): ClinicalRec {
   const sevAR = { normal:'طبيعي', mild:'خفيف', moderate:'متوسط', severe:'شديد' }[sev] ?? sev;
+  // Translate the location enum — must never render the raw English value.
+  const locAR = { thoracic:'الصدرية', thoracolumbar:'الصدرية القطنية', lumbar:'القطنية' }[loc] ?? loc;
 
-  const overallDescription = `جنف ${sevAR} بزاوية كوب ${cobb}° في المنطقة ${loc}. ` +
+  // A curve < 10° is not scoliosis (defined as Cobb ≥ 10°) — do not call it جنف.
+  const dxAR = sev === 'normal'
+    ? `المنطقة ${locAR}: زاوية كوب ${cobb}° — ضمن الحدود الطبيعية (أقل من عتبة الجنف 10°).`
+    : `جنف ${sevAR} بزاوية كوب ${cobb}° في المنطقة ${locAR}.`;
+  const overallDescription = `${dxAR} ` +
     (immature ? `المريض في مرحلة النمو (ريسر ${risser ?? '?'}) — خطر التقدم مرتفع. ` : '') +
     `التقييم السريري والفحص البدني ضروريان.`;
 
@@ -202,6 +214,7 @@ function getSpineRecsAR(
 
   const imagingIndications =
     cobb > 35 ? 'MRI كامل للعمود الفقري للاستبعاد المبكر قبل الجراحة.' :
+    cobb > 20 && immature ? 'قد تُطلب صور الانحناء الجانبي لتصنيف لينكه عند التخطيط الجراحي.' :
     'صورة PA واقفة للمتابعة الدورية.';
 
   return { overallDescription, ageBasedRecommendation: ageRec, treatmentPlan, followupPlan, imagingIndications };
@@ -264,6 +277,30 @@ function getFootRecsTR(meary: number, sev: string, flexible: boolean, isChild: b
       sev==='mild'     ? 'Hazır ark destekli tabanlık. Sert topuk bölmeli ayakkabı.' :
       sev==='moderate' ? 'Özel yarı sert UCBL ortezi. Çocuklarda 12–18 ayda değişim.' :
                          'Özel AFO veya UCBL. Ayak cerrahisi konsültasyonu.',
+  };
+}
+
+/**
+ * Merge locally-generated, guideline-based foot recommendations into a parsed
+ * foot result — mirrors how processSpineResult applies getSpineRecs for spine.
+ * Local deterministic text is preferred; AI free-text is used only as a
+ * fallback when a local field is empty. This makes the foot recommendations
+ * consistent and available even on the API-free path.
+ */
+export function applyLocalFootRecs(
+  foot: FootAnalysisResult, lang: Lang, ageStr?: string
+): FootAnalysisResult {
+  const recs = getFootRecs(foot.meary_angle ?? 0, foot.severity, foot.flexibility, lang, ageStr);
+  const hasMeary = foot.meary_angle != null;
+  return {
+    ...foot,
+    // Only use the local description when a real Meary angle exists (it quotes
+    // the angle); otherwise keep any AI description.
+    overall_description:      (hasMeary ? recs.overallDescription : '') || foot.overall_description || '',
+    treatment_plan:           recs.treatmentPlan          || foot.treatment_plan          || '',
+    followup_plan:            recs.followupPlan           || foot.followup_plan            || '',
+    imaging_indications:      recs.imagingIndications     || foot.imaging_indications      || '',
+    orthotic_recommendations: recs.orthoticRecommendation || foot.orthotic_recommendations || '',
   };
 }
 

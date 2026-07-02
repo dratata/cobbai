@@ -127,8 +127,10 @@ export const SpineResults: React.FC<SpineResultsProps> = ({
         </div>
       )}
 
-      {/* Growth prediction */}
-      <GrowthPrediction raw={raw} patientAge={patientAge} patientGender={patientGender} risser={risserStage} lang={lang} t={t} />
+      {/* Growth prediction — uses the validated/geometry-corrected primary Cobb
+          (same value shown in the curve card), not the raw AI cobb_angle which
+          can be 0 when the AI omits it (computed locally from corners). */}
+      <GrowthPrediction cobb={processed.processedCurves[0]?.cobb_angle} patientAge={patientAge} patientGender={patientGender} risser={risserStage} lang={lang} t={t} />
 
       {/* Recommendations */}
       {(processed.ageBasedRecommendation || processed.treatmentPlan || processed.followupPlan) && (
@@ -173,11 +175,9 @@ const Metric: React.FC<{ val:string; lbl:string; sub?:string; col:string; small?
   </div>
 );
 
-const GrowthPrediction: React.FC<{ raw:SpineAnalysisResult; patientAge:string; patientGender:string; risser?:string; lang:Lang; t:Translations }> = ({ raw, patientAge, patientGender, risser, lang, t }) => {
-  if (!raw.curves?.length) return null;
-  const cobb = raw.curves[0]?.cobb_angle;
+const GrowthPrediction: React.FC<{ cobb?:number; patientAge:string; patientGender:string; risser?:string; lang:Lang; t:Translations }> = ({ cobb, patientAge, patientGender, risser, lang, t }) => {
   const age  = parseFloat(patientAge);
-  if (!cobb || isNaN(age)) return null;
+  if (!cobb || cobb <= 0 || isNaN(age)) return null;
   const isFemale = patientGender?.toLowerCase().includes('female') || patientGender === 'Kadın';
   const risserN  = risser ? parseInt(risser) : undefined;
   const pred = estimateProgressionRisk(cobb, age, isFemale, risserN, lang);
