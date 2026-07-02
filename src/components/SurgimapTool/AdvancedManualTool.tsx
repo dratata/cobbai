@@ -35,6 +35,11 @@ interface AdvancedManualToolProps {
 const POINT_COLOURS = ['#00e5ff', '#00e5ff', '#ff4fd8', '#ff4fd8'] as const;
 // POINT_LABELS removed (unused)
 
+// Magnifier loupe: magnification relative to the main view (always shows MORE
+// detail than the canvas, whatever the current zoom) and its radius in CSS px.
+const LOUPE_MAG = 4;
+const LOUPE_R   = 74;
+
 export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   imageSrc, naturalW, naturalH, lang = 'en',
   brightness = 0, contrast = 100,
@@ -54,11 +59,16 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     lastX:   0,
     lastY:   0,
     cobb:    null as number | null,
+    // Magnifier loupe target (image-space coord + pointer CSS x for side-flip),
+    // or null when the loupe is hidden.
+    loupe:   null as null | { ix: number; iy: number; cssX: number },
   });
   const [cobb, setCobb]     = useState<number | null>(null);
   const [ptCount, setPtCount] = useState(0);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null); // point under cursor
+  const [loupeOn, setLoupeOn] = useState(true);   // magnifier toggle (UI state)
+  const loupeOnRef = useRef(true);                // mirror for draw() (no re-render)
 
   // Load image
   useEffect(() => {
@@ -93,6 +103,14 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     const originY = (cssH - imgH) / 2 + panY;
     return { x: originX + ix * zoom, y: originY + iy * zoom };
   }, [naturalW, naturalH]);
+
+  // Set/clear the loupe target from a CSS-pixel pointer position.
+  const setLoupe = useCallback((cssX: number, cssY: number, active: boolean) => {
+    const st = stateRef.current;
+    if (!active || !loupeOnRef.current) { st.loupe = null; return; }
+    const ip = cvs2img(cssX, cssY);
+    st.loupe = { ix: ip.x, iy: ip.y, cssX };
+  }, [cvs2img]);
 
   // Hit-test: index of an existing point within grab radius of a CSS-px pos.
   // Grab radius scales down with zoom-out so it stays ~14 screen px. Iterates
@@ -260,6 +278,55 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     ctx.fillText(`${Math.round(zoom * 100)}%`, cssW - 8, cssH - 6);
     ctx.restore();
 
+    // ── Magnifier loupe ─────────────────────────────────────────
+    // Sub-pixel endplate placement is the dominant manual-measurement error,
+    // so while placing/refining a point we show a circular magnified inset of
+    // the image around it, with a crosshair marking the exact landing point.
+    const lp = stateRef.current.loupe;
+    if (lp) {
+      const R = LOUPE_R;
+      const margin = 12;
+      // Sit the loupe on the side opposite the pointer so it never hides the point.
+      const cx = lp.cssX > cssW / 2 ? R + margin : cssW - R - margin;
+      const cy = R + margin;
+      // Source window (image px): LOUPE_MAG× more magnified than the main view.
+      const srcHalf = R / (LOUPE_MAG * zoom);
+
+      ctx.save();
+      // Circular clip
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = '#000'; ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+      // Magnified image (browser clips src to image bounds proportionally, so the
+      // crosshair stays aligned with (ix,iy) even at the image edge).
+      ctx.filter = `brightness(${bVal}%) contrast(${cVal}%)`;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(
+        img,
+        lp.ix - srcHalf, lp.iy - srcHalf, srcHalf * 2, srcHalf * 2,
+        cx - R, cy - R, R * 2, R * 2
+      );
+      ctx.filter = 'none';
+      // Crosshair at exact placement point (loupe centre)
+      ctx.strokeStyle = 'rgba(0,229,255,0.9)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy);
+      ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R);
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.restore();
+      // Border ring + magnification label
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(0,200,83,0.85)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.font = 'bold 10px ui-monospace,monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(2,6,10,0.9)';
+      ctx.fillRect(cx - 18, cy + R - 7, 36, 14);
+      ctx.fillStyle = '#7fe0a8';
+      ctx.fillText(`${(LOUPE_MAG * zoom).toFixed(1)}×`, cx, cy + R + 3);
+      ctx.restore();
+    }
+
     // Restore DPR scale transform
     ctx.restore();
   }, [img2cvs, lang, naturalW, naturalH]);
@@ -329,6 +396,8 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       if (hit !== null) {
         e.preventDefault();
         st.draggingIdx = hit;
+        setLoupe(cp.x, cp.y, true);
+        draw();
       }
     }
   };
@@ -342,6 +411,7 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       ip.x = Math.max(0, Math.min(naturalW, ip.x));
       ip.y = Math.max(0, Math.min(naturalH, ip.y));
       st.points = st.points.map((p, i) => i === st.draggingIdx ? ip : p);
+      setLoupe(cp.x, cp.y, true);
       recomputeCobb();
       draw();
       return;
@@ -353,9 +423,14 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       draw();
       return;
     }
-    // Idle hover — highlight a grabbable point (cursor feedback).
+    // Idle hover — highlight a grabbable point (cursor feedback) and show the
+    // loupe while placing (points < 4) or hovering a grabbable point.
     const hovered = st.points.length ? hitTestPoint(cp.x, cp.y) : null;
     setHoverIdx(prev => prev === hovered ? prev : hovered);
+    const active = st.points.length < 4 || hovered !== null;
+    const hadLoupe = st.loupe !== null;
+    setLoupe(cp.x, cp.y, active);
+    if (st.loupe || hadLoupe) draw();
   };
   const handleMouseUp = (e: React.MouseEvent) => {
     const st = stateRef.current;
@@ -363,7 +438,8 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     const wasPanning  = st.isPanning;
     st.draggingIdx = null;
     st.isPanning = false;
-    if (wasDragging || wasPanning) return;
+    st.loupe = null;
+    if (wasDragging || wasPanning) { draw(); return; }
     if (e.button !== 0) return;
     // A left click that didn't move much → place a new point.
     const cp = getCanvasPos(e);
@@ -376,7 +452,9 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   const handleMouseLeave = () => {
     stateRef.current.draggingIdx = null;
     stateRef.current.isPanning = false;
+    stateRef.current.loupe = null;
     setHoverIdx(null);
+    draw();
   };
   const handleContextMenu = (e: React.MouseEvent) => e.preventDefault();
 
@@ -408,6 +486,8 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       if (hit !== null) {
         st.draggingIdx = hit;
         st.isPanning = false;
+        setLoupe(cp.x, cp.y, true);
+        draw();
       } else {
         st.draggingIdx = null;
         st.isPanning = true;
@@ -463,6 +543,7 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       ip.y = Math.max(0, Math.min(naturalH, ip.y));
       st.points = st.points.map((p, i) => i === st.draggingIdx ? ip : p);
       st.lastX = cp.x; st.lastY = cp.y;
+      setLoupe(cp.x, cp.y, true);
       recomputeCobb();
       draw();
     } else if (e.touches.length === 1 && st.isPanning) {
@@ -497,14 +578,16 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       }
     }
     if (e.touches.length < 2) lastPinchDist.current = null;
-    if (e.touches.length === 0) { st.isPanning = false; st.draggingIdx = null; }
+    if (e.touches.length === 0) { st.isPanning = false; st.draggingIdx = null; st.loupe = null; draw(); }
   };
 
   const handleTouchCancel = () => {
     const st = stateRef.current;
     st.isPanning = false;
     st.draggingIdx = null;
+    st.loupe = null;
     lastPinchDist.current = null;
+    draw();
   };
 
   // Fix 2 (Memory Leak): keydown handler via stable ref.
@@ -557,6 +640,13 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   const resetZoom = () => {
     stateRef.current.zoom = 1; stateRef.current.panX = 0; stateRef.current.panY = 0; draw();
   };
+  const toggleLoupe = () => {
+    const next = !loupeOnRef.current;
+    loupeOnRef.current = next;
+    setLoupeOn(next);
+    if (!next) stateRef.current.loupe = null;  // hide any active loupe immediately
+    draw();
+  };
 
   const phaseLabel = lang === 'tr'
     ? ['Üst endplate SOL noktası', 'Üst endplate SAĞ noktası', 'Alt endplate SOL noktası', 'Alt endplate SAĞ noktası']
@@ -590,6 +680,11 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
 
         <button onClick={resetPoints} style={tbtn}>{lang==='tr'?'↺ Sıfırla':lang==='ar'?'↺ إعادة':'↺ Reset'} (R)</button>
         <button onClick={resetZoom}   style={tbtn}>⊡ 100%</button>
+        <button
+          onClick={toggleLoupe}
+          style={{ ...tbtn, ...(loupeOn ? { color:'#00c853', borderColor:'rgba(0,200,83,.4)' } : {}) }}
+          title={lang==='tr'?'Büyüteç':lang==='ar'?'العدسة المكبرة':'Magnifier'}
+        >🔎 {loupeOn ? (lang==='tr'?'Açık':lang==='ar'?'مفعّل':'On') : (lang==='tr'?'Kapalı':lang==='ar'?'معطّل':'Off')}</button>
         {onClose && <button onClick={onClose} style={{ ...tbtn, color:'#e05555', borderColor:'rgba(224,85,85,.35)' }}>✕</button>}
       </div>
 
