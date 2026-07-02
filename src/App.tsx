@@ -26,6 +26,7 @@ const ComparisonPanel       = lazy(() => import('@/components/ComparisonPanel/Co
 const TrackingPanel         = lazy(() => import('@/components/TrackingPanel/TrackingPanel'));
 const SurgimapLitePanel     = lazy(() => import('@/components/SurgimapLitePanel/SurgimapLitePanel'));
 const AdvancedManualTool    = lazy(() => import('@/components/SurgimapTool/AdvancedManualTool'));
+const ManualAssessmentCard  = lazy(() => import('@/components/ManualAssessment/ManualAssessmentCard'));
 const ValidationDashboard   = lazy(() => import('@/components/ValidationDashboard/ValidationDashboard'));
 
 // ── Eagerly-loaded small components ──────────────────────────
@@ -799,19 +800,35 @@ const App: React.FC = () => {
 
                       {/* ── AdvancedManualTool (zero-API) ── */}
                       {isManualMode ? (
-                        <div style={{ width:'100%', height:480 }}>
-                          <SafeSuspense fallback={<Spinner />}>
-                            <AdvancedManualTool
-                              imageSrc={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
-                              naturalW={store.loadedImage.naturalWidth}
-                              naturalH={store.loadedImage.naturalHeight}
-                              lang={store.language}
-                              brightness={controls.brightness}
-                              contrast={controls.contrast}
-                              onCobbMeasured={(cobb) => setManualCobb(cobb)}
-                              onClose={() => setIsManualMode(false)}
-                            />
-                          </SafeSuspense>
+                        <div>
+                          <div style={{ width:'100%', height:480 }}>
+                            <SafeSuspense fallback={<Spinner />}>
+                              <AdvancedManualTool
+                                imageSrc={`data:${store.loadedImage.mimeType};base64,${store.loadedImage.base64}`}
+                                naturalW={store.loadedImage.naturalWidth}
+                                naturalH={store.loadedImage.naturalHeight}
+                                lang={store.language}
+                                brightness={controls.brightness}
+                                contrast={controls.contrast}
+                                onCobbMeasured={(cobb) => setManualCobb(cobb)}
+                                onClose={() => setIsManualMode(false)}
+                              />
+                            </SafeSuspense>
+                          </div>
+                          {/* Complete local assessment from the manual measurement — zero API */}
+                          {store.modality === 'spine' && manualCobb !== null && (
+                            <div style={{ padding:'0 10px 10px' }}>
+                              <SafeSuspense fallback={null}>
+                                <ManualAssessmentCard
+                                  cobb={manualCobb}
+                                  lang={store.language}
+                                  patientAge={store.patientAge}
+                                  patientGender={store.patientGender}
+                                  risserStage={store.risserStage}
+                                />
+                              </SafeSuspense>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         /* Zoom wrapper — width% changes zoom level; no minWidth so zoom-out works */

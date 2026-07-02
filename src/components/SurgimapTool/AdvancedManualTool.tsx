@@ -48,6 +48,9 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     panY:    0,
     points:  [] as Point[], // image-space points [0, naturalW/H]
     isPanning: false,
+    draggingIdx: null as number | null, // index of point being dragged (refine)
+    downX:   0,           // pointer-down position (click-vs-drag discrimination)
+    downY:   0,
     lastX:   0,
     lastY:   0,
     cobb:    null as number | null,
@@ -55,6 +58,7 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   const [cobb, setCobb]     = useState<number | null>(null);
   const [ptCount, setPtCount] = useState(0);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null); // point under cursor
 
   // Load image
   useEffect(() => {
@@ -89,6 +93,31 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     const originY = (cssH - imgH) / 2 + panY;
     return { x: originX + ix * zoom, y: originY + iy * zoom };
   }, [naturalW, naturalH]);
+
+  // Hit-test: index of an existing point within grab radius of a CSS-px pos.
+  // Grab radius scales down with zoom-out so it stays ~14 screen px. Iterates
+  // last-to-first so the most recently drawn (topmost) point wins on overlap.
+  const hitTestPoint = useCallback((cssX: number, cssY: number): number | null => {
+    const pts = stateRef.current.points;
+    const grab = 14; // screen px
+    for (let i = pts.length - 1; i >= 0; i--) {
+      const pc = img2cvs(pts[i].x, pts[i].y);
+      if (Math.hypot(pc.x - cssX, pc.y - cssY) <= grab) return i;
+    }
+    return null;
+  }, [img2cvs]);
+
+  // Recompute Cobb from the 4 points and push it out (live during drag).
+  const recomputeCobb = useCallback(() => {
+    const st = stateRef.current;
+    if (st.points.length === 4) {
+      const [p1, p2, p3, p4] = st.points;
+      const angle = calculateCobbAngle(p1, p2, p3, p4);
+      st.cobb = angle;
+      setCobb(angle);
+      onCobbMeasured?.(angle, st.points);
+    }
+  }, [onCobbMeasured]);
 
   // ── Draw ──────────────────────────────────────────────────────
   const draw = useCallback(() => {
@@ -144,10 +173,12 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     points.forEach((p, i) => {
       const pc = img2cvs(p.x, p.y);
       const col = POINT_COLOURS[i % POINT_COLOURS.length];
+      const active = i === stateRef.current.draggingIdx; // enlarge while refining
+      const r = active ? 10 : 7;
       ctx.save();
-      ctx.beginPath(); ctx.arc(pc.x, pc.y, 7, 0, Math.PI * 2);
-      ctx.fillStyle = col + '33'; ctx.fill();
-      ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(pc.x, pc.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = col + (active ? '55' : '33'); ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = active ? 3 : 2.5;
       ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 6;
       ctx.stroke();
       // Cross
@@ -208,6 +239,18 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
         ctx.fillStyle = '#b0bec5'; ctx.fillText(val, 80, cssH - 60 + j * 22);
       });
       ctx.restore();
+    } else {
+      // All 4 points placed — hint that they can be dragged to fine-tune.
+      const hint = lang === 'tr' ? '⤢ Noktaları sürükleyerek ince ayar yapın'
+                 : lang === 'ar' ? '⤢ اسحب النقاط للضبط الدقيق'
+                 : '⤢ Drag points to fine-tune';
+      ctx.save();
+      ctx.font = '11px ui-monospace,monospace'; ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(2,6,10,0.85)';
+      const tw = ctx.measureText(hint).width;
+      ctx.fillRect(8, cssH - 30, tw + 20, 22);
+      ctx.fillStyle = '#7fe0a8'; ctx.fillText(hint, 16, cssH - 15);
+      ctx.restore();
     }
 
     // Zoom indicator
@@ -233,26 +276,17 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (e.button !== 0) return; // left click only
-    e.preventDefault();
+  // Placement now happens on mouse-UP (click discrimination), so a drag that
+  // refines an existing point is never mistaken for a new placement.
+  const placePointAt = (cssX: number, cssY: number) => {
     const st = stateRef.current;
     if (st.points.length >= 4) return;
-    const cp = getCanvasPos(e);
-    const ip = cvs2img(cp.x, cp.y);
-    // Clamp to image bounds
+    const ip = cvs2img(cssX, cssY);
     ip.x = Math.max(0, Math.min(naturalW, ip.x));
     ip.y = Math.max(0, Math.min(naturalH, ip.y));
     st.points = [...st.points, ip];
     setPtCount(st.points.length);
-
-    if (st.points.length === 4) {
-      const [p1, p2, p3, p4] = st.points;
-      const angle = calculateCobbAngle(p1, p2, p3, p4);
-      st.cobb = angle;
-      setCobb(angle);
-      onCobbMeasured?.(angle, st.points);
-    }
+    recomputeCobb();
     draw();
   };
 
@@ -279,23 +313,71 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 2) return; // right click = pan
-    e.preventDefault();
-    stateRef.current.isPanning = true;
+    const st = stateRef.current;
     const cp = getCanvasPos(e);
-    stateRef.current.lastX = cp.x;
-    stateRef.current.lastY = cp.y;
+    st.downX = cp.x; st.downY = cp.y;
+    st.lastX = cp.x; st.lastY = cp.y;
+
+    if (e.button === 2) { // right click = pan
+      e.preventDefault();
+      st.isPanning = true;
+      return;
+    }
+    if (e.button === 0) {
+      // Left button on an existing point → start refining (drag) it.
+      const hit = hitTestPoint(cp.x, cp.y);
+      if (hit !== null) {
+        e.preventDefault();
+        st.draggingIdx = hit;
+      }
+    }
   };
   const handleMouseMove = (e: React.MouseEvent) => {
     const st = stateRef.current;
-    if (!st.isPanning) return;
     const cp = getCanvasPos(e);
-    st.panX += cp.x - st.lastX;
-    st.panY += cp.y - st.lastY;
-    st.lastX = cp.x; st.lastY = cp.y;
-    draw();
+
+    // Dragging a point to refine its position → live Cobb recompute.
+    if (st.draggingIdx !== null) {
+      const ip = cvs2img(cp.x, cp.y);
+      ip.x = Math.max(0, Math.min(naturalW, ip.x));
+      ip.y = Math.max(0, Math.min(naturalH, ip.y));
+      st.points = st.points.map((p, i) => i === st.draggingIdx ? ip : p);
+      recomputeCobb();
+      draw();
+      return;
+    }
+    if (st.isPanning) {
+      st.panX += cp.x - st.lastX;
+      st.panY += cp.y - st.lastY;
+      st.lastX = cp.x; st.lastY = cp.y;
+      draw();
+      return;
+    }
+    // Idle hover — highlight a grabbable point (cursor feedback).
+    const hovered = st.points.length ? hitTestPoint(cp.x, cp.y) : null;
+    setHoverIdx(prev => prev === hovered ? prev : hovered);
   };
-  const handleMouseUp     = () => { stateRef.current.isPanning = false; };
+  const handleMouseUp = (e: React.MouseEvent) => {
+    const st = stateRef.current;
+    const wasDragging = st.draggingIdx !== null;
+    const wasPanning  = st.isPanning;
+    st.draggingIdx = null;
+    st.isPanning = false;
+    if (wasDragging || wasPanning) return;
+    if (e.button !== 0) return;
+    // A left click that didn't move much → place a new point.
+    const cp = getCanvasPos(e);
+    if (Math.hypot(cp.x - st.downX, cp.y - st.downY) < 6) {
+      placePointAt(cp.x, cp.y);
+    }
+  };
+  // Leaving the canvas cancels any in-progress drag/pan WITHOUT placing a point
+  // (placement must be an explicit click, never a stale mouse-leave).
+  const handleMouseLeave = () => {
+    stateRef.current.draggingIdx = null;
+    stateRef.current.isPanning = false;
+    setHoverIdx(null);
+  };
   const handleContextMenu = (e: React.MouseEvent) => e.preventDefault();
 
   // ── HATA 2 FIX: Mobile touch support ──────────────────────────
@@ -316,12 +398,20 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   const handleTouchStart = (e: React.TouchEvent) => {
     e.preventDefault();
     if (e.touches.length === 1) {
-      // Single touch — start potential pan if 4 points already placed
       const st = stateRef.current;
-      st.isPanning = true;
       const cp = getTouchCanvasPos(e.touches[0]);
+      st.downX = cp.x; st.downY = cp.y;
       st.lastX = cp.x; st.lastY = cp.y;
       lastPinchDist.current = null;
+      // Finger down on an existing point → refine it (drag); else pan.
+      const hit = st.points.length ? hitTestPoint(cp.x, cp.y) : null;
+      if (hit !== null) {
+        st.draggingIdx = hit;
+        st.isPanning = false;
+      } else {
+        st.draggingIdx = null;
+        st.isPanning = true;
+      }
     } else if (e.touches.length === 2) {
       // Two fingers — prepare for pinch
       stateRef.current.isPanning = false;
@@ -365,6 +455,16 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       st.zoom = newZoom;
       draw();
 
+    } else if (e.touches.length === 1 && st.draggingIdx !== null) {
+      // ── Single-finger point refine (drag) ──────────────────
+      const cp = getTouchCanvasPos(e.touches[0]);
+      const ip = cvs2img(cp.x, cp.y);
+      ip.x = Math.max(0, Math.min(naturalW, ip.x));
+      ip.y = Math.max(0, Math.min(naturalH, ip.y));
+      st.points = st.points.map((p, i) => i === st.draggingIdx ? ip : p);
+      st.lastX = cp.x; st.lastY = cp.y;
+      recomputeCobb();
+      draw();
     } else if (e.touches.length === 1 && st.isPanning) {
       // ── Single-finger pan ──────────────────────────────────
       const cp = getTouchCanvasPos(e.touches[0]);
@@ -378,34 +478,32 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   const handleTouchEnd = (e: React.TouchEvent) => {
     e.preventDefault();
     const st = stateRef.current;
+    const wasDragging = st.draggingIdx !== null;
 
-    if (e.changedTouches.length === 1 && e.touches.length === 0) {
-      // Tap lifted — place a point ONLY if finger didn't move much (≤ 10px)
+    if (!wasDragging && e.changedTouches.length === 1 && e.touches.length === 0) {
+      // Tap lifted (no point was being refined) — place a point ONLY if the
+      // finger stayed near where it went down (≤ 10px) and didn't grab a point.
       const touch = e.changedTouches[0];
       const cp    = getTouchCanvasPos(touch);
-      const moved = Math.hypot(cp.x - st.lastX, cp.y - st.lastY);
+      const moved = Math.hypot(cp.x - st.downX, cp.y - st.downY);
       if (moved < 10 && st.points.length < 4 && lastPinchDist.current === null) {
         const ip = cvs2img(cp.x, cp.y);
         ip.x = Math.max(0, Math.min(naturalW, ip.x));
         ip.y = Math.max(0, Math.min(naturalH, ip.y));
         st.points = [...st.points, ip];
         setPtCount(st.points.length);
-        if (st.points.length === 4) {
-          const [p1, p2, p3, p4] = st.points;
-          const angle = calculateCobbAngle(p1, p2, p3, p4);
-          st.cobb = angle; setCobb(angle);
-          onCobbMeasured?.(angle, st.points);
-        }
+        recomputeCobb();
         draw();
       }
     }
     if (e.touches.length < 2) lastPinchDist.current = null;
-    if (e.touches.length === 0) st.isPanning = false;
+    if (e.touches.length === 0) { st.isPanning = false; st.draggingIdx = null; }
   };
 
   const handleTouchCancel = () => {
     const st = stateRef.current;
     st.isPanning = false;
+    st.draggingIdx = null;
     lastPinchDist.current = null;
   };
 
@@ -417,8 +515,9 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   useEffect(() => {
     keyHandlerRef.current = (e: KeyboardEvent) => {
       if (e.key === 'r' || e.key === 'R') {
-        stateRef.current.points = []; stateRef.current.cobb = null;
-        setPtCount(0); setCobb(null); draw();
+        const st = stateRef.current;
+        st.points = []; st.cobb = null; st.draggingIdx = null;
+        setPtCount(0); setCobb(null); setHoverIdx(null); draw();
       }
     };
   }); // Run every render to keep ref current — no dep array needed
@@ -451,8 +550,9 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
   }, [draw]);
 
   const resetPoints = () => {
-    stateRef.current.points = []; stateRef.current.cobb = null;
-    setPtCount(0); setCobb(null); draw();
+    const st = stateRef.current;
+    st.points = []; st.cobb = null; st.draggingIdx = null;
+    setPtCount(0); setCobb(null); setHoverIdx(null); draw();
   };
   const resetZoom = () => {
     stateRef.current.zoom = 1; stateRef.current.panX = 0; stateRef.current.panY = 0; draw();
@@ -505,19 +605,18 @@ export const AdvancedManualTool: React.FC<AdvancedManualToolProps> = ({
       </div>
 
       {/* Canvas */}
-      <div style={{ flex:1, position:'relative', background:'#000', overflow:'hidden', cursor: stateRef.current.isPanning ? 'grabbing' : ptCount < 4 ? 'crosshair' : 'default' }}>
+      <div style={{ flex:1, position:'relative', background:'#000', overflow:'hidden', cursor: stateRef.current.draggingIdx !== null ? 'grabbing' : hoverIdx !== null ? 'grab' : ptCount < 4 ? 'crosshair' : 'default' }}>
         <canvas
           ref={canvasRef}
           style={{
             display: 'block', width: '100%', height: '100%',
             touchAction: 'none', // HATA 2 FIX: prevents page scroll on touch
           }}
-          onClick={handleClick}
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
           onContextMenu={handleContextMenu}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
