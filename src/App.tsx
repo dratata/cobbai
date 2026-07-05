@@ -528,8 +528,15 @@ const App: React.FC = () => {
     const overlay = document.querySelector('#overlay-canvas') as HTMLCanvasElement | null;
     if (overlay && controls.showOverlay && overlay.width > 0 && overlay.height > 0) {
       // overlay.width/height = CSS-rendered px via ResizeObserver
-      // We need to draw it scaled to fill natW×natH
+      // We need to draw it scaled to fill natW×natH.
+      // BUG FIX: the on-screen overlay's opacity slider is applied via CSS
+      // (see CobbOverlay.tsx `opacity: overlayOpacity/100`), which only affects
+      // DOM compositing — drawImage() copies the canvas's raw pixel bitmap and
+      // ignores CSS opacity entirely. Without globalAlpha here, the exported
+      // PNG always showed the overlay at full opacity regardless of the slider.
+      ctx.globalAlpha = controls.overlayOpacity / 100;
       ctx.drawImage(overlay, 0, 0, overlay.width, overlay.height, 0, 0, natW, natH);
+      ctx.globalAlpha = 1;
     }
 
     // Branding strip

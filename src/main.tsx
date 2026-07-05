@@ -10,3 +10,13 @@ createRoot(root).render(
     <App />
   </React.StrictMode>
 );
+
+// PWA service worker — enables offline caching + installability.
+// (manifest.json + icons are built and deployed, but were never wired up
+// from this entry point; index.legacy.html registered it but that page
+// isn't served as the app root — see vercel.json's rewrite to /index.html.)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
