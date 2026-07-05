@@ -226,7 +226,10 @@ const RecCard: React.FC<{ ico:string; title:string; body:string }> = ({ ico, tit
   <div style={{ background:'#0e1419', padding:'1.1rem' }}>
     <div style={{ fontSize:18, marginBottom:6 }}>{ico}</div>
     <div style={{ fontSize:10, letterSpacing:'1px', color:'#00c853', marginBottom:7, fontWeight:700 }}>{title}</div>
-    <div style={{ fontSize:14, color:'#7a8fa0', lineHeight:1.65 }} dangerouslySetInnerHTML={{ __html: (body||'—').replace(/\n/g,'<br/>') }}/>
+    {/* Plain-text render (not dangerouslySetInnerHTML): `body` can fall back to raw
+        AI-generated text (see processSpineResult in cobbCalculation.ts) which must
+        never be interpreted as HTML. whiteSpace:pre-line preserves newlines safely. */}
+    <div style={{ fontSize:14, color:'#7a8fa0', lineHeight:1.65, whiteSpace:'pre-line' }}>{body || '—'}</div>
   </div>
 );
 
