@@ -34,7 +34,11 @@ export const ManualAssessmentCard: React.FC<Props> = ({
   const t = getT(lang);
   const isRTL = lang === 'ar';
   const [location, setLocation] = useState<CurveLocation>('thoracic');
-  const [saved, setSaved] = useState(false);
+  // Track WHICH measurement was saved (not just a boolean) so re-measuring a
+  // different angle re-enables the save button. A plain boolean would stay
+  // "saved" after the operator refines the Cobb angle, blocking the new save.
+  const [savedCobb, setSavedCobb] = useState<number | null>(null);
+  const saved = savedCobb === cobb;
 
   const severity = classifyCobb(cobb);
   const sevColour = SEV_COLOURS[severity] ?? '#7a8fa0';
@@ -57,7 +61,7 @@ export const ManualAssessmentCard: React.FC<Props> = ({
       source: 'manual',
       ts: Date.now(),
     });
-    setSaved(true);
+    setSavedCobb(cobb);
   };
 
   const heading = lang==='tr' ? 'Yerel Değerlendirme (API yok)'
