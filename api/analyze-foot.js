@@ -149,13 +149,14 @@ Follow this exact JSON schema, write nothing else:`;
   };
 
   // Fix 1 + Fix 3: same abort controller pattern as analyze-spine.js.
-  // Timeout raised from 8s to 28s — multimodal Gemini calls routinely exceed
-  // 8s, causing false-positive timeouts. vercel.json sets maxDuration:30 for
-  // this function, so 28s leaves slack for JSON parsing/response writing.
+  // Multimodal Gemini calls routinely take 20-40s, so the earlier 28s abort
+  // produced frequent false-positive timeouts. vercel.json now sets
+  // maxDuration:60 for this function, so the abort is raised to 55s (5s slack
+  // for JSON parsing/response writing). Keep client fetch timeout above this.
   const geminiCtrl   = new AbortController();
   let   clientClosed = false;
   req.on('close', () => { clientClosed = true; geminiCtrl.abort(new Error('CLIENT_DISCONNECTED')); });
-  const timeoutId = setTimeout(() => geminiCtrl.abort(new Error('GEMINI_TIMEOUT')), 28_000);
+  const timeoutId = setTimeout(() => geminiCtrl.abort(new Error('GEMINI_TIMEOUT')), 55_000);
 
   async function callGemini() {
     return fetch(apiUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(reqBody), signal: geminiCtrl.signal });

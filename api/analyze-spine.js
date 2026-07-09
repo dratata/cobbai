@@ -95,10 +95,10 @@ export default async function handler(req, res) {
   // ── Fix 3: Hard timeout on the Gemini fetch ───────────────────────────────
   // Problem: Gemini occasionally stalls (no headers, no body) and the Vercel
   // function hits its max execution time, producing an opaque 504 gateway error.
-  // An earlier 8 s timeout was too aggressive — multimodal (image) Gemini
-  // calls routinely take longer than 8 s, causing frequent false-positive
-  // timeouts. vercel.json now sets maxDuration:30 for this function, so the
-  // abort timeout is raised to match, with slack for JSON parsing/response writing.
+  // Multimodal (image) Gemini calls routinely take 20-40 s, so an earlier 28 s
+  // abort caused frequent false-positive "Google AI did not respond in time"
+  // timeouts. vercel.json now sets maxDuration:60 for this function, so the abort
+  // timeout is raised to 55 s (5 s slack for JSON parsing/response writing).
   const geminiCtrl    = new AbortController();
   let   clientClosed  = false;
 
@@ -108,8 +108,8 @@ export default async function handler(req, res) {
     geminiCtrl.abort(new Error('CLIENT_DISCONNECTED'));
   });
 
-  // Fix 3: hard timeout — keep below vercel.json's maxDuration:30 for this function
-  const GEMINI_TIMEOUT_MS = 28_000;
+  // Fix 3: hard timeout — keep below vercel.json's maxDuration:60 for this function
+  const GEMINI_TIMEOUT_MS = 55_000;
   const timeoutId = setTimeout(
     () => geminiCtrl.abort(new Error('GEMINI_TIMEOUT')),
     GEMINI_TIMEOUT_MS
@@ -126,7 +126,7 @@ export default async function handler(req, res) {
 
   try {
     let r = await callGemini();
-    clearTimeout(timeoutId); // ← cancel the 8-s timer now that we have a response
+    clearTimeout(timeoutId); // ← cancel the abort timer now that we have a response
 
     // Safe JSON parse — Gemini occasionally returns non-JSON on errors
     let d;

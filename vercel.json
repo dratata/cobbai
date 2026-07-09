@@ -7,8 +7,8 @@
     { "source": "/((?!api/).*)",      "destination": "/index.html"            }
   ],
   "functions": {
-    "api/analyze-spine.js": { "maxDuration": 30 },
-    "api/analyze-foot.js":  { "maxDuration": 30 }
+    "api/analyze-spine.js": { "maxDuration": 60 },
+    "api/analyze-foot.js":  { "maxDuration": 60 }
   },
   "headers": [
     {
